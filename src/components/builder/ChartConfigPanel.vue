@@ -1,12 +1,6 @@
 <script setup>
 import { useBuilderStore } from '../../stores/builderStore.js'
 import { useRouter } from 'vue-router'
-import {
-  CHART_TYPE_OPTIONS,
-  X_AXIS_OPTIONS,
-  Y_AXIS_OPTIONS,
-  GROUPING_OPTIONS
-} from '../../mock/cellData.js'
 
 const store = useBuilderStore()
 const router = useRouter()
@@ -35,7 +29,7 @@ function onGenerate() {
           style="width: 100%"
         >
           <el-option
-            v-for="opt in CHART_TYPE_OPTIONS"
+            v-for="opt in store.chartOptions.chartTypes"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -50,7 +44,7 @@ function onGenerate() {
           style="width: 100%"
         >
           <el-option
-            v-for="opt in X_AXIS_OPTIONS"
+            v-for="opt in store.chartOptions.xAxisOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -65,7 +59,7 @@ function onGenerate() {
           style="width: 100%"
         >
           <el-option
-            v-for="opt in Y_AXIS_OPTIONS"
+            v-for="opt in store.chartOptions.yAxisOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -82,7 +76,7 @@ function onGenerate() {
           placeholder="None"
         >
           <el-option
-            v-for="opt in Y_AXIS_OPTIONS"
+            v-for="opt in store.chartOptions.yAxisOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -97,7 +91,7 @@ function onGenerate() {
           style="width: 100%"
         >
           <el-option
-            v-for="opt in GROUPING_OPTIONS"
+            v-for="opt in store.chartOptions.groupingOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"

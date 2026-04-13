@@ -1,0 +1,64 @@
+{
+  "searchTableColumns": [
+    { "key": "cellName", "label": "Cell Name", "width": 160 },
+    { "key": "cellType", "label": "Cell Type", "width": 100 },
+    { "key": "evt", "label": "EVT", "width": 80 },
+    { "key": "driveStrength", "label": "Drive Strength", "width": 120 },
+    { "key": "nanosheet", "label": "Nanosheet", "width": 100 },
+    { "key": "library", "label": "Library", "width": 140 },
+    { "key": "gateLength", "label": "Gate Length", "width": 100 },
+    { "key": "cpp", "label": "CPP", "width": 80 },
+    { "key": "cellHeight", "label": "Cell Height", "width": 100 },
+    { "key": "feolCorner", "label": "FEOL Corner", "width": 110 },
+    { "key": "beolCorner", "label": "BEOL Corner", "width": 110 },
+    { "key": "gdsOverlay", "label": "GDS Overlay", "width": 110 },
+    { "key": "vth", "label": "Vth", "width": 80 },
+    { "key": "vdd", "label": "VDD", "width": 80 },
+    { "key": "temp", "label": "Temp", "width": 80 },
+    { "key": "lot", "label": "Lot", "width": 110 },
+    { "key": "wafer", "label": "Wafer", "width": 80 },
+    { "key": "createTime", "label": "Create Time", "width": 120 }
+  ],
+  "selectedCellsMetadataColumns": [
+    { "prop": "lot", "label": "Lot", "width": 100 },
+    { "prop": "wafer", "label": "Wafer", "width": 80 },
+    { "prop": "gateLength", "label": "Gate Length", "width": 100 },
+    { "prop": "cpp", "label": "CPP", "width": 70 },
+    { "prop": "nanosheet", "label": "Nanosheet", "width": 100 },
+    { "prop": "driveStrength", "label": "Drive Str.", "width": 90 },
+    { "prop": "feolCorner", "label": "FEOL", "width": 80 },
+    { "prop": "beolCorner", "label": "BEOL", "width": 80 }
+  ],
+  "selectedCellsSimulationColumns": [
+    { "prop": "vdd", "label": "VDD (V)", "width": 90, "numeric": true },
+    { "prop": "vth", "label": "Vth (V)", "width": 90, "numeric": true },
+    { "prop": "temp", "label": "Temp (°C)", "width": 100, "numeric": true },
+    { "prop": "iPeak", "label": "I_peak (μA)", "width": 110, "numeric": true },
+    { "prop": "iAvg", "label": "I_avg (μA)", "width": 110, "numeric": true },
+    { "prop": "delay", "label": "Delay (ps)", "width": 110, "numeric": true }
+  ],
+  "chartOptions": {
+    "chartTypes": [
+      { "value": "line", "label": "Line Chart" },
+      { "value": "scatter", "label": "Scatter Plot" },
+      { "value": "bar", "label": "Bar Chart" }
+    ],
+    "xAxisOptions": [
+      { "value": "voltage", "label": "Voltage (V)" },
+      { "value": "temp", "label": "Temperature (°C)" },
+      { "value": "vdd", "label": "VDD (V)" }
+    ],
+    "yAxisOptions": [
+      { "value": "currentMA", "label": "Current (mA)" },
+      { "value": "currentUA", "label": "Current (μA)" },
+      { "value": "voltage", "label": "Voltage (V)" }
+    ],
+    "groupingOptions": [
+      { "value": "alias", "label": "By Alias" },
+      { "value": "cellType", "label": "By Cell Type" },
+      { "value": "driveStrength", "label": "By Drive Strength" },
+      { "value": "library", "label": "By Library" },
+      { "value": "feolCorner", "label": "By FEOL Corner" }
+    ]
+  }
+}

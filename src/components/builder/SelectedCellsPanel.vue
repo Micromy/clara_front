@@ -14,8 +14,6 @@ const COMPARISON_OPTIONS = [
   { label: 'Ratio', value: 'ratio' }
 ]
 
-const NUMERIC_SIM_FIELDS = ['vdd', 'vth', 'temp', 'iPeak', 'iAvg', 'delay']
-
 function updateAlias(cellId, value) {
   store.setCellAlias(store.activeBuilder.id, cellId, value)
 }
@@ -56,10 +54,11 @@ const tableRows = computed(() => {
   if (displayMode.value !== 'simulation' || comparisonMode.value === 'off') return cells
   const ref = cells.find(c => c.id === referenceCellId.value)
   if (!ref) return cells
+  const numericFields = store.numericSimFields
   return cells.map(c => {
     if (c.id === ref.id) return c
     const copy = { ...c }
-    for (const key of NUMERIC_SIM_FIELDS) {
+    for (const key of numericFields) {
       const a = c[key], b = ref[key]
       if (typeof a === 'number' && typeof b === 'number') {
         if (comparisonMode.value === 'diff') {
@@ -160,22 +159,23 @@ function formatSimCell({ row, column, cellValue }) {
       <el-table-column prop="cellName" label="Cell Name" width="150" show-overflow-tooltip />
 
       <template v-if="displayMode === 'metadata'">
-        <el-table-column prop="lot" label="Lot" width="100" />
-        <el-table-column prop="wafer" label="Wafer" width="80" />
-        <el-table-column prop="gateLength" label="Gate Length" width="100" />
-        <el-table-column prop="cpp" label="CPP" width="70" />
-        <el-table-column prop="nanosheet" label="Nanosheet" width="100" />
-        <el-table-column prop="driveStrength" label="Drive Str." width="90" />
-        <el-table-column prop="feolCorner" label="FEOL" width="80" />
-        <el-table-column prop="beolCorner" label="BEOL" width="80" />
+        <el-table-column
+          v-for="col in store.selectedCellsMetadataColumns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+          :width="col.width"
+        />
       </template>
       <template v-else>
-        <el-table-column prop="vdd" label="VDD (V)" width="90" :formatter="formatSimCell" />
-        <el-table-column prop="vth" label="Vth (V)" width="90" :formatter="formatSimCell" />
-        <el-table-column prop="temp" label="Temp (°C)" width="100" :formatter="formatSimCell" />
-        <el-table-column prop="iPeak" label="I_peak (μA)" width="110" :formatter="formatSimCell" />
-        <el-table-column prop="iAvg" label="I_avg (μA)" width="110" :formatter="formatSimCell" />
-        <el-table-column prop="delay" label="Delay (ps)" width="110" :formatter="formatSimCell" />
+        <el-table-column
+          v-for="col in store.selectedCellsSimulationColumns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+          :width="col.width"
+          :formatter="col.numeric ? formatSimCell : undefined"
+        />
       </template>
 
       <el-table-column label="" width="50" fixed="right">

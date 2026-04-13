@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
-import { COLUMN_DEFINITIONS } from '../../mock/cellData.js'
 
 const store = useBuilderStore()
 
@@ -75,7 +74,7 @@ function isRowSelected(row) {
     >
       <el-table-column type="selection" width="45" :reserve-selection="true" />
       <el-table-column
-        v-for="col in COLUMN_DEFINITIONS"
+        v-for="col in store.searchTableColumns"
         :key="col.key"
         :prop="col.key"
         :label="col.label"

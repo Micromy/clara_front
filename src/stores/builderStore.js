@@ -1,10 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { generateCellList } from '../mock/cellData.js'
+import { fetchCells, fetchColumnConfig } from '../api/cells.js'
 
 export const useBuilderStore = defineStore('builder', () => {
-  // All cells from mock data
-  const allCells = ref(generateCellList(100))
+  // Data fetched from API layer (backed by JSON today)
+  const allCells = ref([])
+  const config = ref(null)
+  const loading = ref(false)
+  const error = ref(null)
+  let initPromise = null
 
   // Builders management
   const builders = ref([
@@ -26,12 +30,43 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
+  async function init() {
+    if (initPromise) return initPromise
+    loading.value = true
+    error.value = null
+    initPromise = Promise.all([fetchCells(), fetchColumnConfig()])
+      .then(([cells, cfg]) => {
+        allCells.value = cells
+        config.value = cfg
+      })
+      .catch((err) => {
+        error.value = err
+        console.error('[builderStore] init failed:', err)
+        throw err
+      })
+      .finally(() => {
+        loading.value = false
+      })
+    return initPromise
+  }
+
   const activeBuilder = computed(() => builders.value[activeBuilderIndex.value])
 
   const selectedCells = computed(() => {
     if (!activeBuilder.value) return []
     return allCells.value.filter(c => activeBuilder.value.selectedCellIds.includes(c.id))
   })
+
+  // Convenience getters over config
+  const searchTableColumns = computed(() => config.value?.searchTableColumns ?? [])
+  const selectedCellsMetadataColumns = computed(() => config.value?.selectedCellsMetadataColumns ?? [])
+  const selectedCellsSimulationColumns = computed(() => config.value?.selectedCellsSimulationColumns ?? [])
+  const chartOptions = computed(() => config.value?.chartOptions ?? {
+    chartTypes: [], xAxisOptions: [], yAxisOptions: [], groupingOptions: []
+  })
+  const numericSimFields = computed(() =>
+    selectedCellsSimulationColumns.value.filter(c => c.numeric).map(c => c.prop)
+  )
 
   // Cell aliases: builderId -> cellId -> alias
   const cellAliases = ref({})
@@ -97,7 +132,7 @@ export const useBuilderStore = defineStore('builder', () => {
   function generateChart() {
     if (!activeBuilder.value || selectedCells.value.length === 0) return null
 
-    const config = activeBuilder.value.chartConfig
+    const cfg = activeBuilder.value.chartConfig
     const builderId = activeBuilder.value.id
 
     // Add or update chart tab
@@ -109,7 +144,7 @@ export const useBuilderStore = defineStore('builder', () => {
         ...c,
         alias: getCellAlias(builderId, c.id) || c.cellName
       })),
-      config: { ...config }
+      config: { ...cfg }
     }
 
     if (existingIdx !== -1) {
@@ -127,13 +162,26 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   return {
+    // data
     allCells,
+    config,
+    loading,
+    error,
+    // config getters
+    searchTableColumns,
+    selectedCellsMetadataColumns,
+    selectedCellsSimulationColumns,
+    chartOptions,
+    numericSimFields,
+    // builders
     builders,
     activeBuilderIndex,
     activeBuilder,
     selectedCells,
     cellAliases,
     chartTabs,
+    // actions
+    init,
     getCellAlias,
     setCellAlias,
     toggleCellSelection,

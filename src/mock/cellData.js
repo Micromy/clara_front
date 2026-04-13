@@ -77,49 +77,5 @@ export function generateCellList(count = 100) {
   return cells
 }
 
-export const COLUMN_DEFINITIONS = [
-  { key: 'cellName', label: 'Cell Name', width: 160 },
-  { key: 'cellType', label: 'Cell Type', width: 100 },
-  { key: 'evt', label: 'EVT', width: 80 },
-  { key: 'driveStrength', label: 'Drive Strength', width: 120 },
-  { key: 'nanosheet', label: 'Nanosheet', width: 100 },
-  { key: 'library', label: 'Library', width: 140 },
-  { key: 'gateLength', label: 'Gate Length', width: 100 },
-  { key: 'cpp', label: 'CPP', width: 80 },
-  { key: 'cellHeight', label: 'Cell Height', width: 100 },
-  { key: 'feolCorner', label: 'FEOL Corner', width: 110 },
-  { key: 'beolCorner', label: 'BEOL Corner', width: 110 },
-  { key: 'gdsOverlay', label: 'GDS Overlay', width: 110 },
-  { key: 'vth', label: 'Vth', width: 80 },
-  { key: 'vdd', label: 'VDD', width: 80 },
-  { key: 'temp', label: 'Temp', width: 80 },
-  { key: 'lot', label: 'Lot', width: 110 },
-  { key: 'wafer', label: 'Wafer', width: 80 },
-  { key: 'createTime', label: 'Create Time', width: 120 }
-]
-
-export const CHART_TYPE_OPTIONS = [
-  { value: 'line', label: 'Line Chart' },
-  { value: 'scatter', label: 'Scatter Plot' },
-  { value: 'bar', label: 'Bar Chart' }
-]
-
-export const X_AXIS_OPTIONS = [
-  { value: 'voltage', label: 'Voltage (V)' },
-  { value: 'temp', label: 'Temperature (°C)' },
-  { value: 'vdd', label: 'VDD (V)' }
-]
-
-export const Y_AXIS_OPTIONS = [
-  { value: 'currentMA', label: 'Current (mA)' },
-  { value: 'currentUA', label: 'Current (μA)' },
-  { value: 'voltage', label: 'Voltage (V)' }
-]
-
-export const GROUPING_OPTIONS = [
-  { value: 'alias', label: 'By Alias' },
-  { value: 'cellType', label: 'By Cell Type' },
-  { value: 'driveStrength', label: 'By Drive Strength' },
-  { value: 'library', label: 'By Library' },
-  { value: 'feolCorner', label: 'By FEOL Corner' }
-]
+// Column definitions and chart options now live in
+// public/data/column-config.json and are served by src/api/cells.js.
