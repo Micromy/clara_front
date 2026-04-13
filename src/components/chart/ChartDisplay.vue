@@ -14,47 +14,137 @@ const COLORS = [
   '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#4dc9f6'
 ]
 
+const AXIS_LABELS = {
+  vdd: 'VDD (V)',
+  temp: 'Temperature (°C)',
+  vth: 'Vth (V)',
+  gateLength: 'Gate Length',
+  cpp: 'CPP',
+  iPeak: 'I_peak (μA)',
+  iAvg: 'I_avg (μA)',
+  delay: 'Delay (ps)'
+}
+
 function getAxisLabel(key) {
-  const labels = {
-    voltage: 'Voltage (V)',
-    currentMA: 'Current (mA)',
-    currentUA: 'Current (μA)',
-    temp: 'Temperature (°C)',
-    vdd: 'VDD (V)'
-  }
-  return labels[key] || key
+  return AXIS_LABELS[key] || key
 }
 
 const chartOption = computed(() => {
   const { cells, config } = props.chartData
   if (!cells || cells.length === 0) return {}
 
-  const series = cells.map((cell, idx) => {
-    const data = cell.ivData.map(point => [point[config.xAxis], point[config.yAxisPrimary]])
-    return {
-      name: cell.alias || cell.cellName,
-      type: config.chartType === 'scatter' ? 'scatter' : 'line',
-      data,
-      smooth: true,
-      symbol: config.chartType === 'scatter' ? 'circle' : 'none',
-      lineStyle: { width: 2 },
-      itemStyle: { color: COLORS[idx % COLORS.length] }
+  const isBar = config.chartType === 'bar'
+  const isLine = config.chartType === 'line'
+
+  // Group cells by the grouping field
+  const groups = new Map()
+  cells.forEach(cell => {
+    const key = String(cell[config.grouping] ?? cell.alias ?? cell.cellName)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(cell)
+  })
+
+  // For bar chart: collect unique X values as categories (sorted)
+  let xCategories = null
+  if (isBar) {
+    const xVals = new Set(cells.map(c => c[config.xAxis]))
+    xCategories = [...xVals].sort((a, b) => a - b).map(String)
+  }
+
+  const series = []
+  let colorIdx = 0
+
+  groups.forEach((groupCells, groupName) => {
+    const color = COLORS[colorIdx % COLORS.length]
+    colorIdx++
+
+    if (isBar) {
+      const data = xCategories.map(xCat => {
+        const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
+        if (!matching.length) return null
+        const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
+        return Math.round(avg * 100) / 100
+      })
+      series.push({ name: groupName, type: 'bar', data, itemStyle: { color } })
+    } else {
+      const sortedCells = isLine
+        ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
+        : groupCells
+      const data = sortedCells.map(c => [c[config.xAxis], c[config.yAxisPrimary]])
+      series.push({
+        name: groupName,
+        type: isLine ? 'line' : 'scatter',
+        data,
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: isLine ? 5 : 8,
+        lineStyle: { width: 2 },
+        itemStyle: { color }
+      })
+    }
+
+    // Secondary Y-axis series
+    if (config.yAxisSecondary) {
+      if (isBar) {
+        const data = xCategories.map(xCat => {
+          const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
+          if (!matching.length) return null
+          const avg = matching.reduce((s, c) => s + (c[config.yAxisSecondary] ?? 0), 0) / matching.length
+          return Math.round(avg * 100) / 100
+        })
+        series.push({
+          name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
+          type: 'bar',
+          yAxisIndex: 1,
+          data,
+          itemStyle: { color },
+          barGap: '30%'
+        })
+      } else {
+        const sortedCells = isLine
+          ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
+          : groupCells
+        const data = sortedCells.map(c => [c[config.xAxis], c[config.yAxisSecondary]])
+        series.push({
+          name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
+          type: isLine ? 'line' : 'scatter',
+          yAxisIndex: 1,
+          data,
+          symbol: isLine ? 'triangle' : 'diamond',
+          symbolSize: isLine ? 5 : 8,
+          lineStyle: { width: 1, type: 'dashed' },
+          itemStyle: { color }
+        })
+      }
     }
   })
 
   const option = {
     title: {
-      text: `${props.chartData.builderName}`,
+      text: props.chartData.builderName,
       left: 'center',
       textStyle: { fontSize: 14 }
     },
     tooltip: {
-      trigger: 'axis',
+      trigger: isBar ? 'axis' : 'item',
       formatter(params) {
         if (!Array.isArray(params)) params = [params]
-        let html = `<strong>${getAxisLabel(config.xAxis)}: ${params[0].data[0]}</strong><br/>`
+        if (isBar) {
+          const xVal = params[0]?.name
+          let html = `<strong>${getAxisLabel(config.xAxis)}: ${xVal}</strong><br/>`
+          params.forEach(p => {
+            if (p.value != null) {
+              html += `<span style="color:${p.color}">●</span> ${p.seriesName}: ${p.value}<br/>`
+            }
+          })
+          return html
+        }
+        let html = ''
         params.forEach(p => {
-          html += `<span style="color:${p.color}">●</span> ${p.seriesName}: ${p.data[1]}<br/>`
+          const [x, y] = Array.isArray(p.data) ? p.data : [null, p.data]
+          html += `<span style="color:${p.color}">●</span> <strong>${p.seriesName}</strong><br/>`
+          html += `&nbsp;&nbsp;${getAxisLabel(config.xAxis)}: ${x}<br/>`
+          html += `&nbsp;&nbsp;${getAxisLabel(p.yAxisIndex === 1 ? config.yAxisSecondary : config.yAxisPrimary)}: ${y}<br/>`
         })
         return html
       }
@@ -78,12 +168,20 @@ const chartOption = computed(() => {
       top: 50,
       bottom: 72
     },
-    xAxis: {
-      type: 'value',
-      name: getAxisLabel(config.xAxis),
-      nameLocation: 'center',
-      nameGap: 30
-    },
+    xAxis: isBar
+      ? {
+          type: 'category',
+          data: xCategories,
+          name: getAxisLabel(config.xAxis),
+          nameLocation: 'center',
+          nameGap: 30
+        }
+      : {
+          type: 'value',
+          name: getAxisLabel(config.xAxis),
+          nameLocation: 'center',
+          nameGap: 30
+        },
     yAxis: [
       {
         type: 'value',
@@ -95,7 +193,6 @@ const chartOption = computed(() => {
     series
   }
 
-  // Add secondary Y-axis
   if (config.yAxisSecondary) {
     option.yAxis.push({
       type: 'value',
@@ -103,21 +200,6 @@ const chartOption = computed(() => {
       nameLocation: 'center',
       nameGap: 40,
       position: 'right'
-    })
-
-    // Add secondary series
-    cells.forEach((cell, idx) => {
-      const data = cell.ivData.map(point => [point[config.xAxis], point[config.yAxisSecondary]])
-      option.series.push({
-        name: `${cell.alias || cell.cellName} (${getAxisLabel(config.yAxisSecondary)})`,
-        type: config.chartType === 'scatter' ? 'scatter' : 'line',
-        yAxisIndex: 1,
-        data,
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { width: 1, type: 'dashed' },
-        itemStyle: { color: COLORS[idx % COLORS.length] }
-      })
     })
   }
 

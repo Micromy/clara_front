@@ -5,41 +5,37 @@ const props = defineProps({
   chartData: { type: Object, required: true }
 })
 
-// Per-point fields (nested inside ivData[])
-const POINT_FIELDS = ['voltage', 'currentMA', 'currentUA']
-
-// Per-cell scalar simulation results
 const SCALAR_SIM_FIELDS = [
   { key: 'iPeak', label: 'iPeak (μA)', digits: 2 },
   { key: 'iAvg', label: 'iAvg (μA)', digits: 2 },
   { key: 'delay', label: 'Delay (ps)', digits: 1 }
 ]
 
-// Per-cell scalar test conditions (can also appear as axis choices)
 const SCALAR_META_FIELDS = [
   { key: 'vdd', label: 'VDD (V)', digits: 2 },
   { key: 'vth', label: 'Vth (V)', digits: 2 },
   { key: 'temp', label: 'Temp (°C)', digits: 1 }
 ]
 
-const LABELS = {
-  voltage: 'Voltage (V)',
-  currentMA: 'Current (mA)',
-  currentUA: 'Current (μA)',
-  temp: 'Temp (°C)',
+const ALL_FIELDS = [...SCALAR_SIM_FIELDS, ...SCALAR_META_FIELDS]
+
+const AXIS_LABELS = {
   vdd: 'VDD (V)',
+  temp: 'Temperature (°C)',
   vth: 'Vth (V)',
-  iPeak: 'iPeak (μA)',
-  iAvg: 'iAvg (μA)',
+  gateLength: 'Gate Length',
+  cpp: 'CPP',
+  iPeak: 'I_peak (μA)',
+  iAvg: 'I_avg (μA)',
   delay: 'Delay (ps)'
 }
 
 function labelFor(key) {
-  return LABELS[key] || key
+  return AXIS_LABELS[key] || ALL_FIELDS.find(f => f.key === key)?.label || key
 }
 
-function typeFor(key) {
-  return POINT_FIELDS.includes(key) ? 'point' : 'scalar'
+function digitsFor(key) {
+  return ALL_FIELDS.find(f => f.key === key)?.digits ?? 2
 }
 
 function formatNumber(v, digits = 2) {
@@ -48,55 +44,26 @@ function formatNumber(v, digits = 2) {
   return Number(v).toFixed(digits)
 }
 
-function rangeForPoints(cell, key) {
-  const vals = (cell.ivData || [])
-    .map(p => p?.[key])
-    .filter(v => typeof v === 'number')
-  if (!vals.length) return '—'
-  const mn = Math.min(...vals)
-  const mx = Math.max(...vals)
-  return `${formatNumber(mn, 3)} ~ ${formatNumber(mx, 3)} (${vals.length} pts)`
-}
-
-function scalar(cell, key, digits) {
-  return formatNumber(cell?.[key], digits ?? 2)
-}
-
 const cells = computed(() => props.chartData.cells || [])
 
-// Columns — ordered per user spec:
-//   1. xAxis field
-//   2. yAxisPrimary field
-//   3. yAxisSecondary field (if present)
-//   4+. remaining sim/metadata fields in natural order
-// No "X-axis / Y-axis" prefix labels — just the plain field label.
+// Columns: xAxis, yAxisPrimary, yAxisSecondary first, then remaining scalars
 const columns = computed(() => {
   const cfg = props.chartData.config || {}
   const axisOrder = [cfg.xAxis, cfg.yAxisPrimary, cfg.yAxisSecondary].filter(Boolean)
   const out = []
   const seen = new Set()
 
-  function add(key, type, label, digits) {
+  function add(key) {
     if (seen.has(key)) return
     seen.add(key)
-    out.push({ key, type, label, digits })
+    out.push({ key, label: labelFor(key), digits: digitsFor(key) })
   }
 
-  axisOrder.forEach(key => add(key, typeFor(key), labelFor(key)))
-  POINT_FIELDS.forEach(key => add(key, 'point', labelFor(key)))
-  SCALAR_SIM_FIELDS.forEach(({ key, label, digits }) => add(key, 'scalar', label, digits))
-  SCALAR_META_FIELDS.forEach(({ key, label, digits }) => add(key, 'scalar', label, digits))
-  add('__pts', 'pts', 'Data Points')
+  axisOrder.forEach(add)
+  ALL_FIELDS.forEach(f => add(f.key))
 
   return out
 })
-
-function cellValue(cell, col) {
-  if (col.type === 'pts') return `${cell.ivData?.length || 0} pts`
-  if (col.type === 'point') return rangeForPoints(cell, col.key)
-  if (col.type === 'scalar') return scalar(cell, col.key, col.digits)
-  return ''
-}
 </script>
 
 <template>
@@ -118,11 +85,11 @@ function cellValue(cell, col) {
         v-for="col in columns"
         :key="col.key"
         :label="col.label"
-        min-width="140"
+        min-width="120"
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          {{ cellValue(row, col) }}
+          {{ formatNumber(row[col.key], col.digits) }}
         </template>
       </el-table-column>
     </el-table>

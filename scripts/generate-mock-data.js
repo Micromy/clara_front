@@ -21,7 +21,7 @@ const outDir = resolve(projectRoot, 'public/data')
 mkdirSync(outDir, { recursive: true })
 
 // Fields that belong to the simulation payload (kept out of cells.json)
-const SIM_KEYS = ['iPeak', 'iAvg', 'delay', 'ivData']
+const SIM_KEYS = ['iPeak', 'iAvg', 'delay']
 
 const rawCells = generateCellList(count)
 

@@ -5,7 +5,7 @@ import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js
 export const useBuilderStore = defineStore('builder', () => {
   // Data fetched from API layer (backed by JSON today)
   const allCells = ref([])
-  const simulations = ref({})  // cellId -> { iPeak, iAvg, delay, ivData }
+  const simulations = ref({})  // cellId -> { iPeak, iAvg, delay }
   const config = ref(null)
   const loading = ref(false)
   const error = ref(null)
@@ -23,10 +23,10 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function createDefaultChartConfig() {
     return {
-      chartType: 'line',
-      xAxis: 'voltage',
-      yAxisPrimary: 'currentMA',
-      yAxisSecondary: 'currentUA',
+      chartType: 'scatter',
+      xAxis: 'vdd',
+      yAxisPrimary: 'iPeak',
+      yAxisSecondary: null,
       grouping: 'alias'
     }
   }

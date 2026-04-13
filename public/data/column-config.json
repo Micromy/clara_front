@@ -39,19 +39,21 @@
   ],
   "chartOptions": {
     "chartTypes": [
-      { "value": "line", "label": "Line Chart" },
       { "value": "scatter", "label": "Scatter Plot" },
+      { "value": "line", "label": "Line Chart" },
       { "value": "bar", "label": "Bar Chart" }
     ],
     "xAxisOptions": [
-      { "value": "voltage", "label": "Voltage (V)" },
+      { "value": "vdd", "label": "VDD (V)" },
       { "value": "temp", "label": "Temperature (°C)" },
-      { "value": "vdd", "label": "VDD (V)" }
+      { "value": "vth", "label": "Vth (V)" },
+      { "value": "gateLength", "label": "Gate Length" },
+      { "value": "cpp", "label": "CPP" }
     ],
     "yAxisOptions": [
-      { "value": "currentMA", "label": "Current (mA)" },
-      { "value": "currentUA", "label": "Current (μA)" },
-      { "value": "voltage", "label": "Voltage (V)" }
+      { "value": "iPeak", "label": "I_peak (μA)" },
+      { "value": "iAvg", "label": "I_avg (μA)" },
+      { "value": "delay", "label": "Delay (ps)" }
     ],
     "groupingOptions": [
       { "value": "alias", "label": "By Alias" },
