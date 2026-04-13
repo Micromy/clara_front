@@ -184,7 +184,7 @@ function onGenerate() {
     </el-form>
 
     <!-- Derived Metric Dialog -->
-    <el-dialog v-model="dialogVisible" title="Add Derived Metric" width="400px" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" title="Add Derived Metric" width="520px" :close-on-click-modal="false">
       <el-form label-position="top" size="small">
         <el-form-item label="Name">
           <el-input v-model="dfName" placeholder="e.g. Efficiency" style="width:100%" />
@@ -273,10 +273,10 @@ function onGenerate() {
 .action-btn { width: 100%; }
 .chart-config-panel :deep(.el-form-item__content) { width: 100%; }
 
-.derived-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.derived-item { display: flex; align-items: center; gap: 8px; background: #f5f7fa; border-radius: 4px; padding: 4px 8px; }
-.derived-name { font-weight: 600; font-size: 12px; min-width: 60px; }
-.derived-formula { flex: 1; font-size: 11px; color: #909399; }
+.derived-list { display: flex; flex-direction: column; gap: 6px; width: 100%; overflow: hidden; }
+.derived-item { display: flex; align-items: center; gap: 8px; background: #f5f7fa; border-radius: 4px; padding: 4px 8px; min-width: 0; overflow: hidden; }
+.derived-name { font-weight: 600; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+.derived-formula { flex: 1; font-size: 11px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .formula-row { display: flex; gap: 6px; align-items: center; width: 100%; }
 .formula-preview {

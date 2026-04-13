@@ -38,7 +38,14 @@ const chartOption = computed(() => {
 
   const isBar = config.chartType === 'bar'
   const isLine = config.chartType === 'line'
-  const secType = config.chartTypeSecondary || config.chartType
+
+  // Secondary type must be compatible with primary's x-axis type:
+  //   bar requires category x-axis → only allowed when primary is also bar; else falls back to line
+  //   scatter/line require value x-axis → only allowed when primary is NOT bar; else bar primary gets line fallback
+  const rawSecType = config.chartTypeSecondary || config.chartType
+  const secType = isBar
+    ? (rawSecType === 'bar' ? 'bar' : 'line')        // category x-axis: bar or line OK, scatter→line
+    : (rawSecType === 'bar' ? 'scatter' : rawSecType) // value x-axis: scatter/line OK, bar→scatter
   const isBarSec = secType === 'bar'
   const isLineSec = secType === 'line'
 
@@ -92,9 +99,8 @@ const chartOption = computed(() => {
     // Secondary Y-axis series
     if (config.yAxisSecondary) {
       if (isBarSec) {
-        // For bar secondary, we need xCategories — derive from bar or value x-axis
-        const xCats = xCategories || [...new Set(groupCells.map(c => c[config.xAxis]))].sort((a, b) => a - b).map(String)
-        const data = xCats.map(xCat => {
+        // isBarSec is only true when primary is also bar (xCategories always exists here)
+        const data = xCategories.map(xCat => {
           const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
           if (!matching.length) return null
           const avg = matching.reduce((s, c) => s + (c[config.yAxisSecondary] ?? 0), 0) / matching.length
@@ -105,7 +111,7 @@ const chartOption = computed(() => {
           type: 'bar',
           yAxisIndex: 1,
           data,
-          itemStyle: { color },
+          itemStyle: { color, opacity: 0.6 },
           barGap: '30%'
         })
       } else {
