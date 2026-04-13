@@ -6,8 +6,9 @@ const props = defineProps({
 })
 
 // Comparison state
-const comparisonMode = ref('off')   // 'off' | 'diff' | 'ratio'
+const comparisonMode  = ref('off')   // 'off' | 'diff' | 'ratio'
 const referenceCellId = ref(null)
+const columnModes     = ref({})      // colKey -> 'diff' | 'ratio' (overrides global)
 
 const COMPARISON_OPTIONS = [
   { label: 'Off',   value: 'off' },
@@ -17,6 +18,9 @@ const COMPARISON_OPTIONS = [
 
 const cells = computed(() => props.chartData.cells || [])
 
+// Reset column overrides when global mode changes
+watch(comparisonMode, () => { columnModes.value = {} })
+
 // Auto-pick reference when mode changes or cells change
 watch([comparisonMode, cells], ([mode, cs]) => {
   if (mode === 'off') return
@@ -25,6 +29,14 @@ watch([comparisonMode, cells], ([mode, cs]) => {
     referenceCellId.value = cs.length > 0 ? cs[0].id : null
   }
 }, { immediate: true })
+
+function effectiveMode(colKey) {
+  return columnModes.value[colKey] ?? comparisonMode.value
+}
+function toggleColumnMode(colKey) {
+  const cur = effectiveMode(colKey)
+  columnModes.value = { ...columnModes.value, [colKey]: cur === 'diff' ? 'ratio' : 'diff' }
+}
 
 // Reference options: show "alias (cellName)" when alias differs from cellName
 const referenceOptions = computed(() =>
@@ -105,7 +117,8 @@ const displayRows = computed(() => {
     for (const key of numericKeys.value) {
       const a = c[key], b = refCell[key]
       if (typeof a === 'number' && typeof b === 'number') {
-        if (comparisonMode.value === 'diff') {
+        const mode = effectiveMode(key)
+        if (mode === 'diff') {
           copy[key] = Math.round((a - b) * 10000) / 10000
         } else {
           copy[key] = b === 0 ? null : Math.round((a / b) * 10000) / 10000
@@ -137,7 +150,8 @@ function cellInfo(row, col) {
   if (v === null || v === undefined) return { text: '—', cls: '' }
   if (typeof v !== 'number') return { text: String(v), cls: '' }
   if (mode === 'off' || isRefRow(row)) return { text: formatNumber(v, col.digits), cls: '' }
-  if (mode === 'diff') {
+  const colMode = effectiveMode(col.key)
+  if (colMode === 'diff') {
     const sign = v > 0 ? '+' : ''
     return { text: `${sign}${formatNumber(v, col.digits)}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
   }
@@ -204,10 +218,21 @@ function cellInfo(row, col) {
       <el-table-column
         v-for="col in columns"
         :key="col.key"
-        :label="col.label"
         min-width="120"
         show-overflow-tooltip
       >
+        <template #header>
+          <div class="col-header">
+            <span class="col-label">{{ col.label }}</span>
+            <el-tag
+              v-if="comparisonMode !== 'off'"
+              size="small"
+              :type="effectiveMode(col.key) === 'diff' ? 'primary' : 'warning'"
+              class="col-mode-tag"
+              @click.stop="toggleColumnMode(col.key)"
+            >{{ effectiveMode(col.key) === 'diff' ? 'Δ' : '×' }}</el-tag>
+          </div>
+        </template>
         <template #default="{ row }">
           <span :class="cellInfo(row, col).cls">{{ cellInfo(row, col).text }}</span>
         </template>
@@ -253,13 +278,11 @@ function cellInfo(row, col) {
   font-weight: 600;
 }
 
-.source-data-table :deep(.cell-pos) {
-  color: #67c23a;
-  font-weight: 600;
-}
+.source-data-table :deep(.cell-pos) { color: #67c23a; font-weight: 600; }
+.source-data-table :deep(.cell-neg) { color: #f56c6c; font-weight: 600; }
 
-.source-data-table :deep(.cell-neg) {
-  color: #f56c6c;
-  font-weight: 600;
-}
+.col-header { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.col-label { font-size: 12px; font-weight: 500; }
+.col-mode-tag { cursor: pointer; user-select: none; }
+.col-mode-tag:hover { opacity: 0.8; }
 </style>

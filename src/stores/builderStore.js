@@ -21,21 +21,92 @@ export const DERIVED_OPS = [
   { value: '/', label: '÷' }
 ]
 
-function computeDerived(a, b, op) {
-  if (typeof a !== 'number' || typeof b !== 'number') return null
-  switch (op) {
-    case '+': return a + b
-    case '-': return a - b
-    case '*': return a * b
-    case '/': return b === 0 ? null : a / b
+// Formula types: binary, unary, stat-based
+export const FORMULA_TYPES = [
+  { value: 'binary',     label: 'Binary Arithmetic', desc: 'A  op  B' },
+  { value: 'unary',      label: 'Math Function',      desc: 'f(field)' },
+  { value: 'normalize',  label: 'Z-score',            desc: '(x − μ) / σ' },
+  { value: 'relative',   label: 'Relative to Mean',   desc: 'x / μ' },
+  { value: 'delta_mean', label: 'Delta from Mean',    desc: 'x − μ' },
+  { value: 'pct_max',    label: '% of Max',           desc: 'x / max × 100' }
+]
+
+export const UNARY_FNS = [
+  { value: 'log10',      label: 'log₁₀(x)' },
+  { value: 'ln',         label: 'ln(x)' },
+  { value: 'sqrt',       label: '√x' },
+  { value: 'abs',        label: '|x|' },
+  { value: 'reciprocal', label: '1/x' }
+]
+
+function computeGroupStats(cells, field) {
+  const vals = cells.map(c => c[field]).filter(v => typeof v === 'number')
+  if (!vals.length) return { mean: 0, std: 0, max: 0, min: 0 }
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length
+  const std = vals.length > 1
+    ? Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length)
+    : 0
+  return { mean, std, max: Math.max(...vals), min: Math.min(...vals) }
+}
+
+function computeDerivedValue(cell, df, stats) {
+  switch (df.type) {
+    case 'binary': {
+      const a = cell[df.field1], b = cell[df.field2]
+      if (typeof a !== 'number' || typeof b !== 'number') return null
+      switch (df.op) {
+        case '+': return a + b
+        case '-': return a - b
+        case '*': return a * b
+        case '/': return b === 0 ? null : a / b
+      }
+      break
+    }
+    case 'unary': {
+      const x = cell[df.field]
+      if (typeof x !== 'number') return null
+      switch (df.fn) {
+        case 'log10':      return x > 0 ? Math.log10(x) : null
+        case 'ln':         return x > 0 ? Math.log(x) : null
+        case 'sqrt':       return x >= 0 ? Math.sqrt(x) : null
+        case 'abs':        return Math.abs(x)
+        case 'reciprocal': return x === 0 ? null : 1 / x
+      }
+      break
+    }
+    default: {
+      const x = cell[df.field]
+      if (typeof x !== 'number' || !stats) return null
+      const { mean, std, max } = stats
+      switch (df.type) {
+        case 'normalize':  return std === 0 ? 0 : (x - mean) / std
+        case 'relative':   return mean === 0 ? null : x / mean
+        case 'delta_mean': return x - mean
+        case 'pct_max':    return max === 0 ? null : (x / max) * 100
+      }
+    }
   }
   return null
+}
+
+export function formulaDesc(df) {
+  const fl = v => DERIVED_FIELDS.find(f => f.value === v)?.label ?? v
+  const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
+  const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
+  switch (df.type) {
+    case 'binary':     return `${fl(df.field1)} ${ol(df.op)} ${fl(df.field2)}`
+    case 'unary':      return `${fnl(df.fn)} of ${fl(df.field)}`
+    case 'normalize':  return `Z-score of ${fl(df.field)}`
+    case 'relative':   return `${fl(df.field)} / μ`
+    case 'delta_mean': return `${fl(df.field)} − μ`
+    case 'pct_max':    return `${fl(df.field)} / max × 100`
+    default:           return ''
+  }
 }
 
 let nextDerivedId = 1
 
 export const useBuilderStore = defineStore('builder', () => {
-  // Data fetched from API layer (backed by JSON today)
   const allCells = ref([])
   const simulations = ref({})  // cellId -> { iPeak, iAvg, delay }
   const config = ref(null)
@@ -43,14 +114,12 @@ export const useBuilderStore = defineStore('builder', () => {
   const error = ref(null)
   let initPromise = null
 
-  // Builders management
   const builders = ref([
     { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
   ])
   const activeBuilderIndex = ref(0)
   let nextBuilderId = 2
 
-  // Chart tabs
   const chartTabs = ref([])
 
   function createDefaultChartConfig() {
@@ -94,18 +163,30 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!activeBuilder.value) return []
     const ids = activeBuilder.value.selectedCellIds
     const formulas = activeBuilder.value.derivedFormulas || []
-    return allCells.value
+
+    // Pass 1: merge base + simulation data
+    const baseCells = allCells.value
       .filter(c => ids.includes(c.id))
-      .map(c => {
-        const merged = { ...c, ...(simulations.value[c.id] || {}) }
-        formulas.forEach(df => {
-          merged[`__df_${df.id}`] = computeDerived(merged[df.field1], merged[df.field2], df.op)
-        })
-        return merged
+      .map(c => ({ ...c, ...(simulations.value[c.id] || {}) }))
+
+    if (formulas.length === 0) return baseCells
+
+    // Pre-compute group stats for stat-based formulas
+    const groupStats = {}
+    formulas.filter(df => !['binary', 'unary'].includes(df.type)).forEach(df => {
+      groupStats[df.id] = computeGroupStats(baseCells, df.field)
+    })
+
+    // Pass 2: apply derived formulas per cell
+    return baseCells.map(c => {
+      const merged = { ...c }
+      formulas.forEach(df => {
+        merged[`__df_${df.id}`] = computeDerivedValue(c, df, groupStats[df.id])
       })
+      return merged
+    })
   })
 
-  // Convenience getters over config
   const searchTableColumns = computed(() => config.value?.searchTableColumns ?? [])
   const selectedCellsMetadataColumns = computed(() => config.value?.selectedCellsMetadataColumns ?? [])
   const selectedCellsSimulationColumns = computed(() => config.value?.selectedCellsSimulationColumns ?? [])
@@ -116,26 +197,24 @@ export const useBuilderStore = defineStore('builder', () => {
     selectedCellsSimulationColumns.value.filter(c => c.numeric).map(c => c.prop)
   )
 
-  // Derived formula columns for the active builder
   const derivedSimColumns = computed(() => {
     const formulas = activeBuilder.value?.derivedFormulas || []
     return formulas.map(df => ({
       prop: `__df_${df.id}`,
       label: df.name,
-      width: 120,
+      width: 130,
       numeric: true,
       isDerived: true,
-      formula: df
+      formula: df,
+      desc: formulaDesc(df)
     }))
   })
 
-  // All numeric fields for diff/ratio (base + derived)
   const allNumericFields = computed(() => [
     ...numericSimFields.value,
     ...derivedSimColumns.value.map(c => c.prop)
   ])
 
-  // Y-axis options augmented with derived formulas
   const augmentedYAxisOptions = computed(() => {
     const base = chartOptions.value.yAxisOptions || []
     const derived = (activeBuilder.value?.derivedFormulas || []).map(df => ({
@@ -145,7 +224,6 @@ export const useBuilderStore = defineStore('builder', () => {
     return [...base, ...derived]
   })
 
-  // Cell aliases: builderId -> cellId -> alias
   const cellAliases = ref({})
 
   function getCellAlias(builderId, cellId) {
@@ -159,18 +237,13 @@ export const useBuilderStore = defineStore('builder', () => {
   function toggleCellSelection(cellId) {
     const ids = activeBuilder.value.selectedCellIds
     const idx = ids.indexOf(cellId)
-    if (idx === -1) {
-      ids.push(cellId)
-    } else {
-      ids.splice(idx, 1)
-    }
+    if (idx === -1) ids.push(cellId)
+    else ids.splice(idx, 1)
   }
 
   function selectCells(cellIds) {
     const ids = activeBuilder.value.selectedCellIds
-    cellIds.forEach(id => {
-      if (!ids.includes(id)) ids.push(id)
-    })
+    cellIds.forEach(id => { if (!ids.includes(id)) ids.push(id) })
   }
 
   function deselectCells(cellIds) {
@@ -202,15 +275,14 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function updateChartConfig(key, value) {
-    if (activeBuilder.value) {
-      activeBuilder.value.chartConfig[key] = value
-    }
+    if (activeBuilder.value) activeBuilder.value.chartConfig[key] = value
   }
 
-  function addDerivedFormula(name, field1, op, field2) {
+  // formulaConfig: { name, type, field?, field1?, op?, field2?, fn? }
+  function addDerivedFormula(formulaConfig) {
     if (!activeBuilder.value) return
     const id = nextDerivedId++
-    activeBuilder.value.derivedFormulas.push({ id, name, field1, op, field2 })
+    activeBuilder.value.derivedFormulas.push({ id, ...formulaConfig })
   }
 
   function removeDerivedFormula(id) {
@@ -218,7 +290,6 @@ export const useBuilderStore = defineStore('builder', () => {
     const formulas = activeBuilder.value.derivedFormulas
     const idx = formulas.findIndex(f => f.id === id)
     if (idx !== -1) formulas.splice(idx, 1)
-    // If the removed formula was selected as Y axis, reset it
     const key = `__df_${id}`
     const cfg = activeBuilder.value.chartConfig
     if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = 'iPeak'
@@ -227,11 +298,8 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function generateChart() {
     if (!activeBuilder.value || selectedCells.value.length === 0) return null
-
     const cfg = activeBuilder.value.chartConfig
     const builderId = activeBuilder.value.id
-
-    // Add or update chart tab
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
     const chartTab = {
       builderId,
@@ -243,13 +311,8 @@ export const useBuilderStore = defineStore('builder', () => {
       config: { ...cfg },
       derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])]
     }
-
-    if (existingIdx !== -1) {
-      chartTabs.value[existingIdx] = chartTab
-    } else {
-      chartTabs.value.push(chartTab)
-    }
-
+    if (existingIdx !== -1) chartTabs.value[existingIdx] = chartTab
+    else chartTabs.value.push(chartTab)
     return chartTab
   }
 
@@ -259,41 +322,14 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   return {
-    // data
-    allCells,
-    simulations,
-    config,
-    loading,
-    error,
-    // config getters
-    searchTableColumns,
-    selectedCellsMetadataColumns,
-    selectedCellsSimulationColumns,
-    chartOptions,
-    numericSimFields,
-    derivedSimColumns,
-    allNumericFields,
-    augmentedYAxisOptions,
-    // builders
-    builders,
-    activeBuilderIndex,
-    activeBuilder,
-    selectedCells,
-    cellAliases,
-    chartTabs,
-    // actions
-    init,
-    getCellAlias,
-    setCellAlias,
-    toggleCellSelection,
-    selectCells,
-    deselectCells,
-    addBuilder,
-    removeBuilder,
-    updateChartConfig,
-    addDerivedFormula,
-    removeDerivedFormula,
-    generateChart,
-    removeChartTab
+    allCells, simulations, config, loading, error,
+    searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
+    chartOptions, numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
+    builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
+    init, getCellAlias, setCellAlias,
+    toggleCellSelection, selectCells, deselectCells,
+    addBuilder, removeBuilder, updateChartConfig,
+    addDerivedFormula, removeDerivedFormula,
+    generateChart, removeChartTab
   }
 })

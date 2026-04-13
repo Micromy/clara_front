@@ -4,9 +4,10 @@ import { useBuilderStore } from '../../stores/builderStore.js'
 
 const store = useBuilderStore()
 
-const displayMode = ref('metadata')      // 'metadata' | 'simulation'
-const comparisonMode = ref('off')        // 'off' | 'diff' | 'ratio'
+const displayMode    = ref('metadata')  // 'metadata' | 'simulation'
+const comparisonMode = ref('off')       // 'off' | 'diff' | 'ratio'
 const referenceCellId = ref(null)
+const columnModes    = ref({})          // colProp -> 'diff' | 'ratio' (overrides global)
 
 const COMPARISON_OPTIONS = [
   { label: 'Off',   value: 'off' },
@@ -14,53 +15,51 @@ const COMPARISON_OPTIONS = [
   { label: 'Ratio', value: 'ratio' }
 ]
 
-function updateAlias(cellId, value) {
-  store.setCellAlias(store.activeBuilder.id, cellId, value)
-}
+function updateAlias(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
+function getAlias(cellId)           { return store.getCellAlias(store.activeBuilder.id, cellId) }
+function removeCell(cellId)         { store.toggleCellSelection(cellId) }
 
-function getAlias(cellId) {
-  return store.getCellAlias(store.activeBuilder.id, cellId)
-}
-
-function removeCell(cellId) {
-  store.toggleCellSelection(cellId)
-}
-
-// Reset comparison when leaving simulation mode
+// Reset column overrides when global mode changes
+watch(comparisonMode, (mode) => {
+  columnModes.value = {}
+  if (mode !== 'simulation') return
+})
 watch(displayMode, (mode) => {
   if (mode !== 'simulation') comparisonMode.value = 'off'
 })
 
-// Auto-pick / repair reference when comparison is on
+// Auto-pick reference
 watch([comparisonMode, () => store.selectedCells], ([mode, cells]) => {
   if (mode === 'off') return
-  const stillExists = cells.some(c => c.id === referenceCellId.value)
-  if (!stillExists) {
+  if (!cells.some(c => c.id === referenceCellId.value)) {
     referenceCellId.value = cells.length > 0 ? cells[0].id : null
   }
 }, { immediate: true })
 
-// Reference selector: show "alias (cellName)" when alias is set
 const referenceOptions = computed(() =>
   store.selectedCells.map(c => {
     const alias = getAlias(c.id)
-    return {
-      value: c.id,
-      label: alias ? `${alias} (${c.cellName})` : c.cellName
-    }
+    return { value: c.id, label: alias ? `${alias} (${c.cellName})` : c.cellName }
   })
 )
 
-// All columns in simulation mode: base + derived
+// All columns in simulation mode
 const simColumns = computed(() => [
   ...store.selectedCellsSimulationColumns,
   ...store.derivedSimColumns
 ])
 
-// All numeric keys for diff/ratio
-const numericKeys = computed(() =>
-  simColumns.value.filter(c => c.numeric).map(c => c.prop)
-)
+const numericKeys = computed(() => simColumns.value.filter(c => c.numeric).map(c => c.prop))
+
+// Effective mode for a column: column override ?? global mode
+function effectiveMode(colKey) {
+  return columnModes.value[colKey] ?? comparisonMode.value
+}
+
+function toggleColumnMode(colKey) {
+  const cur = effectiveMode(colKey)
+  columnModes.value = { ...columnModes.value, [colKey]: cur === 'diff' ? 'ratio' : 'diff' }
+}
 
 const tableRows = computed(() => {
   const cells = store.selectedCells
@@ -73,7 +72,8 @@ const tableRows = computed(() => {
     for (const key of numericKeys.value) {
       const a = c[key], b = refCell[key]
       if (typeof a === 'number' && typeof b === 'number') {
-        if (comparisonMode.value === 'diff') {
+        const mode = effectiveMode(key)
+        if (mode === 'diff') {
           copy[key] = Math.round((a - b) * 10000) / 10000
         } else {
           copy[key] = b === 0 ? null : Math.round((a / b) * 10000) / 10000
@@ -89,26 +89,20 @@ function isRefRow(row) {
     comparisonMode.value !== 'off' &&
     row.id === referenceCellId.value
 }
+function rowClassName({ row }) { return isRefRow(row) ? 'is-ref-row' : '' }
 
-function rowClassName({ row }) {
-  return isRefRow(row) ? 'is-ref-row' : ''
-}
-
-// Returns formatted text and CSS class for a simulation cell value
 function simCellInfo(row, col) {
   const v = row[col.prop]
   if (v === null || v === undefined) return { text: '—', cls: '' }
   if (typeof v !== 'number') return { text: String(v), cls: '' }
-
-  const mode = comparisonMode.value
-  if (mode === 'off' || displayMode.value !== 'simulation' || isRefRow(row)) {
+  if (comparisonMode.value === 'off' || displayMode.value !== 'simulation' || isRefRow(row)) {
     return { text: String(v), cls: '' }
   }
+  const mode = effectiveMode(col.prop)
   if (mode === 'diff') {
     const sign = v > 0 ? '+' : ''
     return { text: `${sign}${v}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
   }
-  // ratio
   return { text: `×${v}`, cls: v > 1 ? 'cell-pos' : v < 1 ? 'cell-neg' : '' }
 }
 </script>
@@ -141,12 +135,7 @@ function simCellInfo(row, col) {
             size="small"
             style="width: 200px"
           >
-            <el-option
-              v-for="opt in referenceOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
+            <el-option v-for="opt in referenceOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </template>
       </div>
@@ -155,50 +144,51 @@ function simCellInfo(row, col) {
     <el-table
       :data="tableRows"
       :row-class-name="rowClassName"
-      border
-      stripe
-      size="small"
-      max-height="580"
+      border stripe size="small" max-height="580"
       empty-text="No cells selected. Select cells from the table above."
     >
-      <!-- Alias input (fixed, 1st) -->
+      <!-- Alias input (fixed 1st) -->
       <el-table-column label="Alias" width="140" fixed>
         <template #default="{ row }">
           <el-input
             :model-value="getAlias(row.id)"
             @update:model-value="val => updateAlias(row.id, val)"
-            size="small"
-            :placeholder="row.cellName"
+            size="small" :placeholder="row.cellName"
           />
         </template>
       </el-table-column>
 
-      <!-- Cell Name (fixed, 2nd) -->
+      <!-- Cell Name (fixed 2nd) -->
       <el-table-column prop="cellName" label="Cell Name" width="150" show-overflow-tooltip fixed />
 
       <!-- Metadata columns -->
       <template v-if="displayMode === 'metadata'">
         <el-table-column
           v-for="col in store.selectedCellsMetadataColumns"
-          :key="col.prop"
-          :prop="col.prop"
-          :label="col.label"
-          :width="col.width"
+          :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width"
         />
       </template>
 
-      <!-- Simulation + derived columns with diff/ratio coloring -->
+      <!-- Simulation + derived columns -->
       <template v-else>
         <el-table-column
           v-for="col in simColumns"
-          :key="col.prop"
-          :label="col.label"
-          :width="col.width"
-          min-width="100"
+          :key="col.prop" :width="col.width" min-width="110"
         >
           <template #header>
-            <span>{{ col.label }}</span>
-            <el-tag v-if="col.isDerived" size="small" type="info" style="margin-left:4px">f(x)</el-tag>
+            <div class="col-header">
+              <span class="col-label">{{ col.label }}</span>
+              <div class="col-header-badges">
+                <el-tag v-if="col.isDerived" size="small" type="info">f(x)</el-tag>
+                <el-tag
+                  v-if="comparisonMode !== 'off'"
+                  size="small"
+                  :type="effectiveMode(col.prop) === 'diff' ? 'primary' : 'warning'"
+                  class="col-mode-tag"
+                  @click.stop="toggleColumnMode(col.prop)"
+                >{{ effectiveMode(col.prop) === 'diff' ? 'Δ' : '×' }}</el-tag>
+              </div>
+            </div>
           </template>
           <template #default="{ row }">
             <template v-if="isRefRow(row)">
@@ -224,39 +214,21 @@ function simCellInfo(row, col) {
 
 <style scoped>
 .panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px; gap: 12px; flex-wrap: wrap;
 }
+.panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
+.panel-controls { display: flex; gap: 12px; align-items: center; }
 
-.panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
+.col-header {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
 }
+.col-label { font-size: 12px; font-weight: 500; }
+.col-header-badges { display: flex; gap: 3px; align-items: center; }
+.col-mode-tag { cursor: pointer; user-select: none; }
+.col-mode-tag:hover { opacity: 0.8; }
 
-.panel-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.selected-cells-panel :deep(.is-ref-row) td {
-  background-color: #ecf5ff !important;
-  font-weight: 600;
-}
-
-.selected-cells-panel :deep(.cell-pos) {
-  color: #67c23a;
-  font-weight: 600;
-}
-
-.selected-cells-panel :deep(.cell-neg) {
-  color: #f56c6c;
-  font-weight: 600;
-}
+.selected-cells-panel :deep(.is-ref-row) td { background-color: #ecf5ff !important; font-weight: 600; }
+.selected-cells-panel :deep(.cell-pos) { color: #67c23a; font-weight: 600; }
+.selected-cells-panel :deep(.cell-neg) { color: #f56c6c; font-weight: 600; }
 </style>
