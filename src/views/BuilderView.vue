@@ -65,7 +65,11 @@ const bottomCollapsed = ref(false)
 .bottom-section {
   display: flex;
   gap: 16px;
-  min-height: 280px;
+  /* Tall enough to fit the full ChartConfigPanel (9 form items + title +
+     action buttons) without clipping or scroll. Selected Cells panel
+     stretches to match via flex. */
+  min-height: 680px;
+  align-items: stretch;
 }
 
 .bottom-left {
@@ -75,6 +79,8 @@ const bottomCollapsed = ref(false)
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .bottom-right {
@@ -84,5 +90,7 @@ const bottomCollapsed = ref(false)
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
 }
 </style>

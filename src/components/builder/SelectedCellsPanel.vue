@@ -143,7 +143,7 @@ function formatSimCell({ row, column, cellValue }) {
       border
       stripe
       size="small"
-      max-height="240"
+      max-height="580"
       empty-text="No cells selected. Select cells from the table above."
     >
       <el-table-column label="Alias" width="140">

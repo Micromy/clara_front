@@ -5,19 +5,44 @@ const props = defineProps({
   chartData: { type: Object, required: true }
 })
 
-const AXIS_LABELS = {
+// Per-point fields (nested inside ivData[])
+const POINT_FIELDS = ['voltage', 'currentMA', 'currentUA']
+
+// Per-cell scalar simulation results
+const SCALAR_SIM_FIELDS = [
+  { key: 'iPeak', label: 'iPeak (μA)', digits: 2 },
+  { key: 'iAvg', label: 'iAvg (μA)', digits: 2 },
+  { key: 'delay', label: 'Delay (ps)', digits: 1 }
+]
+
+// Per-cell scalar test conditions (can also appear as axis choices)
+const SCALAR_META_FIELDS = [
+  { key: 'vdd', label: 'VDD (V)', digits: 2 },
+  { key: 'vth', label: 'Vth (V)', digits: 2 },
+  { key: 'temp', label: 'Temp (°C)', digits: 1 }
+]
+
+const LABELS = {
   voltage: 'Voltage (V)',
   currentMA: 'Current (mA)',
   currentUA: 'Current (μA)',
-  temp: 'Temperature (°C)',
-  vdd: 'VDD (V)'
+  temp: 'Temp (°C)',
+  vdd: 'VDD (V)',
+  vth: 'Vth (V)',
+  iPeak: 'iPeak (μA)',
+  iAvg: 'iAvg (μA)',
+  delay: 'Delay (ps)'
 }
 
-function axisLabel(key) {
-  return AXIS_LABELS[key] || key
+function labelFor(key) {
+  return LABELS[key] || key
 }
 
-function formatNumber(v, digits = 3) {
+function typeFor(key) {
+  return POINT_FIELDS.includes(key) ? 'point' : 'scalar'
+}
+
+function formatNumber(v, digits = 2) {
   if (v == null || Number.isNaN(v)) return '—'
   if (Number.isInteger(v)) return String(v)
   return Number(v).toFixed(digits)
@@ -30,67 +55,47 @@ function rangeForPoints(cell, key) {
   if (!vals.length) return '—'
   const mn = Math.min(...vals)
   const mx = Math.max(...vals)
-  return `${formatNumber(mn)} ~ ${formatNumber(mx)} (${vals.length} pts)`
+  return `${formatNumber(mn, 3)} ~ ${formatNumber(mx, 3)} (${vals.length} pts)`
 }
 
-function scalar(cell, key, digits = 2) {
-  return formatNumber(cell?.[key], digits)
+function scalar(cell, key, digits) {
+  return formatNumber(cell?.[key], digits ?? 2)
 }
 
 const cells = computed(() => props.chartData.cells || [])
 
-// Leftmost column = the value types used when building the chart (axes),
-// followed by every simulation scalar we know about. Each column after the
-// leftmost represents one cell selected for the chart.
-const rows = computed(() => {
+// Columns — ordered per user spec:
+//   1. xAxis field
+//   2. yAxisPrimary field
+//   3. yAxisSecondary field (if present)
+//   4+. remaining sim/metadata fields in natural order
+// No "X-axis / Y-axis" prefix labels — just the plain field label.
+const columns = computed(() => {
   const cfg = props.chartData.config || {}
-  const cs = cells.value
-  const result = []
+  const axisOrder = [cfg.xAxis, cfg.yAxisPrimary, cfg.yAxisSecondary].filter(Boolean)
+  const out = []
+  const seen = new Set()
 
-  const axisRows = [
-    { cfgKey: 'xAxis', title: 'X-axis' },
-    { cfgKey: 'yAxisPrimary', title: 'Y-axis (primary)' },
-    { cfgKey: 'yAxisSecondary', title: 'Y-axis (secondary)' }
-  ]
+  function add(key, type, label, digits) {
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ key, type, label, digits })
+  }
 
-  axisRows.forEach(({ cfgKey, title }) => {
-    const key = cfg[cfgKey]
-    if (!key) return
-    const row = {
-      metric: `${title}: ${axisLabel(key)}`,
-      group: 'chart',
-      isAxis: true
-    }
-    cs.forEach(cell => {
-      row[`cell_${cell.id}`] = rangeForPoints(cell, key)
-    })
-    result.push(row)
-  })
+  axisOrder.forEach(key => add(key, typeFor(key), labelFor(key)))
+  POINT_FIELDS.forEach(key => add(key, 'point', labelFor(key)))
+  SCALAR_SIM_FIELDS.forEach(({ key, label, digits }) => add(key, 'scalar', label, digits))
+  SCALAR_META_FIELDS.forEach(({ key, label, digits }) => add(key, 'scalar', label, digits))
+  add('__pts', 'pts', 'Data Points')
 
-  const simScalars = [
-    { key: 'iPeak', label: 'iPeak (μA)', digits: 2 },
-    { key: 'iAvg', label: 'iAvg (μA)', digits: 2 },
-    { key: 'delay', label: 'Delay (ps)', digits: 1 }
-  ]
-  simScalars.forEach(({ key, label, digits }) => {
-    const row = { metric: label, group: 'sim', isAxis: false }
-    cs.forEach(cell => {
-      row[`cell_${cell.id}`] = scalar(cell, key, digits)
-    })
-    result.push(row)
-  })
-
-  const pointsRow = { metric: 'Data Points', group: 'sim', isAxis: false }
-  cs.forEach(cell => {
-    pointsRow[`cell_${cell.id}`] = `${cell.ivData?.length || 0} pts`
-  })
-  result.push(pointsRow)
-
-  return result
+  return out
 })
 
-function rowClass({ row }) {
-  return row.isAxis ? 'axis-row' : ''
+function cellValue(cell, col) {
+  if (col.type === 'pts') return `${cell.ivData?.length || 0} pts`
+  if (col.type === 'point') return rangeForPoints(cell, col.key)
+  if (col.type === 'scalar') return scalar(cell, col.key, col.digits)
+  return ''
 }
 </script>
 
@@ -98,29 +103,26 @@ function rowClass({ row }) {
   <div class="source-data-table">
     <h3 class="panel-title">Source Data</h3>
     <el-table
-      :data="rows"
-      :row-class-name="rowClass"
+      :data="cells"
       border
       stripe
       size="small"
       max-height="480"
     >
+      <el-table-column label="Cell" fixed width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span class="cell-id">{{ row.alias || row.cellName }}</span>
+        </template>
+      </el-table-column>
       <el-table-column
-        prop="metric"
-        label="Metric"
-        fixed
-        width="200"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        v-for="cell in cells"
-        :key="cell.id"
-        :label="cell.alias || cell.cellName"
+        v-for="col in columns"
+        :key="col.key"
+        :label="col.label"
         min-width="140"
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          {{ row[`cell_${cell.id}`] }}
+          {{ cellValue(row, col) }}
         </template>
       </el-table-column>
     </el-table>
@@ -135,11 +137,7 @@ function rowClass({ row }) {
   color: #303133;
 }
 
-.source-data-table :deep(.axis-row) {
-  background-color: #f2f6fc !important;
-}
-
-.source-data-table :deep(.axis-row td) {
+.cell-id {
   font-weight: 600;
   color: #1f2d3d;
 }
