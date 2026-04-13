@@ -1,0 +1,23 @@
+:root {
+  --clara-primary: #409eff;
+  --clara-bg: #f5f7fa;
+  --clara-header-bg: #1a1a2e;
+  --clara-header-height: 56px;
+  --clara-tab-height: 40px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--clara-bg);
+}
+
+.el-table .cell {
+  font-size: 13px;
+}
