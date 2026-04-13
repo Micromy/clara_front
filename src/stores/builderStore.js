@@ -2,6 +2,38 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
 
+// Fields available for derived formula operands
+export const DERIVED_FIELDS = [
+  { value: 'iPeak',      label: 'I_peak (μA)' },
+  { value: 'iAvg',       label: 'I_avg (μA)' },
+  { value: 'delay',      label: 'Delay (ps)' },
+  { value: 'vdd',        label: 'VDD (V)' },
+  { value: 'temp',       label: 'Temp (°C)' },
+  { value: 'vth',        label: 'Vth (V)' },
+  { value: 'gateLength', label: 'Gate Length' },
+  { value: 'cpp',        label: 'CPP' }
+]
+
+export const DERIVED_OPS = [
+  { value: '+', label: '+' },
+  { value: '-', label: '−' },
+  { value: '*', label: '×' },
+  { value: '/', label: '÷' }
+]
+
+function computeDerived(a, b, op) {
+  if (typeof a !== 'number' || typeof b !== 'number') return null
+  switch (op) {
+    case '+': return a + b
+    case '-': return a - b
+    case '*': return a * b
+    case '/': return b === 0 ? null : a / b
+  }
+  return null
+}
+
+let nextDerivedId = 1
+
 export const useBuilderStore = defineStore('builder', () => {
   // Data fetched from API layer (backed by JSON today)
   const allCells = ref([])
@@ -13,7 +45,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // Builders management
   const builders = ref([
-    { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig() }
+    { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
   ])
   const activeBuilderIndex = ref(0)
   let nextBuilderId = 2
@@ -61,9 +93,16 @@ export const useBuilderStore = defineStore('builder', () => {
   const selectedCells = computed(() => {
     if (!activeBuilder.value) return []
     const ids = activeBuilder.value.selectedCellIds
+    const formulas = activeBuilder.value.derivedFormulas || []
     return allCells.value
       .filter(c => ids.includes(c.id))
-      .map(c => ({ ...c, ...(simulations.value[c.id] || {}) }))
+      .map(c => {
+        const merged = { ...c, ...(simulations.value[c.id] || {}) }
+        formulas.forEach(df => {
+          merged[`__df_${df.id}`] = computeDerived(merged[df.field1], merged[df.field2], df.op)
+        })
+        return merged
+      })
   })
 
   // Convenience getters over config
@@ -76,6 +115,35 @@ export const useBuilderStore = defineStore('builder', () => {
   const numericSimFields = computed(() =>
     selectedCellsSimulationColumns.value.filter(c => c.numeric).map(c => c.prop)
   )
+
+  // Derived formula columns for the active builder
+  const derivedSimColumns = computed(() => {
+    const formulas = activeBuilder.value?.derivedFormulas || []
+    return formulas.map(df => ({
+      prop: `__df_${df.id}`,
+      label: df.name,
+      width: 120,
+      numeric: true,
+      isDerived: true,
+      formula: df
+    }))
+  })
+
+  // All numeric fields for diff/ratio (base + derived)
+  const allNumericFields = computed(() => [
+    ...numericSimFields.value,
+    ...derivedSimColumns.value.map(c => c.prop)
+  ])
+
+  // Y-axis options augmented with derived formulas
+  const augmentedYAxisOptions = computed(() => {
+    const base = chartOptions.value.yAxisOptions || []
+    const derived = (activeBuilder.value?.derivedFormulas || []).map(df => ({
+      value: `__df_${df.id}`,
+      label: df.name
+    }))
+    return [...base, ...derived]
+  })
 
   // Cell aliases: builderId -> cellId -> alias
   const cellAliases = ref({})
@@ -119,7 +187,8 @@ export const useBuilderStore = defineStore('builder', () => {
       id,
       name: `Builder ${id}`,
       selectedCellIds: [],
-      chartConfig: createDefaultChartConfig()
+      chartConfig: createDefaultChartConfig(),
+      derivedFormulas: []
     })
     activeBuilderIndex.value = builders.value.length - 1
   }
@@ -138,6 +207,24 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
+  function addDerivedFormula(name, field1, op, field2) {
+    if (!activeBuilder.value) return
+    const id = nextDerivedId++
+    activeBuilder.value.derivedFormulas.push({ id, name, field1, op, field2 })
+  }
+
+  function removeDerivedFormula(id) {
+    if (!activeBuilder.value) return
+    const formulas = activeBuilder.value.derivedFormulas
+    const idx = formulas.findIndex(f => f.id === id)
+    if (idx !== -1) formulas.splice(idx, 1)
+    // If the removed formula was selected as Y axis, reset it
+    const key = `__df_${id}`
+    const cfg = activeBuilder.value.chartConfig
+    if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = 'iPeak'
+    if (cfg.yAxisSecondary === key) cfg.yAxisSecondary = null
+  }
+
   function generateChart() {
     if (!activeBuilder.value || selectedCells.value.length === 0) return null
 
@@ -151,9 +238,10 @@ export const useBuilderStore = defineStore('builder', () => {
       builderName: activeBuilder.value.name,
       cells: selectedCells.value.map(c => ({
         ...c,
-        alias: getCellAlias(builderId, c.id) || c.cellName
+        alias: getCellAlias(builderId, c.id) || ''
       })),
-      config: { ...cfg }
+      config: { ...cfg },
+      derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])]
     }
 
     if (existingIdx !== -1) {
@@ -183,6 +271,9 @@ export const useBuilderStore = defineStore('builder', () => {
     selectedCellsSimulationColumns,
     chartOptions,
     numericSimFields,
+    derivedSimColumns,
+    allNumericFields,
+    augmentedYAxisOptions,
     // builders
     builders,
     activeBuilderIndex,
@@ -200,6 +291,8 @@ export const useBuilderStore = defineStore('builder', () => {
     addBuilder,
     removeBuilder,
     updateChartConfig,
+    addDerivedFormula,
+    removeDerivedFormula,
     generateChart,
     removeChartTab
   }

@@ -26,7 +26,10 @@ const AXIS_LABELS = {
 }
 
 function getAxisLabel(key) {
-  return AXIS_LABELS[key] || key
+  if (AXIS_LABELS[key]) return AXIS_LABELS[key]
+  // Derived formula label
+  const df = (props.chartData.derivedFormulas || []).find(d => `__df_${d.id}` === key)
+  return df ? df.name : key
 }
 
 const chartOption = computed(() => {
