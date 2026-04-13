@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { fetchCells, fetchColumnConfig } from '../api/cells.js'
+import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
 
 export const useBuilderStore = defineStore('builder', () => {
   // Data fetched from API layer (backed by JSON today)
   const allCells = ref([])
+  const simulations = ref({})  // cellId -> { iPeak, iAvg, delay, ivData }
   const config = ref(null)
   const loading = ref(false)
   const error = ref(null)
@@ -34,10 +35,15 @@ export const useBuilderStore = defineStore('builder', () => {
     if (initPromise) return initPromise
     loading.value = true
     error.value = null
-    initPromise = Promise.all([fetchCells(), fetchColumnConfig()])
-      .then(([cells, cfg]) => {
+    initPromise = Promise.all([
+      fetchCells(),
+      fetchColumnConfig(),
+      fetchSimulations()
+    ])
+      .then(([cells, cfg, sims]) => {
         allCells.value = cells
         config.value = cfg
+        simulations.value = sims
       })
       .catch((err) => {
         error.value = err
@@ -54,7 +60,10 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const selectedCells = computed(() => {
     if (!activeBuilder.value) return []
-    return allCells.value.filter(c => activeBuilder.value.selectedCellIds.includes(c.id))
+    const ids = activeBuilder.value.selectedCellIds
+    return allCells.value
+      .filter(c => ids.includes(c.id))
+      .map(c => ({ ...c, ...(simulations.value[c.id] || {}) }))
   })
 
   // Convenience getters over config
@@ -164,6 +173,7 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     // data
     allCells,
+    simulations,
     config,
     loading,
     error,
