@@ -1,7 +1,20 @@
 <script setup>
+import { ref, computed, watch } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
 
 const store = useBuilderStore()
+
+const displayMode = ref('metadata')      // 'metadata' | 'simulation'
+const comparisonMode = ref('off')        // 'off' | 'diff' | 'ratio'
+const referenceCellId = ref(null)
+
+const COMPARISON_OPTIONS = [
+  { label: 'Off', value: 'off' },
+  { label: 'Diff', value: 'diff' },
+  { label: 'Ratio', value: 'ratio' }
+]
+
+const NUMERIC_SIM_FIELDS = ['vdd', 'vth', 'temp', 'iPeak', 'iAvg', 'delay']
 
 function updateAlias(cellId, value) {
   store.setCellAlias(store.activeBuilder.id, cellId, value)
@@ -14,13 +27,120 @@ function getAlias(cellId) {
 function removeCell(cellId) {
   store.toggleCellSelection(cellId)
 }
+
+// Reset comparison when leaving simulation mode
+watch(displayMode, (mode) => {
+  if (mode !== 'simulation') {
+    comparisonMode.value = 'off'
+  }
+})
+
+// Auto-pick / repair reference when comparison is on
+watch([comparisonMode, () => store.selectedCells], ([mode, cells]) => {
+  if (mode === 'off') return
+  const stillExists = cells.some(c => c.id === referenceCellId.value)
+  if (!stillExists) {
+    referenceCellId.value = cells.length > 0 ? cells[0].id : null
+  }
+}, { immediate: true })
+
+const referenceOptions = computed(() =>
+  store.selectedCells.map(c => ({
+    value: c.id,
+    label: getAlias(c.id) || c.cellName
+  }))
+)
+
+const tableRows = computed(() => {
+  const cells = store.selectedCells
+  if (displayMode.value !== 'simulation' || comparisonMode.value === 'off') return cells
+  const ref = cells.find(c => c.id === referenceCellId.value)
+  if (!ref) return cells
+  return cells.map(c => {
+    if (c.id === ref.id) return c
+    const copy = { ...c }
+    for (const key of NUMERIC_SIM_FIELDS) {
+      const a = c[key], b = ref[key]
+      if (typeof a === 'number' && typeof b === 'number') {
+        if (comparisonMode.value === 'diff') {
+          copy[key] = Math.round((a - b) * 1000) / 1000
+        } else {
+          copy[key] = b === 0 ? null : Math.round((a / b) * 10000) / 10000
+        }
+      }
+    }
+    return copy
+  })
+})
+
+function rowClassName({ row }) {
+  if (
+    displayMode.value === 'simulation' &&
+    comparisonMode.value !== 'off' &&
+    row.id === referenceCellId.value
+  ) {
+    return 'is-ref-row'
+  }
+  return ''
+}
+
+function formatSimCell({ row, column, cellValue }) {
+  if (cellValue === null || cellValue === undefined) return '—'
+  if (typeof cellValue !== 'number') return cellValue
+  const isRef = row.id === referenceCellId.value
+  const mode = comparisonMode.value
+  if (mode === 'off' || isRef) return cellValue
+  if (mode === 'diff') {
+    const sign = cellValue > 0 ? '+' : ''
+    return `${sign}${cellValue}`
+  }
+  // ratio
+  return `×${cellValue}`
+}
 </script>
 
 <template>
   <div class="selected-cells-panel">
-    <h3 class="panel-title">Selected Cells</h3>
+    <div class="panel-header">
+      <h3 class="panel-title">Selected Cells</h3>
+      <div class="panel-controls">
+        <el-switch
+          v-model="displayMode"
+          active-value="simulation"
+          inactive-value="metadata"
+          active-text="Simulation"
+          inactive-text="Metadata"
+          inline-prompt
+          :disabled="store.selectedCells.length === 0"
+        />
+        <template v-if="displayMode === 'simulation'">
+          <el-segmented
+            v-model="comparisonMode"
+            :options="COMPARISON_OPTIONS"
+            size="small"
+            :disabled="store.selectedCells.length < 2"
+          />
+          <el-select
+            v-if="comparisonMode !== 'off'"
+            v-model="referenceCellId"
+            placeholder="Reference"
+            size="small"
+            style="width: 160px"
+          >
+            <el-option
+              v-for="opt in referenceOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </template>
+      </div>
+    </div>
+
     <el-table
-      :data="store.selectedCells"
+      :data="tableRows"
+      :row-class-name="rowClassName"
       border
       stripe
       size="small"
@@ -38,14 +158,26 @@ function removeCell(cellId) {
         </template>
       </el-table-column>
       <el-table-column prop="cellName" label="Cell Name" width="150" show-overflow-tooltip />
-      <el-table-column prop="lot" label="Lot" width="100" />
-      <el-table-column prop="wafer" label="Wafer" width="80" />
-      <el-table-column prop="gateLength" label="Gate Length" width="90" />
-      <el-table-column prop="cpp" label="CPP" width="70" />
-      <el-table-column prop="nanosheet" label="Nanosheet" width="100" />
-      <el-table-column prop="driveStrength" label="Drive Str." width="90" />
-      <el-table-column prop="feolCorner" label="FEOL" width="80" />
-      <el-table-column prop="beolCorner" label="BEOL" width="80" />
+
+      <template v-if="displayMode === 'metadata'">
+        <el-table-column prop="lot" label="Lot" width="100" />
+        <el-table-column prop="wafer" label="Wafer" width="80" />
+        <el-table-column prop="gateLength" label="Gate Length" width="100" />
+        <el-table-column prop="cpp" label="CPP" width="70" />
+        <el-table-column prop="nanosheet" label="Nanosheet" width="100" />
+        <el-table-column prop="driveStrength" label="Drive Str." width="90" />
+        <el-table-column prop="feolCorner" label="FEOL" width="80" />
+        <el-table-column prop="beolCorner" label="BEOL" width="80" />
+      </template>
+      <template v-else>
+        <el-table-column prop="vdd" label="VDD (V)" width="90" :formatter="formatSimCell" />
+        <el-table-column prop="vth" label="Vth (V)" width="90" :formatter="formatSimCell" />
+        <el-table-column prop="temp" label="Temp (°C)" width="100" :formatter="formatSimCell" />
+        <el-table-column prop="iPeak" label="I_peak (μA)" width="110" :formatter="formatSimCell" />
+        <el-table-column prop="iAvg" label="I_avg (μA)" width="110" :formatter="formatSimCell" />
+        <el-table-column prop="delay" label="Delay (ps)" width="110" :formatter="formatSimCell" />
+      </template>
+
       <el-table-column label="" width="50" fixed="right">
         <template #default="{ row }">
           <el-button
@@ -61,10 +193,30 @@ function removeCell(cellId) {
 </template>
 
 <style scoped>
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .panel-title {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 10px;
   color: #303133;
+  margin: 0;
+}
+
+.panel-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.selected-cells-panel :deep(.is-ref-row) td {
+  background-color: #ecf5ff !important;
+  font-weight: 600;
 }
 </style>

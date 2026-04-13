@@ -43,6 +43,11 @@ export function generateCellList(count = 100) {
     const type = pick(CELL_TYPES)
     const drive = pick(DRIVE_STRENGTHS)
     const vdd = pick(VDD_VALUES)
+    const gateLength = pick(GATE_LENGTHS)
+    const ivData = generateIVData(vdd)
+    const iPeakUA = Math.max(...ivData.map(p => p.currentUA))
+    const iAvgUA = ivData.reduce((s, p) => s + p.currentUA, 0) / ivData.length
+    const delayPs = (50 / iPeakUA) * (gateLength / 7) * 1000
     cells.push({
       id: i + 1,
       cellName: generateCellName(type, drive),
@@ -51,7 +56,7 @@ export function generateCellList(count = 100) {
       driveStrength: drive,
       nanosheet: pick(NANOSHEETS),
       library: pick(LIBRARIES),
-      gateLength: pick(GATE_LENGTHS),
+      gateLength,
       cpp: pick(CPP_VALUES),
       cellHeight: pick(CELL_HEIGHTS),
       feolCorner: pick(FEOL_CORNERS),
@@ -63,7 +68,10 @@ export function generateCellList(count = 100) {
       lot: pick(LOT_IDS),
       wafer: pick(WAFER_IDS),
       createTime: new Date(2025, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
-      ivData: generateIVData(vdd)
+      iPeak: Math.round(iPeakUA * 100) / 100,
+      iAvg: Math.round(iAvgUA * 100) / 100,
+      delay: Math.round(delayPs * 10) / 10,
+      ivData
     })
   }
   return cells

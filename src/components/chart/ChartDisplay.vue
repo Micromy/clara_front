@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -124,9 +124,23 @@ function renderChart() {
   chartInstance.setOption(chartOption.value, true)
 }
 
+let resizeObserver = null
+const handleWindowResize = () => chartInstance?.resize()
+
 onMounted(() => {
   renderChart()
-  window.addEventListener('resize', () => chartInstance?.resize())
+  window.addEventListener('resize', handleWindowResize)
+  if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
+    resizeObserver = new ResizeObserver(() => chartInstance?.resize())
+    resizeObserver.observe(chartContainer.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleWindowResize)
+  resizeObserver?.disconnect()
+  chartInstance?.dispose()
+  chartInstance = null
 })
 
 watch(chartOption, () => renderChart(), { deep: true })

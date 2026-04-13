@@ -51,8 +51,7 @@ function removeChartTab(builderId) {
     <header class="app-header">
       <div class="header-logo">
         <span class="logo-icon">◈</span>
-        <h1>CLARA</h1>
-        <span class="subtitle">Cell Library Automatic Research Assistant</span>
+        <h1>ARIAS</h1>
       </div>
     </header>
 
@@ -126,12 +125,6 @@ function removeChartTab(builderId) {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 2px;
-}
-
-.subtitle {
-  color: #94a3b8;
-  font-size: 12px;
-  margin-left: 4px;
 }
 
 .tab-bar {

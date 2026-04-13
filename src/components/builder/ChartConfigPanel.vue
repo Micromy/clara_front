@@ -109,19 +109,21 @@ function onGenerate() {
         <el-button type="text" size="small">+ Add Derived Metric</el-button>
       </el-form-item>
 
-      <div class="config-actions">
+      <el-form-item>
         <el-button
           type="primary"
-          @click="onGenerate"
+          class="action-btn"
           :disabled="store.selectedCells.length === 0"
-          style="width: 100%"
+          @click="onGenerate"
         >
           Generate Chart
         </el-button>
-        <el-button style="width: 100%; margin-left: 0; margin-top: 8px">
+      </el-form-item>
+      <el-form-item>
+        <el-button class="action-btn">
           Save Preset
         </el-button>
-      </div>
+      </el-form-item>
     </el-form>
   </div>
 </template>
@@ -139,7 +141,11 @@ function onGenerate() {
   color: #303133;
 }
 
-.config-actions {
-  margin-top: 8px;
+.action-btn {
+  width: 100%;
+}
+
+.chart-config-panel :deep(.el-form-item__content) {
+  width: 100%;
 }
 </style>

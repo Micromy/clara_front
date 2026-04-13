@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/copy-clara-mockup-6dqyU
+      - claude/arias-rebrand-and-features
   workflow_dispatch:
 
 permissions:
