@@ -13,8 +13,8 @@ const chartTab = computed(() => {
   return store.chartTabs.find(t => t.builderId === builderId)
 })
 
-// false: chart:table = 7:3 (default, chart-dominant)
-// true:  chart:table = 3:7 (table-dominant)
+// false: table occupies ~30% on the right (chart-dominant view)
+// true:  table slides to occupy ~70%, covering the right portion of the chart
 const tableExpanded = ref(false)
 
 function toggleSplit() {
@@ -24,15 +24,16 @@ function toggleSplit() {
 
 <template>
   <div class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
+    <!-- Chart stays a fixed size; the table overlays on top of it. -->
     <div class="chart-left">
       <ChartDisplay :chart-data="chartTab" />
     </div>
     <div
       class="chart-splitter"
-      :title="tableExpanded ? 'Expand chart' : 'Expand table'"
+      :title="tableExpanded ? 'Collapse table' : 'Expand table'"
       @click="toggleSplit"
     >
-      <span class="splitter-handle">{{ tableExpanded ? '‹' : '›' }}</span>
+      <span class="splitter-handle">{{ tableExpanded ? '›' : '‹' }}</span>
     </div>
     <div class="chart-right">
       <SourceDataTable :chart-data="chartTab" />
@@ -45,61 +46,79 @@ function toggleSplit() {
 
 <style scoped>
 .chart-view {
-  display: flex;
-  gap: 0;
+  position: relative;
   height: 100%;
+  min-height: 500px;
+  overflow: hidden;
 }
 
+/* Chart is pinned to the left and keeps a fixed width regardless of the
+   table state. The table slides on top of it, so the chart itself never
+   resizes — only how much of it is visible changes. */
 .chart-left {
-  flex: 7 1 0;
-  min-width: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 70%;
+  height: 100%;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  min-height: 500px;
-  transition: flex-grow 0.25s ease;
+  z-index: 1;
 }
 
 .chart-right {
-  flex: 3 1 0;
-  min-width: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 30%;
+  height: 100%;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: -6px 0 14px rgba(0, 0, 0, 0.08);
   overflow: auto;
-  transition: flex-grow 0.25s ease;
-}
-
-.chart-view.expanded .chart-left {
-  flex-grow: 3;
+  transition: width 0.25s ease;
+  z-index: 3;
 }
 
 .chart-view.expanded .chart-right {
-  flex-grow: 7;
+  width: 70%;
 }
 
 .chart-splitter {
-  width: 14px;
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 16px;
+  right: 30%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   background: transparent;
-  transition: background 0.15s;
+  transition: right 0.25s ease, background 0.15s;
   user-select: none;
+  z-index: 4;
+}
+
+.chart-view.expanded .chart-splitter {
+  right: 70%;
 }
 
 .chart-splitter:hover {
-  background: #e4e7ed;
+  background: rgba(144, 147, 153, 0.18);
 }
 
 .splitter-handle {
   font-size: 16px;
   color: #909399;
   line-height: 1;
+  padding: 6px 2px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .chart-empty {

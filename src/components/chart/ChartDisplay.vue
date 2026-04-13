@@ -61,14 +61,22 @@ const chartOption = computed(() => {
     },
     legend: {
       type: 'scroll',
-      bottom: 0,
-      textStyle: { fontSize: 11 }
+      orient: 'horizontal',
+      bottom: 6,
+      left: 'center',
+      width: '92%',
+      itemGap: 14,
+      itemWidth: 16,
+      itemHeight: 10,
+      pageIconSize: 10,
+      pageTextStyle: { fontSize: 11, color: '#909399' },
+      textStyle: { fontSize: 11, color: '#606266' }
     },
     grid: {
       left: 60,
       right: config.yAxisSecondary ? 60 : 30,
       top: 50,
-      bottom: 50
+      bottom: 72
     },
     xAxis: {
       type: 'value',
