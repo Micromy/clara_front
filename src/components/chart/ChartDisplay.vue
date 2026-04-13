@@ -248,6 +248,11 @@ onBeforeUnmount(() => {
 })
 
 watch(chartOption, () => renderChart(), { deep: true })
+
+defineExpose({
+  getChartImage: (pixelRatio = 2) =>
+    chartInstance?.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' }) ?? null
+})
 </script>
 
 <template>

@@ -13,20 +13,76 @@ const chartTab = computed(() => {
   return store.chartTabs.find(t => t.builderId === builderId)
 })
 
-// false: table occupies ~30% on the right (chart-dominant view)
-// true:  table slides to occupy ~70%, covering the right portion of the chart
 const tableExpanded = ref(false)
+const chartDisplayRef = ref(null)
 
 function toggleSplit() {
   tableExpanded.value = !tableExpanded.value
+}
+
+// ── Export chart as PNG ──────────────────────────────────────────────────────
+function exportChartPng() {
+  const dataUrl = chartDisplayRef.value?.getChartImage(2)
+  if (!dataUrl) return
+  const a = document.createElement('a')
+  a.href = dataUrl
+  a.download = `${chartTab.value?.builderName ?? 'chart'}.png`
+  a.click()
+}
+
+// ── Export table data as CSV ─────────────────────────────────────────────────
+function exportCsv() {
+  const cells = chartTab.value?.cells
+  if (!cells?.length) return
+
+  // Collect all keys across cells (excluding internal __df_ keys → use name from derivedFormulas)
+  const derivedFormulas = chartTab.value?.derivedFormulas ?? []
+  const baseKeys = ['alias', 'cellName', 'cellType', 'driveStrength', 'library',
+                    'feolCorner', 'vdd', 'temp', 'vth', 'gateLength', 'cpp',
+                    'iPeak', 'iAvg', 'delay']
+  const derivedKeys = derivedFormulas.map(df => `__df_${df.id}`)
+  const derivedHeaders = derivedFormulas.map(df => df.name)
+
+  const headers = [...baseKeys, ...derivedHeaders]
+  const allKeys  = [...baseKeys, ...derivedKeys]
+
+  const escape = v => {
+    if (v == null) return ''
+    const s = String(v)
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  const rows = [
+    headers.join(','),
+    ...cells.map(c => allKeys.map(k => escape(c[k])).join(','))
+  ]
+
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `${chartTab.value?.builderName ?? 'data'}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 </script>
 
 <template>
   <div class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
-    <!-- Chart stays a fixed size; the table overlays on top of it. -->
+    <!-- Export toolbar -->
+    <div class="export-bar">
+      <el-button-group size="small">
+        <el-button @click="exportChartPng">
+          <el-icon style="margin-right:4px"><Picture /></el-icon>Export Chart PNG
+        </el-button>
+        <el-button @click="exportCsv">
+          <el-icon style="margin-right:4px"><Download /></el-icon>Export CSV
+        </el-button>
+      </el-button-group>
+    </div>
+
     <div class="chart-left">
-      <ChartDisplay :chart-data="chartTab" />
+      <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
     </div>
     <div
       class="chart-splitter"
@@ -52,9 +108,18 @@ function toggleSplit() {
   overflow: hidden;
 }
 
-/* Chart is pinned to the left and keeps a fixed width regardless of the
-   table state. The table slides on top of it, so the chart itself never
-   resizes — only how much of it is visible changes. */
+.export-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(255,255,255,0.92);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
 .chart-left {
   position: absolute;
   left: 0;

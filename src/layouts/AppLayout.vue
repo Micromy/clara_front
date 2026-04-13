@@ -44,6 +44,14 @@ function removeChartTab(builderId) {
   store.removeChartTab(Number(builderId))
   router.push(`/builder/${store.activeBuilder.id}`)
 }
+
+function handleTabRemove(name) {
+  if (name.startsWith('builder-')) {
+    removeBuilderTab(name.replace('builder-', ''))
+  } else if (name.startsWith('chart-')) {
+    removeChartTab(name.replace('chart-', ''))
+  }
+}
 </script>
 
 <template>
@@ -60,6 +68,7 @@ function removeChartTab(builderId) {
         :model-value="activeTab"
         type="card"
         @tab-click="handleTabClick"
+        @tab-remove="handleTabRemove"
       >
         <el-tab-pane
           v-for="builder in store.builders"
@@ -67,7 +76,6 @@ function removeChartTab(builderId) {
           :label="builder.name"
           :name="`builder-${builder.id}`"
           :closable="store.builders.length > 1"
-          @close="removeBuilderTab(builder.id)"
         />
         <el-tab-pane
           v-for="chart in store.chartTabs"
@@ -75,7 +83,6 @@ function removeChartTab(builderId) {
           :label="`Chart: ${chart.builderName}`"
           :name="`chart-${chart.builderId}`"
           closable
-          @close="removeChartTab(chart.builderId)"
         />
       </el-tabs>
       <el-button

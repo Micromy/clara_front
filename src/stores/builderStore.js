@@ -366,6 +366,45 @@ export const useBuilderStore = defineStore('builder', () => {
     if (idx !== -1) chartTabs.value.splice(idx, 1)
   }
 
+  // ── Debug: inject cells from CSV parse result ─────────────────────────────
+  let nextDebugId = -1
+
+  function addDebugCells(rows) {
+    rows.forEach(r => {
+      const id = nextDebugId--
+      allCells.value.push({
+        id,
+        cellName:      r.cellName      || `Debug${Math.abs(id)}`,
+        cellType:      r.cellType      || 'DEBUG',
+        driveStrength: r.driveStrength || 'X1',
+        library:       r.library       || 'Debug',
+        feolCorner:    r.feolCorner    || 'TT',
+        vdd:           r.vdd  != null ? Number(r.vdd)  : 1.0,
+        temp:          r.temp != null ? Number(r.temp) : 25,
+        vth:           r.vth  != null ? Number(r.vth)  : 0.4,
+        gateLength:    r.gateLength != null ? Number(r.gateLength) : 14,
+        cpp:           r.cpp  != null ? Number(r.cpp)  : 30,
+        _debug: true
+      })
+      simulations.value[id] = {
+        iPeak: r.iPeak != null ? Number(r.iPeak) : 0,
+        iAvg:  r.iAvg  != null ? Number(r.iAvg)  : 0,
+        delay: r.delay != null ? Number(r.delay) : 0
+      }
+      // auto-select in active builder
+      if (activeBuilder.value) activeBuilder.value.selectedCellIds.push(id)
+    })
+  }
+
+  function clearDebugCells() {
+    const debugIds = new Set(allCells.value.filter(c => c._debug).map(c => c.id))
+    allCells.value = allCells.value.filter(c => !c._debug)
+    debugIds.forEach(id => { delete simulations.value[id] })
+    builders.value.forEach(b => {
+      b.selectedCellIds = b.selectedCellIds.filter(id => !debugIds.has(id))
+    })
+  }
+
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
@@ -375,6 +414,7 @@ export const useBuilderStore = defineStore('builder', () => {
     toggleCellSelection, selectCells, deselectCells,
     addBuilder, removeBuilder, updateChartConfig,
     addDerivedFormula, removeDerivedFormula,
-    generateChart, removeChartTab
+    generateChart, removeChartTab,
+    addDebugCells, clearDebugCells
   }
 })
