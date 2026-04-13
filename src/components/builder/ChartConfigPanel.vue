@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import {
   useBuilderStore,
-  DERIVED_FIELDS, DERIVED_OPS, FORMULA_TYPES, UNARY_FNS,
+  DERIVED_FIELDS, DERIVED_OPS, FORMULA_TYPES, UNARY_FNS, GROUP_BY_OPTIONS,
   formulaDesc
 } from '../../stores/builderStore.js'
 import { useRouter } from 'vue-router'
@@ -19,15 +19,24 @@ const dfOp    = ref('/')
 const dfField2 = ref('delay')
 const dfField = ref('iPeak')   // for unary / stat-based
 const dfFn    = ref('log10')   // for unary
+const dfGroupBy = ref('alias') // for mean/std
 
-const isBinary = computed(() => dfType.value === 'binary')
-const isUnary  = computed(() => dfType.value === 'unary')
-const isStat   = computed(() => !isBinary.value && !isUnary.value)
+const isBinary  = computed(() => dfType.value === 'binary')
+const isUnary   = computed(() => dfType.value === 'unary')
+const isGroup   = computed(() => dfType.value === 'mean' || dfType.value === 'std')
+const isStat    = computed(() => !isBinary.value && !isUnary.value && !isGroup.value)
+
+const CHART_TYPES = [
+  { value: 'scatter', label: 'Scatter' },
+  { value: 'line',    label: 'Line' },
+  { value: 'bar',     label: 'Bar' }
+]
 
 const formulaPreview = computed(() => {
   const fl = v => DERIVED_FIELDS.find(f => f.value === v)?.label ?? v
   const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
   const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
+  const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? v
   switch (dfType.value) {
     case 'binary':     return `${fl(dfField1.value)} ${ol(dfOp.value)} ${fl(dfField2.value)}`
     case 'unary':      return `${fnl(dfFn.value)} of ${fl(dfField.value)}`
@@ -35,6 +44,8 @@ const formulaPreview = computed(() => {
     case 'relative':   return `${fl(dfField.value)} / μ`
     case 'delta_mean': return `${fl(dfField.value)} − μ`
     case 'pct_max':    return `${fl(dfField.value)} / max × 100`
+    case 'mean':       return `μ of ${fl(dfField.value)} (by ${gl(dfGroupBy.value)})`
+    case 'std':        return `σ of ${fl(dfField.value)} (by ${gl(dfGroupBy.value)})`
     default: return ''
   }
 })
@@ -47,6 +58,7 @@ function openDerivedDialog() {
   dfField2.value = 'delay'
   dfField.value = 'iPeak'
   dfFn.value = 'log10'
+  dfGroupBy.value = 'alias'
   dialogVisible.value = true
 }
 
@@ -57,6 +69,8 @@ function addDerived() {
     store.addDerivedFormula({ ...base, field1: dfField1.value, op: dfOp.value, field2: dfField2.value })
   } else if (isUnary.value) {
     store.addDerivedFormula({ ...base, field: dfField.value, fn: dfFn.value })
+  } else if (isGroup.value) {
+    store.addDerivedFormula({ ...base, field: dfField.value, groupBy: dfGroupBy.value })
   } else {
     store.addDerivedFormula({ ...base, field: dfField.value })
   }
@@ -117,6 +131,18 @@ function onGenerate() {
           placeholder="None"
         >
           <el-option v-for="opt in store.augmentedYAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item v-if="store.activeBuilder.chartConfig.yAxisSecondary" label="Secondary Y-Axis Chart Type">
+        <el-select
+          :model-value="store.activeBuilder.chartConfig.chartTypeSecondary"
+          @update:model-value="val => store.updateChartConfig('chartTypeSecondary', val || null)"
+          style="width: 100%"
+          clearable
+          placeholder="Same as primary"
+        >
+          <el-option v-for="opt in CHART_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
       </el-form-item>
 
@@ -202,6 +228,20 @@ function onGenerate() {
           <el-form-item label="Field">
             <el-select v-model="dfField" style="width:100%">
               <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+            </el-select>
+          </el-form-item>
+        </template>
+
+        <!-- Group-based: field + groupBy -->
+        <template v-else-if="isGroup">
+          <el-form-item label="Field">
+            <el-select v-model="dfField" style="width:100%">
+              <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Group By">
+            <el-select v-model="dfGroupBy" style="width:100%">
+              <el-option v-for="g in GROUP_BY_OPTIONS" :key="g.value" :label="g.label" :value="g.value" />
             </el-select>
           </el-form-item>
         </template>

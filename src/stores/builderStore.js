@@ -21,14 +21,25 @@ export const DERIVED_OPS = [
   { value: '/', label: '÷' }
 ]
 
-// Formula types: binary, unary, stat-based
+// Formula types: binary, unary, stat-based, group-based
 export const FORMULA_TYPES = [
   { value: 'binary',     label: 'Binary Arithmetic', desc: 'A  op  B' },
   { value: 'unary',      label: 'Math Function',      desc: 'f(field)' },
   { value: 'normalize',  label: 'Z-score',            desc: '(x − μ) / σ' },
   { value: 'relative',   label: 'Relative to Mean',   desc: 'x / μ' },
   { value: 'delta_mean', label: 'Delta from Mean',    desc: 'x − μ' },
-  { value: 'pct_max',    label: '% of Max',           desc: 'x / max × 100' }
+  { value: 'pct_max',    label: '% of Max',           desc: 'x / max × 100' },
+  { value: 'mean',       label: 'Group Mean',          desc: 'μ within group' },
+  { value: 'std',        label: 'Group Std Dev',       desc: 'σ within group' }
+]
+
+// Fields available as grouping keys for group-based formulas
+export const GROUP_BY_OPTIONS = [
+  { value: 'alias',         label: 'Alias' },
+  { value: 'cellType',      label: 'Cell Type' },
+  { value: 'driveStrength', label: 'Drive Strength' },
+  { value: 'library',       label: 'Library' },
+  { value: 'feolCorner',    label: 'FEOL Corner' }
 ]
 
 export const UNARY_FNS = [
@@ -74,6 +85,8 @@ function computeDerivedValue(cell, df, stats) {
       }
       break
     }
+    case 'mean': return stats?.mean ?? null
+    case 'std':  return stats?.std ?? null
     default: {
       const x = cell[df.field]
       if (typeof x !== 'number' || !stats) return null
@@ -93,6 +106,7 @@ export function formulaDesc(df) {
   const fl = v => DERIVED_FIELDS.find(f => f.value === v)?.label ?? v
   const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
   const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
+  const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? (v ?? 'alias')
   switch (df.type) {
     case 'binary':     return `${fl(df.field1)} ${ol(df.op)} ${fl(df.field2)}`
     case 'unary':      return `${fnl(df.fn)} of ${fl(df.field)}`
@@ -100,6 +114,8 @@ export function formulaDesc(df) {
     case 'relative':   return `${fl(df.field)} / μ`
     case 'delta_mean': return `${fl(df.field)} − μ`
     case 'pct_max':    return `${fl(df.field)} / max × 100`
+    case 'mean':       return `μ of ${fl(df.field)} (by ${gl(df.groupBy)})`
+    case 'std':        return `σ of ${fl(df.field)} (by ${gl(df.groupBy)})`
     default:           return ''
   }
 }
@@ -125,6 +141,7 @@ export const useBuilderStore = defineStore('builder', () => {
   function createDefaultChartConfig() {
     return {
       chartType: 'scatter',
+      chartTypeSecondary: null,   // null = same as primary
       xAxis: 'vdd',
       yAxisPrimary: 'iPeak',
       yAxisSecondary: null,
@@ -171,17 +188,45 @@ export const useBuilderStore = defineStore('builder', () => {
 
     if (formulas.length === 0) return baseCells
 
-    // Pre-compute group stats for stat-based formulas
+    // Pre-compute overall group stats for stat-based formulas (normalize, relative, delta_mean, pct_max)
     const groupStats = {}
-    formulas.filter(df => !['binary', 'unary'].includes(df.type)).forEach(df => {
-      groupStats[df.id] = computeGroupStats(baseCells, df.field)
+    formulas
+      .filter(df => !['binary', 'unary', 'mean', 'std'].includes(df.type))
+      .forEach(df => { groupStats[df.id] = computeGroupStats(baseCells, df.field) })
+
+    // Pre-compute per-group stats for mean/std formulas
+    // groupStatsMap[formulaId] = Map<groupKey, { mean, std }>
+    const groupStatsMap = {}
+    formulas.filter(df => df.type === 'mean' || df.type === 'std').forEach(df => {
+      const byGroup = new Map()
+      baseCells.forEach(c => {
+        const gKey = String(c[df.groupBy ?? 'alias'] ?? '')
+        if (!byGroup.has(gKey)) byGroup.set(gKey, [])
+        const v = c[df.field]
+        if (typeof v === 'number') byGroup.get(gKey).push(v)
+      })
+      const statsMap = new Map()
+      byGroup.forEach((vals, gKey) => {
+        if (!vals.length) { statsMap.set(gKey, { mean: null, std: null }); return }
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length
+        const std = vals.length > 1
+          ? Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length)
+          : 0
+        statsMap.set(gKey, { mean, std })
+      })
+      groupStatsMap[df.id] = statsMap
     })
 
     // Pass 2: apply derived formulas per cell
     return baseCells.map(c => {
       const merged = { ...c }
       formulas.forEach(df => {
-        merged[`__df_${df.id}`] = computeDerivedValue(c, df, groupStats[df.id])
+        let stats = groupStats[df.id]
+        if (df.type === 'mean' || df.type === 'std') {
+          const gKey = String(c[df.groupBy ?? 'alias'] ?? '')
+          stats = groupStatsMap[df.id]?.get(gKey)
+        }
+        merged[`__df_${df.id}`] = computeDerivedValue(c, df, stats)
       })
       return merged
     })

@@ -38,6 +38,9 @@ const chartOption = computed(() => {
 
   const isBar = config.chartType === 'bar'
   const isLine = config.chartType === 'line'
+  const secType = config.chartTypeSecondary || config.chartType
+  const isBarSec = secType === 'bar'
+  const isLineSec = secType === 'line'
 
   // Group cells by the grouping field
   const groups = new Map()
@@ -88,8 +91,10 @@ const chartOption = computed(() => {
 
     // Secondary Y-axis series
     if (config.yAxisSecondary) {
-      if (isBar) {
-        const data = xCategories.map(xCat => {
+      if (isBarSec) {
+        // For bar secondary, we need xCategories — derive from bar or value x-axis
+        const xCats = xCategories || [...new Set(groupCells.map(c => c[config.xAxis]))].sort((a, b) => a - b).map(String)
+        const data = xCats.map(xCat => {
           const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
           if (!matching.length) return null
           const avg = matching.reduce((s, c) => s + (c[config.yAxisSecondary] ?? 0), 0) / matching.length
@@ -104,17 +109,17 @@ const chartOption = computed(() => {
           barGap: '30%'
         })
       } else {
-        const sortedCells = isLine
+        const sortedCells = isLineSec
           ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
           : groupCells
         const data = sortedCells.map(c => [c[config.xAxis], c[config.yAxisSecondary]])
         series.push({
           name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
-          type: isLine ? 'line' : 'scatter',
+          type: isLineSec ? 'line' : 'scatter',
           yAxisIndex: 1,
           data,
-          symbol: isLine ? 'triangle' : 'diamond',
-          symbolSize: isLine ? 5 : 8,
+          symbol: isLineSec ? 'triangle' : 'diamond',
+          symbolSize: isLineSec ? 5 : 8,
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color }
         })
