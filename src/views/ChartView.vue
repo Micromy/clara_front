@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 import ChartDisplay from '../components/chart/ChartDisplay.vue'
 import SourceDataTable from '../components/chart/SourceDataTable.vue'
+import html2canvas from 'html2canvas'
 
 const route = useRoute()
 const store = useBuilderStore()
@@ -15,19 +16,35 @@ const chartTab = computed(() => {
 
 const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
+const tableContainerRef = ref(null)
 
+// B1: Resize ECharts after splitter transition (250ms CSS transition)
 function toggleSplit() {
   tableExpanded.value = !tableExpanded.value
+  setTimeout(() => chartDisplayRef.value?.resize(), 260)
 }
 
-// ── Export chart as PNG ──────────────────────────────────────────────────────
+// ── Export chart as PNG (ECharts built-in) ───────────────────────────────────
 function exportChartPng() {
   const dataUrl = chartDisplayRef.value?.getChartImage(2)
   if (!dataUrl) return
-  const a = document.createElement('a')
-  a.href = dataUrl
-  a.download = `${chartTab.value?.builderName ?? 'chart'}.png`
-  a.click()
+  triggerDownload(dataUrl, `${chartTab.value?.builderName ?? 'chart'}.png`)
+}
+
+// ── Export table as PNG (html2canvas) ───────────────────────────────────────
+async function exportTablePng() {
+  if (!tableContainerRef.value) return
+  try {
+    const canvas = await html2canvas(tableContainerRef.value, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false
+    })
+    triggerDownload(canvas.toDataURL('image/png'), `${chartTab.value?.builderName ?? 'table'}-data.png`)
+  } catch (e) {
+    console.error('[ChartView] Table PNG export failed:', e)
+  }
 }
 
 // ── Export table data as CSV ─────────────────────────────────────────────────
@@ -35,14 +52,12 @@ function exportCsv() {
   const cells = chartTab.value?.cells
   if (!cells?.length) return
 
-  // Collect all keys across cells (excluding internal __df_ keys → use name from derivedFormulas)
   const derivedFormulas = chartTab.value?.derivedFormulas ?? []
   const baseKeys = ['alias', 'cellName', 'cellType', 'driveStrength', 'library',
                     'feolCorner', 'vdd', 'temp', 'vth', 'gateLength', 'cpp',
                     'iPeak', 'iAvg', 'delay']
-  const derivedKeys = derivedFormulas.map(df => `__df_${df.id}`)
+  const derivedKeys    = derivedFormulas.map(df => `__df_${df.id}`)
   const derivedHeaders = derivedFormulas.map(df => df.name)
-
   const headers = [...baseKeys, ...derivedHeaders]
   const allKeys  = [...baseKeys, ...derivedKeys]
 
@@ -53,17 +68,18 @@ function exportCsv() {
       ? `"${s.replace(/"/g, '""')}"` : s
   }
 
-  const rows = [
-    headers.join(','),
-    ...cells.map(c => allKeys.map(k => escape(c[k])).join(','))
-  ]
-
+  const rows = [headers.join(','), ...cells.map(c => allKeys.map(k => escape(c[k])).join(','))]
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  triggerDownload(url, `${chartTab.value?.builderName ?? 'data'}.csv`)
+  URL.revokeObjectURL(url)
+}
+
+function triggerDownload(href, filename) {
   const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `${chartTab.value?.builderName ?? 'data'}.csv`
+  a.href = href
+  a.download = filename
   a.click()
-  URL.revokeObjectURL(a.href)
 }
 </script>
 
@@ -71,14 +87,18 @@ function exportCsv() {
   <div class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
     <!-- Export toolbar -->
     <div class="export-bar">
-      <el-button-group size="small">
-        <el-button @click="exportChartPng">
-          <el-icon style="margin-right:4px"><Picture /></el-icon>Export Chart PNG
+      <el-dropdown trigger="click" size="small">
+        <el-button size="small">
+          Export <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
         </el-button>
-        <el-button @click="exportCsv">
-          <el-icon style="margin-right:4px"><Download /></el-icon>Export CSV
-        </el-button>
-      </el-button-group>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item @click="exportChartPng">Chart — PNG</el-dropdown-item>
+            <el-dropdown-item @click="exportTablePng">Table — PNG</el-dropdown-item>
+            <el-dropdown-item @click="exportCsv">Table — CSV</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
 
     <div class="chart-left">
@@ -91,7 +111,7 @@ function exportCsv() {
     >
       <span class="splitter-handle">{{ tableExpanded ? '›' : '‹' }}</span>
     </div>
-    <div class="chart-right">
+    <div ref="tableContainerRef" class="chart-right">
       <SourceDataTable :chart-data="chartTab" />
     </div>
   </div>
@@ -114,10 +134,6 @@ function exportCsv() {
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  background: rgba(255,255,255,0.92);
-  border-radius: 6px;
-  padding: 4px 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
 }
 
 .chart-left {

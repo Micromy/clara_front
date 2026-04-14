@@ -5,14 +5,13 @@ import { useBuilderStore } from '../../stores/builderStore.js'
 const store = useBuilderStore()
 
 const displayMode    = ref('metadata')  // 'metadata' | 'simulation'
-const comparisonMode = ref('off')       // 'off' | 'diff' | 'ratio'
+const comparisonMode = ref('off')       // 'off' | 'diff'
 const referenceCellId = ref(null)
-const columnModes    = ref({})          // colProp -> 'diff' | 'ratio' (overrides global)
+const columnModes    = ref({})          // colProp -> 'diff' | 'ratio' (per-column override)
 
 const COMPARISON_OPTIONS = [
-  { label: 'Off',   value: 'off' },
-  { label: 'Diff',  value: 'diff' },
-  { label: 'Ratio', value: 'ratio' }
+  { label: 'Raw',  value: 'off' },
+  { label: 'Diff', value: 'diff' }
 ]
 
 function updateAlias(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
@@ -20,10 +19,7 @@ function getAlias(cellId)           { return store.getCellAlias(store.activeBuil
 function removeCell(cellId)         { store.toggleCellSelection(cellId) }
 
 // Reset column overrides when global mode changes
-watch(comparisonMode, (mode) => {
-  columnModes.value = {}
-  if (mode !== 'simulation') return
-})
+watch(comparisonMode, () => { columnModes.value = {} })
 watch(displayMode, (mode) => {
   if (mode !== 'simulation') comparisonMode.value = 'off'
 })
@@ -51,9 +47,9 @@ const simColumns = computed(() => [
 
 const numericKeys = computed(() => simColumns.value.filter(c => c.numeric).map(c => c.prop))
 
-// Effective mode for a column: column override ?? global mode
+// Effective mode per column: override ?? 'diff' (default subtraction when comparison on)
 function effectiveMode(colKey) {
-  return columnModes.value[colKey] ?? comparisonMode.value
+  return columnModes.value[colKey] ?? 'diff'
 }
 
 function toggleColumnMode(colKey) {
@@ -91,19 +87,32 @@ function isRefRow(row) {
 }
 function rowClassName({ row }) { return isRefRow(row) ? 'is-ref-row' : '' }
 
+// Digits per column prop
+const SIM_DIGITS = { iPeak: 2, iAvg: 2, delay: 1 }
+function digitsFor(prop) {
+  return SIM_DIGITS[prop] ?? 2
+}
+
+function formatNum(v, digits) {
+  if (v == null || Number.isNaN(v)) return '—'
+  if (Number.isInteger(v)) return String(v)
+  return Number(v).toFixed(digits)
+}
+
 function simCellInfo(row, col) {
   const v = row[col.prop]
+  const digits = digitsFor(col.prop)
   if (v === null || v === undefined) return { text: '—', cls: '' }
   if (typeof v !== 'number') return { text: String(v), cls: '' }
   if (comparisonMode.value === 'off' || displayMode.value !== 'simulation' || isRefRow(row)) {
-    return { text: String(v), cls: '' }
+    return { text: formatNum(v, digits), cls: '' }
   }
   const mode = effectiveMode(col.prop)
   if (mode === 'diff') {
     const sign = v > 0 ? '+' : ''
-    return { text: `${sign}${v}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
+    return { text: `${sign}${formatNum(v, digits)}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
   }
-  return { text: `×${v}`, cls: v > 1 ? 'cell-pos' : v < 1 ? 'cell-neg' : '' }
+  return { text: `×${formatNum(v, digits)}`, cls: v > 1 ? 'cell-pos' : v < 1 ? 'cell-neg' : '' }
 }
 </script>
 
@@ -159,7 +168,12 @@ function simCellInfo(row, col) {
       </el-table-column>
 
       <!-- Cell Name (fixed 2nd) -->
-      <el-table-column prop="cellName" label="Cell Name" width="150" show-overflow-tooltip fixed />
+      <el-table-column label="Cell Name" width="150" show-overflow-tooltip fixed>
+        <template #default="{ row }">
+          <el-tag v-if="isRefRow(row)" size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
+          <span>{{ row.cellName }}</span>
+        </template>
+      </el-table-column>
 
       <!-- Metadata columns -->
       <template v-if="displayMode === 'metadata'">
@@ -186,18 +200,12 @@ function simCellInfo(row, col) {
                   :type="effectiveMode(col.prop) === 'diff' ? 'primary' : 'warning'"
                   class="col-mode-tag"
                   @click.stop="toggleColumnMode(col.prop)"
-                >{{ effectiveMode(col.prop) === 'diff' ? 'Δ' : '×' }}</el-tag>
+                >{{ effectiveMode(col.prop) === 'diff' ? '−' : '÷' }}</el-tag>
               </div>
             </div>
           </template>
           <template #default="{ row }">
-            <template v-if="isRefRow(row)">
-              <el-tag size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
-              <span>{{ row[col.prop] ?? '—' }}</span>
-            </template>
-            <template v-else>
-              <span :class="simCellInfo(row, col).cls">{{ simCellInfo(row, col).text }}</span>
-            </template>
+            <span :class="simCellInfo(row, col).cls">{{ simCellInfo(row, col).text }}</span>
           </template>
         </el-table-column>
       </template>
@@ -225,7 +233,7 @@ function simCellInfo(row, col) {
 }
 .col-label { font-size: 12px; font-weight: 500; }
 .col-header-badges { display: flex; gap: 3px; align-items: center; }
-.col-mode-tag { cursor: pointer; user-select: none; }
+.col-mode-tag { cursor: pointer; user-select: none; font-weight: 700; }
 .col-mode-tag:hover { opacity: 0.8; }
 
 .selected-cells-panel :deep(.is-ref-row) td { background-color: #ecf5ff !important; font-weight: 600; }

@@ -49,10 +49,13 @@ const chartOption = computed(() => {
   const isBarSec = secType === 'bar'
   const isLineSec = secType === 'line'
 
-  // Group cells by the grouping field
+  // Group cells by the grouping field.
+  // Fall back to cellName when the grouping value is null/undefined/empty string
+  // (e.g. alias is '' before the user fills it in).
   const groups = new Map()
   cells.forEach(cell => {
-    const key = String(cell[config.grouping] ?? cell.alias ?? cell.cellName)
+    const raw = cell[config.grouping]
+    const key = (raw != null && String(raw).trim() !== '') ? String(raw) : cell.cellName
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(cell)
   })
@@ -251,7 +254,8 @@ watch(chartOption, () => renderChart(), { deep: true })
 
 defineExpose({
   getChartImage: (pixelRatio = 2) =>
-    chartInstance?.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' }) ?? null
+    chartInstance?.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' }) ?? null,
+  resize: () => chartInstance?.resize()
 })
 </script>
 

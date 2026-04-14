@@ -6,14 +6,13 @@ const props = defineProps({
 })
 
 // Comparison state
-const comparisonMode  = ref('off')   // 'off' | 'diff' | 'ratio'
+const comparisonMode  = ref('off')   // 'off' | 'diff'
 const referenceCellId = ref(null)
-const columnModes     = ref({})      // colKey -> 'diff' | 'ratio' (overrides global)
+const columnModes     = ref({})      // colKey -> 'diff' | 'ratio' (per-column override)
 
 const COMPARISON_OPTIONS = [
-  { label: 'Off',   value: 'off' },
-  { label: 'Diff',  value: 'diff' },
-  { label: 'Ratio', value: 'ratio' }
+  { label: 'Raw',  value: 'off' },
+  { label: 'Diff', value: 'diff' }
 ]
 
 const cells = computed(() => props.chartData.cells || [])
@@ -30,8 +29,9 @@ watch([comparisonMode, cells], ([mode, cs]) => {
   }
 }, { immediate: true })
 
+// effective mode per column: override ?? 'diff' (default when comparison is on)
 function effectiveMode(colKey) {
-  return columnModes.value[colKey] ?? comparisonMode.value
+  return columnModes.value[colKey] ?? 'diff'
 }
 function toggleColumnMode(colKey) {
   const cur = effectiveMode(colKey)
@@ -69,7 +69,6 @@ function labelFor(key) {
   if (AXIS_LABELS[key]) return AXIS_LABELS[key]
   const f = ALL_FIELDS.find(f => f.key === key)
   if (f) return f.label
-  // Derived formula label from chartData
   const df = (props.chartData.derivedFormulas || []).find(d => `__df_${d.id}` === key)
   return df ? df.name : key
 }
@@ -230,7 +229,7 @@ function cellInfo(row, col) {
               :type="effectiveMode(col.key) === 'diff' ? 'primary' : 'warning'"
               class="col-mode-tag"
               @click.stop="toggleColumnMode(col.key)"
-            >{{ effectiveMode(col.key) === 'diff' ? 'Δ' : '×' }}</el-tag>
+            >{{ effectiveMode(col.key) === 'diff' ? '−' : '÷' }}</el-tag>
           </div>
         </template>
         <template #default="{ row }">
@@ -283,6 +282,6 @@ function cellInfo(row, col) {
 
 .col-header { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .col-label { font-size: 12px; font-weight: 500; }
-.col-mode-tag { cursor: pointer; user-select: none; }
+.col-mode-tag { cursor: pointer; user-select: none; font-weight: 700; }
 .col-mode-tag:hover { opacity: 0.8; }
 </style>

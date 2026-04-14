@@ -1,6 +1,19 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
+
+const STORAGE_KEY = 'arias-builder-state'
+
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function savePersistedState(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota exceeded etc */ }
+}
 
 // Fields available for derived formula operands
 export const DERIVED_FIELDS = [
@@ -130,11 +143,28 @@ export const useBuilderStore = defineStore('builder', () => {
   const error = ref(null)
   let initPromise = null
 
-  const builders = ref([
-    { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
-  ])
-  const activeBuilderIndex = ref(0)
-  let nextBuilderId = 2
+  // Restore persisted builder state (before first render)
+  const _saved = loadPersistedState()
+
+  const builders = ref(
+    _saved?.builders ?? [
+      { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
+    ]
+  )
+  const activeBuilderIndex = ref(
+    _saved?.activeBuilderIndex != null
+      ? Math.min(_saved.activeBuilderIndex, (_saved.builders?.length ?? 1) - 1)
+      : 0
+  )
+  let nextBuilderId = _saved?.builders
+    ? Math.max(..._saved.builders.map(b => b.id), 1) + 1
+    : 2
+
+  // Sync nextDerivedId from restored builders so IDs don't collide
+  if (_saved?.builders) {
+    const allFormulas = _saved.builders.flatMap(b => b.derivedFormulas ?? [])
+    if (allFormulas.length) nextDerivedId = Math.max(...allFormulas.map(f => f.id), 0) + 1
+  }
 
   const chartTabs = ref([])
 
@@ -269,7 +299,7 @@ export const useBuilderStore = defineStore('builder', () => {
     return [...base, ...derived]
   })
 
-  const cellAliases = ref({})
+  const cellAliases = ref(_saved?.cellAliases ?? {})
 
   function getCellAlias(builderId, cellId) {
     return cellAliases.value[`${builderId}-${cellId}`] || ''
@@ -404,6 +434,17 @@ export const useBuilderStore = defineStore('builder', () => {
       b.selectedCellIds = b.selectedCellIds.filter(id => !debugIds.has(id))
     })
   }
+
+  // ── Persist builder state to localStorage on every change ──────────────────
+  watch(
+    [builders, cellAliases, activeBuilderIndex],
+    () => savePersistedState({
+      builders: builders.value,
+      cellAliases: cellAliases.value,
+      activeBuilderIndex: activeBuilderIndex.value
+    }),
+    { deep: true }
+  )
 
   return {
     allCells, simulations, config, loading, error,
