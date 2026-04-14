@@ -1,7 +1,7 @@
 # ARIAS Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-04-13
-> 현재 작업 브랜치: `claude/arias-rebrand-and-features`
+> 마지막 업데이트: 2026-04-14
+> 현재 작업 브랜치: `claude/arias-rebrand-and-features` (HEAD: `e740152`)
 > 리포: `Micromy/clara_front`
 
 ---
@@ -61,6 +61,61 @@
 - `store.selectedCells` computed가 `simulations[cellId]`를 자동 merge → 컴포넌트 코드 무변경
 - 실제 백엔드 `GET /cells` / `GET /simulations` 엔드포인트 구조에 대응
 
+### 3-5. 차트 오버레이 스플리터 + 트랜스포즈 테이블 (`b6fe985`, `eb8452e`)
+- ChartView: 스플리터 토글 시 차트가 리사이즈되는 대신 테이블이 차트 위로 슬라이드 (차트 크기 고정)
+- ChartDisplay: legend scroll + width + pagination 지정, `grid.bottom` 확대로 범례/축 겹침 해소
+- SourceDataTable: 축 순서(X, Y1, Y2) 기준 컬럼 정렬, 셀 1개 = 1행 유지
+- BuilderView: bottom-section `min-height` 680px로 확대 → ChartConfigPanel 9개 폼 항목이 오버플로 없이 수용
+
+### 3-6. 스칼라 기반 차트로 전환 (`b5771a7`) — 데이터 모델 변경
+실제 데이터는 셀당 시뮬값 스칼라 하나씩만 존재하므로 `ivData` 배열을 제거하고 전 레이어 스칼라화.
+- `cellData.js`/`generate-mock-data.js`: `generateIVData` 제거, iPeak/iAvg/delay만 생성
+- `simulations.json`: 셀당 3개 스칼라 (ivData 없음)
+- `column-config.json`: xAxis → vdd/temp/vth/gateLength/cpp, yAxis → iPeak/iAvg/delay, 기본 차트 scatter
+- ChartDisplay: `ivData` 루프 제거 → grouping 필드 기준으로 시리즈 구성 (scatter/line/bar 모두 셀 1개 = 점 1개)
+- `docs/01-design.md`: 코드베이스 역작성 요구사항서 추가
+
+### 3-7. Alias/Diff 색상/Derived Formula/차트 테이블 Diff (`a44fa84`)
+- **alias / cellName 분리 표시**: SelectedCellsPanel(Alias|CellName 고정 2열), SourceDataTable(Cell 단일 → 분리)
+- **Diff 색상 강조**: formatter → template slot, 양수 초록/음수 빨강, ratio 1 기준 대비, ref 행에 "REF" 배지
+- **Derived Formula**: `builderStore.derivedFormulas[]` + `computeDerived()`, `__df_{id}` 키로 selectedCells에 자동 주입, ChartConfigPanel "+ Add Derived Metric" 다이얼로그, SelectedCellsPanel에 `f(x)` 태그 렌더
+- **SourceDataTable Diff**: Off/Diff/Ratio 세그먼트 + Reference 셀렉터, derived 필드도 대상 포함
+
+### 3-8. Derived Formula 통계 확장 + 컬럼별 Δ/× 독립 토글 (`9c18d4b`)
+6가지 formula type 지원: Binary, Math Function(log₁₀/ln/√x/|x|/1/x), Z-score, Relative to Mean, Delta from Mean, % of Max. 통계 기반 타입은 선택 셀 전체 기준 μ/σ/max 2-pass 계산.
+컬럼 헤더에 `[Δ|×]` 태그로 컬럼별 diff↔ratio 오버라이드 (전역 모드 변경 시 초기화).
+
+### 3-9. Group Mean/Std + 축별 차트 타입 (`ba097be`, `ac46940`)
+- `mean` / `std` formula type + `groupBy` 필드 (alias, cellType, driveStrength, library, feolCorner)
+- `chartTypeSecondary` — Y1/Y2 독립 차트 타입(scatter/line/bar)
+- Secondary 차트 타입을 primary와 x-axis 호환성 기준으로 clamp (bar는 category x-axis 필요)
+- Derived metric 다이얼로그 520px 확장, derived-item flex overflow 방지
+
+### 3-10. 패널 오버플로 수정 + PNG/CSV Export + CSV Import (`3f52fb9`)
+- BuilderView: bottom-right 패널 `overflow-y:auto + max-height`로 derived 다수 추가 시 뷰포트 보호
+- AppLayout: 차트 탭 close 버그 수정 (`@tab-remove` on el-tabs)
+- ChartView: PNG(`getDataURL()`) + CSV 내보내기 툴바
+- `CsvImportDialog.vue`: 디버그 전용 CSV 페이스트 → 5행 프리뷰 → `allCells + simulations`에 주입 + 자동 선택, `_debug` 태그로 일괄 제거 가능
+
+### 3-11. Bar chart 버그/Raw↔Diff 2-way/Table PNG/resize/persistence (`0d42d0c`)
+- Bar grouping key: alias 비었을 때 `''`로 병합되던 버그 → `cellName` 폴백
+- Comparison 모드: 3-way(Off/Diff/Ratio) → **2-way(Raw/Diff)**, 컬럼 토글 라벨 Δ/× → **−/÷**
+- SelectedCellsPanel 숫자 포맷: `String(v)` → `formatNum` (iPeak/iAvg 2dp, delay 1dp)
+- Table PNG export: `html2canvas`로 `.chart-right` 캡처
+- Splitter resize: `toggleSplit()`이 260ms 후 `chartInstance.resize()` 호출, ChartDisplay에 `resize()` expose
+- **localStorage persistence (F2)**: builders(selectedCellIds/chartConfig/derivedFormulas/name) + cellAliases + activeBuilderIndex 전량 저장, 첫 렌더 전 동기 복원, `nextBuilderId`/`nextDerivedId` 충돌 방지
+
+### 3-12. Export 버튼 레이아웃 + 전체 테이블 캡처 (`f5fdcd8`, `e740152`)
+- CSV Export 제거 (PNG만 유지)
+- Chart PNG: 차트 패널 좌상단 absolute
+- Table PNG: 테이블 패널 sticky 헤더에 고정, 라벨 "Export PNG"로 통일
+- 전체 행 캡처: `html2canvas` 전에 `.el-scrollbar__wrap` / `.el-table__body-wrapper` / `.el-scrollbar` overflow/height 제약을 임시 해제 → `finally`에서 복원
+
+### 3-13. CSV Import(Debug) 제거
+- `src/components/debug/CsvImportDialog.vue` 삭제 (+ `debug/` 디렉토리)
+- BuilderView: `[Debug] CSV Import` 버튼 / ref / 다이얼로그 / `.debug-csv-btn`·`.top-section-header` 스타일 제거
+- builderStore: `addDebugCells` / `clearDebugCells` / `nextDebugId` / `_debug` 경로 제거
+
 ---
 
 ## 4. 데이터 아키텍처
@@ -111,24 +166,18 @@ scripts/
 }
 ```
 
-### 4-3. `simulations.json` 스키마 (시뮬 결과)
+### 4-3. `simulations.json` 스키마 (시뮬 결과) — **스칼라 전환됨 (`b5771a7`)**
 
+셀당 시뮬값 스칼라 3개만 보존. `ivData` 배열은 제거됨.
 `cellId(string)` → 시뮬 객체:
 ```json
 {
-  "1": {
-    "iPeak": 33.47,           // μA — ivData의 max currentUA
-    "iAvg": 16.06,            // μA — ivData의 평균 currentUA
-    "delay": 2987.8,          // ps — (50/iPeak) * (gateLength/7) * 1000 (mock 공식)
-    "ivData": [
-      { "voltage": 0,    "currentMA": 0.0103, "currentUA": 10.32 },
-      { "voltage": 0.05, "currentMA": 0.0070, "currentUA": 7.04 },
-      ...                     // 0 ~ vdd, 0.05 스텝 (약 15개 포인트)
-    ]
-  },
-  "2": { ... }
+  "1": { "iPeak": 297.9, "iAvg": 135.7, "delay": 2386.2 },
+  "2": { "iPeak": 364.3, "iAvg": 152.6, "delay":  819.1 },
+  ...
 }
 ```
+차트는 X축(vdd/temp/vth/gateLength/cpp)과 Y축(iPeak/iAvg/delay) 모두 스칼라 기준 — 셀 1개 = 점 1개로 렌더.
 
 ### 4-4. `column-config.json` 스키마
 
@@ -150,10 +199,17 @@ scripts/
 
 셀 선택 / 차트 생성 시
   └─ store.selectedCells (computed)
-       └─ allCells.filter(id∈selected).map(c => ({ ...c, ...simulations[c.id] }))
-                                                    ↑ 메타 + 시뮬 자동 merge
-  └─ SelectedCellsPanel:  row.iPeak / row.iAvg / row.delay 로 접근
-  └─ ChartDisplay:        cell.ivData 로 접근
+       └─ allCells.filter(id∈selected).map(c => ({
+            ...c,
+            ...simulations[c.id],
+            __df_{id}: computeDerived(formula, cell, allSelected)   // derived 자동 주입
+          }))
+  └─ SelectedCellsPanel:  row.iPeak / row.iAvg / row.delay / row.__df_{id} 접근
+  └─ ChartDisplay:        grouping 필드로 시리즈 분할, 셀당 점 1개 scatter/line/bar
+
+영속성
+  └─ builders / cellAliases / activeBuilderIndex → localStorage (deep watch)
+  └─ 첫 렌더 전 동기 복원, ID 카운터(nextBuilderId/nextDerivedId) 재계산
 ```
 
 ---
@@ -161,14 +217,14 @@ scripts/
 ## 5. 주요 화면 / 컴포넌트
 
 ### 5-1. Builder 탭 (`/builder/:id`)
-- **CellSearchTable** — 100개 셀 페이징·검색. `store.searchTableColumns`로 18컬럼 렌더
-- **SelectedCellsPanel** — 체크한 셀 목록, alias 편집, Metadata/Simulation 토글, Diff/Ratio 비교
-- **ChartConfigPanel** — 차트 타입/축/그룹핑 드롭다운 + Generate Chart / Save Preset 버튼
+- **CellSearchTable** (`src/components/builder/`) — 100개 셀 페이징·검색, `store.searchTableColumns` 18컬럼
+- **SelectedCellsPanel** — Alias/CellName 2열 고정, Metadata↔Simulation 토글, Raw↔Diff 2-way 모드, 컬럼 헤더 `[−|÷]` 오버라이드, ref 행 "REF" 배지, 색상 강조(양수 초록/음수 빨강), derived 컬럼 `f(x)` 태그
+- **ChartConfigPanel** — 차트 타입 / Primary·Secondary Y축 차트 타입 / X·Y1·Y2 / Grouping / **+ Add Derived Metric** 다이얼로그(6 formula types + Group By)
 
 ### 5-2. Chart 탭 (`/chart/:builderId`)
-- **ChartDisplay** — ECharts 기반 V-I 곡선. ResizeObserver로 자동 리사이즈
-- **SourceDataTable** — 차트에 포함된 셀의 데이터 포인트 수 목록
-- **Splitter** — 두 영역 경계 클릭 시 7:3 ↔ 3:7 토글
+- **ChartDisplay** (`src/components/chart/`) — ECharts scatter/line/bar, grouping 기준 시리즈 분할, Y1/Y2 독립 차트 타입(`chartTypeSecondary`, 호환성 clamp), `resize()` 및 `getChartImage()` expose, legend scroll+pagination, `getDataURL()` 기반 PNG export
+- **SourceDataTable** — 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw/Diff 토글, Reference 선택, PNG export (전체 행 캡처를 위해 scrollbar 제약 임시 해제)
+- **Splitter** — 클릭 시 테이블이 차트 위로 **오버레이 슬라이드** (차트 크기 고정, 리사이즈 없음)
 
 ---
 
@@ -219,13 +275,8 @@ GitHub `github-pages` 환경의 **Deployment branches 보호 룰**이 걸려 있
 
 ## 8. 알려진 이슈 / 향후 개선점
 
-### 8-1. Chart X축 옵션과 `ivData` 포맷 미스매치
-`column-config.json` 의 `xAxisOptions` 에는 `voltage`, `temp`, `vdd` 3개가 있지만, `ivData` 포인트는 `voltage`/`currentMA`/`currentUA` 키만 있음.
-
-- 사용자가 X축으로 `temp`/`vdd`를 선택하면 `point.temp` / `point.vdd` 가 `undefined` → 차트가 빈 선으로 그려짐
-- **수정 방향 예시:**
-  - 시뮬 구조를 sweep 기반으로 확장: `cell.sweeps = [{ temp, vdd, points: [{v,i}] }, ...]`
-  - 또는 xAxisOptions를 `voltage` 하나로 축소하고, 스칼라 시뮬값 비교용 bar chart 모드를 별도 추가
+### 8-1. ~~Chart X축 옵션 ↔ `ivData` 포맷 미스매치~~ ✅ 해결 (`b5771a7`)
+`ivData` 배열을 제거하고 스칼라 기반 비교 차트로 전환. xAxis 옵션은 vdd/temp/vth/gateLength/cpp로 재정의.
 
 ### 8-2. ECharts 번들 사이즈
 - `dist/assets/index-*.js` ≈ 1.17MB (gzip 377KB)
@@ -235,8 +286,14 @@ GitHub `github-pages` 환경의 **Deployment branches 보호 룰**이 걸려 있
 ### 8-3. Comparison 모드 시 NumericFormatter 세밀도
 Ratio 모드 값이 소수 4자리로 고정. 매우 작은 차이가 잘 안 보일 수 있음 — 사용자 피드백에 따라 조정 가능.
 
-### 8-4. Selected Cells 패널의 "+ Add Derived Metric"
-버튼만 존재, 클릭 시 동작 없음 (원본 mockup에서 미구현 상태 유지).
+### 8-4. ~~Selected Cells 패널의 "+ Add Derived Metric"~~ ✅ 해결 (`a44fa84`, `9c18d4b`, `ba097be`)
+실동작 구현됨 — 6종 formula type + Group By(mean/std) 지원.
+
+### 8-5. Save Preset
+버튼만 존재, 클릭 시 동작 없음. 현재 선택 상태는 localStorage에 자동 저장되므로 "명명된 preset 라이브러리" 수준의 기능은 미구현.
+
+### 8-6. localStorage 마이그레이션 정책
+`builders` 스키마가 바뀌면 이전 버전 저장 데이터가 복원 단계에서 충돌할 수 있음. 현재는 방어 로직 없음 — 필드 추가 시 optional chaining/fallback으로 처리하되, 구조 변경 시 버전 키 도입 필요.
 
 ---
 
@@ -284,10 +341,22 @@ export async function fetchSimulations() {
 
 ---
 
-## 10. 커밋 히스토리 (요약)
+## 10. 커밋 히스토리 (요약, 최신 → 과거)
 
 | Hash | 요약 |
 |---|---|
+| `e740152` | Export PNG: 버튼 라벨 통일, 좌상단 배치, 전체 테이블 캡처 수정 |
+| `f5fdcd8` | Export 버튼 재배치, CSV export 제거 |
+| `0d42d0c` | Bar chart 버그, Raw/Diff 2-way, Table PNG, resize, localStorage persistence |
+| `3f52fb9` | 패널 overflow/탭 close 수정, Chart PNG/CSV export, CSV import 다이얼로그 |
+| `ac46940` | Derived 다이얼로그 520px 확장, secondary 차트 타입 x-axis 호환성 clamp |
+| `ba097be` | Group Mean/Std formula + 축별(Y1/Y2) 독립 차트 타입 |
+| `9c18d4b` | Derived formula 통계 확장(6종) + 컬럼별 Δ/× 독립 토글 |
+| `a44fa84` | alias/cellName 분리, diff 색상 강조, Derived Formula 구현, SourceTable Diff |
+| `b5771a7` | `ivData` 제거 → 스칼라 기반 차트로 전환 |
+| `eb8452e` | SourceTable 축 순서 기준 컬럼 정렬, ChartConfigPanel 높이 수용 |
+| `b6fe985` | 차트 위로 테이블 오버레이 스플리터, legend 겹침 수정, transposed table |
+| `79d715f` | PROGRESS.md 스냅샷 추가 |
 | `0001a76` | 메타/시뮬 JSON 엔드포인트 분리 |
 | `78238f1` | cells + column config를 public/data JSON + API 레이어로 리팩터 |
 | `1ff2bec` | ARIAS 리브랜딩, 시뮬 토글, 차트 스플리터 (기능 5종) |
@@ -301,10 +370,11 @@ export async function fetchSimulations() {
 ## 11. 다음에 할 수 있는 것들
 
 - [ ] `main`에 머지 + 환경 보호 룰 정리 → 공식 배포 URL 안정화
-- [ ] X축 옵션 / `ivData` 포맷 미스매치 해결 (위 8-1 참고)
-- [ ] Scalar 시뮬 값(`iPeak`/`iAvg`/`delay`)을 bar chart로 시각화하는 모드 추가
+- [x] ~~X축/`ivData` 미스매치~~ / ~~Add Derived Metric 실동작~~ — 완료
+- [x] ~~Scalar 시뮬 값 bar chart 모드~~ — 완료 (scatter/line/bar 축별 선택 가능)
 - [ ] 실제 백엔드 연동 — `src/api/cells.js` 에서 fetch URL 교체
 - [ ] ECharts tree-shaking + 코드 스플리팅으로 번들 다이어트
-- [ ] Save Preset / Add Derived Metric 버튼 실동작 구현
+- [ ] Save Preset (명명된 preset 라이브러리) 실동작 구현
+- [ ] localStorage 스키마 버전 키 + 마이그레이션 정책 (위 8-6)
 - [ ] 로딩 스피너 스타일 다듬기 / skeleton UI
 - [ ] 반응형 (모바일/태블릿 레이아웃) 검토

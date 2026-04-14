@@ -2,30 +2,16 @@
 import CellSearchTable from '../components/builder/CellSearchTable.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
-import CsvImportDialog from '../components/debug/CsvImportDialog.vue'
 import { ref } from 'vue'
 
 const bottomCollapsed = ref(false)
-const csvImportRef = ref(null)
 </script>
 
 <template>
   <div class="builder-view">
     <div class="top-section">
-      <div class="top-section-header">
-        <CellSearchTable />
-        <el-button
-          class="debug-csv-btn"
-          size="small"
-          type="warning"
-          plain
-          @click="csvImportRef?.open()"
-        >
-          [Debug] CSV Import
-        </el-button>
-      </div>
+      <CellSearchTable />
     </div>
-    <CsvImportDialog ref="csvImportRef" />
 
     <div class="section-divider" @click="bottomCollapsed = !bottomCollapsed">
       <el-icon><component :is="bottomCollapsed ? 'ArrowDown' : 'ArrowUp'" /></el-icon>
@@ -58,19 +44,6 @@ const csvImportRef = ref(null)
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  position: relative;
-}
-
-.top-section-header {
-  position: relative;
-  height: 100%;
-}
-
-.debug-csv-btn {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 1;
 }
 
 .section-divider {
