@@ -33,9 +33,38 @@ function exportChartPng() {
 }
 
 async function exportTablePng() {
-  if (!tableContainerRef.value) return
+  const el = tableContainerRef.value
+  if (!el) return
+
+  // Element Plus el-table clips rows inside .el-scrollbar__wrap and
+  // .el-table__body-wrapper with overflow:hidden + fixed height.
+  // Temporarily remove those constraints so html2canvas sees all rows.
+  const clipped = el.querySelectorAll(
+    '.el-scrollbar__wrap, .el-table__body-wrapper, .el-scrollbar'
+  )
+  const saved = Array.from(clipped).map(node => ({
+    node,
+    overflow:  node.style.overflow,
+    maxHeight: node.style.maxHeight,
+    height:    node.style.height
+  }))
+  saved.forEach(({ node }) => {
+    node.style.overflow  = 'visible'
+    node.style.maxHeight = 'none'
+    node.style.height    = 'auto'
+  })
+
+  // Also let the container itself expand
+  const prevOverflow = el.style.overflow
+  const prevHeight   = el.style.height
+  el.style.overflow  = 'visible'
+  el.style.height    = 'auto'
+
+  // Wait one frame for layout to settle
+  await new Promise(r => requestAnimationFrame(r))
+
   try {
-    const canvas = await html2canvas(tableContainerRef.value, {
+    const canvas = await html2canvas(el, {
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
@@ -47,6 +76,15 @@ async function exportTablePng() {
     a.click()
   } catch (e) {
     console.error('[ChartView] Table PNG export failed:', e)
+  } finally {
+    // Restore every element
+    saved.forEach(({ node, overflow, maxHeight, height }) => {
+      node.style.overflow  = overflow
+      node.style.maxHeight = maxHeight
+      node.style.height    = height
+    })
+    el.style.overflow = prevOverflow
+    el.style.height   = prevHeight
   }
 }
 </script>
@@ -60,7 +98,7 @@ async function exportTablePng() {
         class="btn-export-chart"
         size="small"
         @click="exportChartPng"
-      >PNG</el-button>
+      >Export PNG</el-button>
       <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
     </div>
 
@@ -76,7 +114,7 @@ async function exportTablePng() {
     <!-- Table panel -->
     <div class="chart-right">
       <div class="table-panel-header">
-        <el-button size="small" @click="exportTablePng">PNG</el-button>
+        <el-button size="small" @click="exportTablePng">Export PNG</el-button>
       </div>
       <div ref="tableContainerRef" class="table-panel-body">
         <SourceDataTable :chart-data="chartTab" />
@@ -114,7 +152,7 @@ async function exportTablePng() {
 .btn-export-chart {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   z-index: 2;
 }
 
