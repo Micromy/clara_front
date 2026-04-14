@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 import ChartDisplay from '../components/chart/ChartDisplay.vue'
@@ -18,20 +18,20 @@ const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
 const tableContainerRef = ref(null)
 
-// B1: Resize ECharts after splitter transition (250ms CSS transition)
 function toggleSplit() {
   tableExpanded.value = !tableExpanded.value
   setTimeout(() => chartDisplayRef.value?.resize(), 260)
 }
 
-// ── Export chart as PNG (ECharts built-in) ───────────────────────────────────
 function exportChartPng() {
   const dataUrl = chartDisplayRef.value?.getChartImage(2)
   if (!dataUrl) return
-  triggerDownload(dataUrl, `${chartTab.value?.builderName ?? 'chart'}.png`)
+  const a = document.createElement('a')
+  a.href = dataUrl
+  a.download = `${chartTab.value?.builderName ?? 'chart'}.png`
+  a.click()
 }
 
-// ── Export table as PNG (html2canvas) ───────────────────────────────────────
 async function exportTablePng() {
   if (!tableContainerRef.value) return
   try {
@@ -41,69 +41,30 @@ async function exportTablePng() {
       useCORS: true,
       logging: false
     })
-    triggerDownload(canvas.toDataURL('image/png'), `${chartTab.value?.builderName ?? 'table'}-data.png`)
+    const a = document.createElement('a')
+    a.href = canvas.toDataURL('image/png')
+    a.download = `${chartTab.value?.builderName ?? 'table'}-data.png`
+    a.click()
   } catch (e) {
     console.error('[ChartView] Table PNG export failed:', e)
   }
-}
-
-// ── Export table data as CSV ─────────────────────────────────────────────────
-function exportCsv() {
-  const cells = chartTab.value?.cells
-  if (!cells?.length) return
-
-  const derivedFormulas = chartTab.value?.derivedFormulas ?? []
-  const baseKeys = ['alias', 'cellName', 'cellType', 'driveStrength', 'library',
-                    'feolCorner', 'vdd', 'temp', 'vth', 'gateLength', 'cpp',
-                    'iPeak', 'iAvg', 'delay']
-  const derivedKeys    = derivedFormulas.map(df => `__df_${df.id}`)
-  const derivedHeaders = derivedFormulas.map(df => df.name)
-  const headers = [...baseKeys, ...derivedHeaders]
-  const allKeys  = [...baseKeys, ...derivedKeys]
-
-  const escape = v => {
-    if (v == null) return ''
-    const s = String(v)
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? `"${s.replace(/"/g, '""')}"` : s
-  }
-
-  const rows = [headers.join(','), ...cells.map(c => allKeys.map(k => escape(c[k])).join(','))]
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  triggerDownload(url, `${chartTab.value?.builderName ?? 'data'}.csv`)
-  URL.revokeObjectURL(url)
-}
-
-function triggerDownload(href, filename) {
-  const a = document.createElement('a')
-  a.href = href
-  a.download = filename
-  a.click()
 }
 </script>
 
 <template>
   <div class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
-    <!-- Export toolbar -->
-    <div class="export-bar">
-      <el-dropdown trigger="click" size="small">
-        <el-button size="small">
-          Export <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
-        </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item @click="exportChartPng">Chart — PNG</el-dropdown-item>
-            <el-dropdown-item @click="exportTablePng">Table — PNG</el-dropdown-item>
-            <el-dropdown-item @click="exportCsv">Table — CSV</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
 
+    <!-- Chart panel -->
     <div class="chart-left">
+      <el-button
+        class="btn-export-chart"
+        size="small"
+        @click="exportChartPng"
+      >PNG</el-button>
       <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
     </div>
+
+    <!-- Splitter -->
     <div
       class="chart-splitter"
       :title="tableExpanded ? 'Collapse table' : 'Expand table'"
@@ -111,9 +72,17 @@ function triggerDownload(href, filename) {
     >
       <span class="splitter-handle">{{ tableExpanded ? '›' : '‹' }}</span>
     </div>
-    <div ref="tableContainerRef" class="chart-right">
-      <SourceDataTable :chart-data="chartTab" />
+
+    <!-- Table panel -->
+    <div class="chart-right">
+      <div class="table-panel-header">
+        <el-button size="small" @click="exportTablePng">PNG</el-button>
+      </div>
+      <div ref="tableContainerRef" class="table-panel-body">
+        <SourceDataTable :chart-data="chartTab" />
+      </div>
     </div>
+
   </div>
   <div v-else class="chart-empty">
     <el-empty description="No chart data. Go to a Builder tab and click 'Generate Chart'." />
@@ -128,14 +97,7 @@ function triggerDownload(href, filename) {
   overflow: hidden;
 }
 
-.export-bar {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-}
-
+/* ── Chart panel ─────────────────────────────────────────────────────────── */
 .chart-left {
   position: absolute;
   left: 0;
@@ -149,6 +111,14 @@ function triggerDownload(href, filename) {
   z-index: 1;
 }
 
+.btn-export-chart {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+/* ── Table panel ─────────────────────────────────────────────────────────── */
 .chart-right {
   position: absolute;
   right: 0;
@@ -157,9 +127,9 @@ function triggerDownload(href, filename) {
   height: 100%;
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
   box-shadow: -6px 0 14px rgba(0, 0, 0, 0.08);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
   transition: width 0.25s ease;
   z-index: 3;
 }
@@ -168,6 +138,20 @@ function triggerDownload(href, filename) {
   width: 70%;
 }
 
+.table-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px 6px;
+}
+
+.table-panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0 14px 14px;
+}
+
+/* ── Splitter ────────────────────────────────────────────────────────────── */
 .chart-splitter {
   position: absolute;
   top: 0;
@@ -202,6 +186,7 @@ function triggerDownload(href, filename) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
+/* ── Empty state ─────────────────────────────────────────────────────────── */
 .chart-empty {
   display: flex;
   align-items: center;
