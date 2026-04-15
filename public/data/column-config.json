@@ -23,7 +23,6 @@
   "selectedCellsMetadataColumns": [
     { "prop": "pdk",         "label": "PDK",       "width": 100 },
     { "prop": "version",     "label": "Version",   "width": 90  },
-    { "prop": "cellName",    "label": "Cell Name", "width": 160 },
     { "prop": "feol",        "label": "FEOL",      "width": 80  },
     { "prop": "beol",        "label": "BEOL",      "width": 80  },
     { "prop": "vdd",         "label": "VDD (V)",   "width": 90  },
