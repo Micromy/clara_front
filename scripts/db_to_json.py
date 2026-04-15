@@ -7,26 +7,16 @@ files the frontend consumes:
 
 Usage:
   pip install oracledb
+  cp .env.example .env   # then fill in the values — .env is gitignored
   python3 scripts/db_to_json.py
 
-Fill in DB_USER / DB_PASSWORD / DB_DSN below, or export them as env vars
-(env vars take precedence). Oracle thick mode needs the Instant Client;
-set ORACLE_CLIENT_LIB if it isn't on the default library path.
-
-DO NOT commit real credentials. Add this file (or a credentials.py split
-off from it) to .gitignore if you hardcode secrets.
+Env vars (DB_USER / DB_PASSWORD / DB_DSN / ORACLE_CLIENT_LIB) override
+values from .env when present.
 """
 import json
 import os
 import sys
 from pathlib import Path
-
-# ── Fill these in, or leave blank and use env vars ─────────────────────────
-DB_USER     = ''
-DB_PASSWORD = ''
-DB_DSN      = ''  # TNS descriptor, e.g. '(DESCRIPTION=(LOAD_BALANCE=...)...)'
-ORACLE_CLIENT_LIB = ''  # path to instantclient; blank → use system default
-# ────────────────────────────────────────────────────────────────────────────
 
 try:
     import oracledb
@@ -35,6 +25,24 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / 'public' / 'data'
+ENV_FILE = ROOT / '.env'
+
+
+def load_env_file(path: Path) -> dict:
+    """Minimal KEY=VALUE parser — no python-dotenv dependency needed."""
+    if not path.is_file():
+        return {}
+    out = {}
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        k, v = line.split('=', 1)
+        v = v.strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+            v = v[1:-1]
+        out[k.strip()] = v
+    return out
 
 META_TABLE = 'at9.arias_cell_meta'
 FF_TABLE   = 'at9.spil_cell_ff'
@@ -110,13 +118,18 @@ def fetch(cursor, table, mapping):
 
 
 def main():
-    user     = os.environ.get('DB_USER')     or DB_USER
-    password = os.environ.get('DB_PASSWORD') or DB_PASSWORD
-    dsn      = os.environ.get('DB_DSN')      or DB_DSN
-    if not (user and password and dsn):
-        sys.exit('DB_USER / DB_PASSWORD / DB_DSN must be set (in this file or as env vars).')
+    env = load_env_file(ENV_FILE)
 
-    lib_dir = os.environ.get('ORACLE_CLIENT_LIB') or ORACLE_CLIENT_LIB or None
+    def get(key):
+        return os.environ.get(key) or env.get(key) or ''
+
+    user     = get('DB_USER')
+    password = get('DB_PASSWORD')
+    dsn      = get('DB_DSN')
+    if not (user and password and dsn):
+        sys.exit(f'DB_USER / DB_PASSWORD / DB_DSN must be set in {ENV_FILE} or as env vars.')
+
+    lib_dir = get('ORACLE_CLIENT_LIB') or None
     oracledb.init_oracle_client(lib_dir=lib_dir)  # thick mode
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
