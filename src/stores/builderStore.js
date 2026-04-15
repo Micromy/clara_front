@@ -15,13 +15,11 @@ function savePersistedState(state) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota exceeded etc */ }
 }
 
-// Operating-condition fields (shared across cell types) usable as derived-formula operands
+// Operating-condition fields (shared across cell types) usable as derived-formula operands.
+// vth / gateLength / cpp are now string-typed in the data, so excluded from arithmetic.
 const OPERATING_CONDITION_FIELDS = [
   { value: 'vdd',         label: 'VDD (V)' },
-  { value: 'temperature', label: 'Temperature (°C)' },
-  { value: 'vth',         label: 'Vth (V)' },
-  { value: 'gateLength',  label: 'Gate Length' },
-  { value: 'cpp',         label: 'CPP' }
+  { value: 'temperature', label: 'Temperature (°C)' }
 ]
 
 // Build DERIVED_FIELDS dynamically from the simulation columns of the given cellType.
