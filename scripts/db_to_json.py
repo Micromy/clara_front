@@ -7,18 +7,26 @@ files the frontend consumes:
 
 Usage:
   pip install oracledb
-  # Oracle thick mode needs the Instant Client. Point ORACLE_CLIENT_LIB at it
-  # (or rely on ORACLE_HOME / LD_LIBRARY_PATH being set system-wide).
-  export ORACLE_CLIENT_LIB=/path/to/instantclient_19_x     # optional
-  export DB_USER=...
-  export DB_PASSWORD=...
-  export DB_DSN='(DESCRIPTION=(LOAD_BALANCE=...)(CONNECT_DATA=(SERVICE_NAME=...)))'
   python3 scripts/db_to_json.py
+
+Fill in DB_USER / DB_PASSWORD / DB_DSN below, or export them as env vars
+(env vars take precedence). Oracle thick mode needs the Instant Client;
+set ORACLE_CLIENT_LIB if it isn't on the default library path.
+
+DO NOT commit real credentials. Add this file (or a credentials.py split
+off from it) to .gitignore if you hardcode secrets.
 """
 import json
 import os
 import sys
 from pathlib import Path
+
+# ── Fill these in, or leave blank and use env vars ─────────────────────────
+DB_USER     = ''
+DB_PASSWORD = ''
+DB_DSN      = ''  # TNS descriptor, e.g. '(DESCRIPTION=(LOAD_BALANCE=...)...)'
+ORACLE_CLIENT_LIB = ''  # path to instantclient; blank → use system default
+# ────────────────────────────────────────────────────────────────────────────
 
 try:
     import oracledb
@@ -102,13 +110,13 @@ def fetch(cursor, table, mapping):
 
 
 def main():
-    user = os.environ.get('DB_USER')
-    password = os.environ.get('DB_PASSWORD')
-    dsn = os.environ.get('DB_DSN')
+    user     = os.environ.get('DB_USER')     or DB_USER
+    password = os.environ.get('DB_PASSWORD') or DB_PASSWORD
+    dsn      = os.environ.get('DB_DSN')      or DB_DSN
     if not (user and password and dsn):
-        sys.exit('Set DB_USER, DB_PASSWORD, DB_DSN env vars.')
+        sys.exit('DB_USER / DB_PASSWORD / DB_DSN must be set (in this file or as env vars).')
 
-    lib_dir = os.environ.get('ORACLE_CLIENT_LIB')
+    lib_dir = os.environ.get('ORACLE_CLIENT_LIB') or ORACLE_CLIENT_LIB or None
     oracledb.init_oracle_client(lib_dir=lib_dir)  # thick mode
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
