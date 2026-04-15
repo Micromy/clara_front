@@ -45,21 +45,20 @@
       { "prop": "area",            "label": "Area (cpp)",         "width": 110, "numeric": true },
       { "prop": "ckCap",           "label": "CK_Cap (pF)",        "width": 110, "numeric": true },
       { "prop": "pLeakage",        "label": "P_Leakage (μW)",     "width": 120, "numeric": true },
-      { "prop": "pDynEnergy",      "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
-      { "prop": "pDynPower",       "label": "Pdyn (μW/MHz)",      "width": 130, "numeric": true },
+      { "prop": "pDyn",            "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
       { "prop": "pdpAvg",          "label": "PDP_avg",            "width": 110, "numeric": true }
     ],
     "ICG": [
       { "prop": "eeckWorst",       "label": "EECK_wst (ns)",      "width": 130, "numeric": true },
       { "prop": "eeckAvg",         "label": "EECK_avg (ns)",      "width": 130, "numeric": true },
+      { "prop": "cqDelayAvg",      "label": "CQ_delay_avg (ns)",  "width": 140, "numeric": true },
       { "prop": "eSetup3SigmaAvg", "label": "E_setup_3σ_avg (ns)","width": 160, "numeric": true },
       { "prop": "eHoldSohmAvg",    "label": "E_hold_sohm_avg (ns)","width": 170, "numeric": true },
       { "prop": "delayTranRfRatio","label": "Delay_Tran_rf_ratio","width": 170, "numeric": true },
       { "prop": "area",            "label": "Area (cpp)",         "width": 110, "numeric": true },
       { "prop": "ckCap",           "label": "CK_Cap (pF)",        "width": 110, "numeric": true },
       { "prop": "pLeakage",        "label": "P_Leakage (μW)",     "width": 120, "numeric": true },
-      { "prop": "pDynEnergy",      "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
-      { "prop": "pDynPower",       "label": "Pdyn (μW/MHz)",      "width": 130, "numeric": true },
+      { "prop": "pDyn",            "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
       { "prop": "pdpAvg",          "label": "PDP_avg",            "width": 110, "numeric": true }
     ]
   },
@@ -86,21 +85,20 @@
         { "value": "area",            "label": "Area (cpp)" },
         { "value": "ckCap",           "label": "CK_Cap (pF)" },
         { "value": "pLeakage",        "label": "P_Leakage (μW)" },
-        { "value": "pDynEnergy",      "label": "Pdyn (pJ)" },
-        { "value": "pDynPower",       "label": "Pdyn (μW/MHz)" },
+        { "value": "pDyn",            "label": "Pdyn (pJ)" },
         { "value": "pdpAvg",          "label": "PDP_avg" }
       ],
       "ICG": [
         { "value": "eeckWorst",       "label": "EECK_wst (ns)" },
         { "value": "eeckAvg",         "label": "EECK_avg (ns)" },
+        { "value": "cqDelayAvg",      "label": "CQ_delay_avg (ns)" },
         { "value": "eSetup3SigmaAvg", "label": "E_setup_3σ_avg (ns)" },
         { "value": "eHoldSohmAvg",    "label": "E_hold_sohm_avg (ns)" },
         { "value": "delayTranRfRatio","label": "Delay_Tran_rf_ratio" },
         { "value": "area",            "label": "Area (cpp)" },
         { "value": "ckCap",           "label": "CK_Cap (pF)" },
         { "value": "pLeakage",        "label": "P_Leakage (μW)" },
-        { "value": "pDynEnergy",      "label": "Pdyn (pJ)" },
-        { "value": "pDynPower",       "label": "Pdyn (μW/MHz)" },
+        { "value": "pDyn",            "label": "Pdyn (pJ)" },
         { "value": "pdpAvg",          "label": "PDP_avg" }
       ]
     },
