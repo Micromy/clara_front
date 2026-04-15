@@ -21,19 +21,14 @@
     { "key": "characTool", "label": "Charac Tool", "width": 120 }
   ],
   "selectedCellsMetadataColumns": [
-    { "prop": "pdk",           "label": "PDK",         "width": 100 },
-    { "prop": "cell",          "label": "Cell",        "width": 110 },
-    { "prop": "version",       "label": "Version",     "width": 90  },
-    { "prop": "driveStrength", "label": "Drive Str.",  "width": 100 },
-    { "prop": "nanosheet",     "label": "Nanosheet",   "width": 100 },
-    { "prop": "gateLength",    "label": "Gate Length", "width": 100 },
-    { "prop": "cpp",           "label": "CPP",         "width": 80  },
-    { "prop": "cellHeight",    "label": "Cell Height", "width": 100 },
-    { "prop": "feol",          "label": "FEOL",        "width": 80  },
-    { "prop": "beol",          "label": "BEOL",        "width": 80  },
-    { "prop": "vdd",           "label": "VDD (V)",     "width": 90  },
-    { "prop": "vth",           "label": "Vth (V)",     "width": 90  },
-    { "prop": "temperature",   "label": "Temp (°C)",   "width": 100 }
+    { "prop": "pdk",         "label": "PDK",       "width": 100 },
+    { "prop": "version",     "label": "Version",   "width": 90  },
+    { "prop": "cellName",    "label": "Cell Name", "width": 160 },
+    { "prop": "feol",        "label": "FEOL",      "width": 80  },
+    { "prop": "beol",        "label": "BEOL",      "width": 80  },
+    { "prop": "vdd",         "label": "VDD (V)",   "width": 90  },
+    { "prop": "vth",         "label": "Vth (V)",   "width": 90  },
+    { "prop": "temperature", "label": "Temp (°C)", "width": 100 }
   ],
   "selectedCellsSimulationColumns": {
     "FF": [
