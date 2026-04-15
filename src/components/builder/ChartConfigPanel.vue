@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import {
   useBuilderStore,
-  DERIVED_FIELDS, DERIVED_OPS, FORMULA_TYPES, UNARY_FNS, GROUP_BY_OPTIONS,
+  DERIVED_OPS, FORMULA_TYPES, UNARY_FNS, GROUP_BY_OPTIONS,
   formulaDesc
 } from '../../stores/builderStore.js'
 import { useRouter } from 'vue-router'
@@ -10,14 +10,17 @@ import { useRouter } from 'vue-router'
 const store = useBuilderStore()
 const router = useRouter()
 
+const derivedFields = computed(() => store.derivedFields)
+const defaultField = computed(() => derivedFields.value[0]?.value ?? 'pdpAvg')
+
 // Derived metric dialog state
 const dialogVisible = ref(false)
 const dfName  = ref('')
 const dfType  = ref('binary')
-const dfField1 = ref('iPeak')
+const dfField1 = ref('')
 const dfOp    = ref('/')
-const dfField2 = ref('delay')
-const dfField = ref('iPeak')   // for unary / stat-based
+const dfField2 = ref('')
+const dfField = ref('')        // for unary / stat-based
 const dfFn    = ref('log10')   // for unary
 const dfGroupBy = ref('alias') // for mean/std
 
@@ -33,7 +36,7 @@ const CHART_TYPES = [
 ]
 
 const formulaPreview = computed(() => {
-  const fl = v => DERIVED_FIELDS.find(f => f.value === v)?.label ?? v
+  const fl = v => derivedFields.value.find(f => f.value === v)?.label ?? v
   const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
   const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
   const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? v
@@ -51,12 +54,15 @@ const formulaPreview = computed(() => {
 })
 
 function openDerivedDialog() {
+  const fields = derivedFields.value
+  const first = fields[0]?.value ?? defaultField.value
+  const second = fields[1]?.value ?? first
   dfName.value = ''
   dfType.value = 'binary'
-  dfField1.value = 'iPeak'
+  dfField1.value = first
   dfOp.value = '/'
-  dfField2.value = 'delay'
-  dfField.value = 'iPeak'
+  dfField2.value = second
+  dfField.value = first
   dfFn.value = 'log10'
   dfGroupBy.value = 'alias'
   dialogVisible.value = true
@@ -161,7 +167,7 @@ function onGenerate() {
         <div class="derived-list">
           <div v-for="df in store.activeBuilder.derivedFormulas" :key="df.id" class="derived-item">
             <span class="derived-name">{{ df.name }}</span>
-            <span class="derived-formula">{{ formulaDesc(df) }}</span>
+            <span class="derived-formula">{{ formulaDesc(df, derivedFields) }}</span>
             <el-button type="danger" link size="small" @click="store.removeDerivedFormula(df.id)">✕</el-button>
           </div>
           <el-button type="primary" link size="small" @click="openDerivedDialog">
@@ -207,13 +213,13 @@ function onGenerate() {
         <el-form-item v-if="isBinary" label="Formula">
           <div class="formula-row">
             <el-select v-model="dfField1" style="flex:1">
-              <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+              <el-option v-for="f in derivedFields" :key="f.value" :label="f.label" :value="f.value" />
             </el-select>
             <el-select v-model="dfOp" style="width:56px">
               <el-option v-for="o in DERIVED_OPS" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
             <el-select v-model="dfField2" style="flex:1">
-              <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+              <el-option v-for="f in derivedFields" :key="f.value" :label="f.label" :value="f.value" />
             </el-select>
           </div>
         </el-form-item>
@@ -227,7 +233,7 @@ function onGenerate() {
           </el-form-item>
           <el-form-item label="Field">
             <el-select v-model="dfField" style="width:100%">
-              <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+              <el-option v-for="f in derivedFields" :key="f.value" :label="f.label" :value="f.value" />
             </el-select>
           </el-form-item>
         </template>
@@ -236,7 +242,7 @@ function onGenerate() {
         <template v-else-if="isGroup">
           <el-form-item label="Field">
             <el-select v-model="dfField" style="width:100%">
-              <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+              <el-option v-for="f in derivedFields" :key="f.value" :label="f.label" :value="f.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="Group By">
@@ -249,7 +255,7 @@ function onGenerate() {
         <!-- Stat-based: single field -->
         <el-form-item v-else label="Field">
           <el-select v-model="dfField" style="width:100%">
-            <el-option v-for="f in DERIVED_FIELDS" :key="f.value" :label="f.label" :value="f.value" />
+            <el-option v-for="f in derivedFields" :key="f.value" :label="f.label" :value="f.value" />
           </el-select>
         </el-form-item>
 

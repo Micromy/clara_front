@@ -87,10 +87,10 @@ function isRefRow(row) {
 }
 function rowClassName({ row }) { return isRefRow(row) ? 'is-ref-row' : '' }
 
-// Digits per column prop
-const SIM_DIGITS = { iPeak: 2, iAvg: 2, delay: 1 }
+// Digits per column prop — defaults to 4 since most FF/ICG metrics are small decimals (ns).
 function digitsFor(prop) {
-  return SIM_DIGITS[prop] ?? 2
+  if (prop === 'area') return 1
+  return 4
 }
 
 function formatNum(v, digits) {

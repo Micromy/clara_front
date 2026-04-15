@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -21,7 +22,27 @@ const syncing = ref(false)
 
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
-  set: v => store.setPendingCellType(v)
+  set: async v => {
+    const prev = store.pendingSearch.cellType
+    const selectedCount = store.activeBuilder?.selectedCellIds.length || 0
+    // If switching to a different non-null type while selections exist, confirm.
+    if (prev && v && prev !== v && selectedCount > 0) {
+      try {
+        await ElMessageBox.confirm(
+          `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`,
+          'Switch Cell Type',
+          { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning' }
+        )
+      } catch {
+        // user canceled — dropdown was already updated by el-select; revert
+        store.setPendingCellType(prev)
+        return
+      }
+      store.clearSelection()
+      ElMessage.info('Selection cleared.')
+    }
+    store.setPendingCellType(v)
+  }
 })
 const pendingQuery = computed({
   get: () => store.pendingSearch.query,

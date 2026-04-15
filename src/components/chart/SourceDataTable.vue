@@ -46,45 +46,41 @@ const referenceOptions = computed(() =>
   }))
 )
 
-// Base scalar fields for diff/ratio
-const SCALAR_SIM_FIELDS = [
-  { key: 'iPeak', label: 'iPeak (μA)',  digits: 2 },
-  { key: 'iAvg',  label: 'iAvg (μA)',   digits: 2 },
-  { key: 'delay', label: 'Delay (ps)',  digits: 1 }
+// Operating-condition fields (shared across cell types), shown alongside per-type simulation columns
+const META_FIELDS = [
+  { key: 'vdd',         label: 'VDD (V)',          digits: 4 },
+  { key: 'vth',         label: 'Vth (V)',          digits: 4 },
+  { key: 'temperature', label: 'Temperature (°C)', digits: 1 }
 ]
-const SCALAR_META_FIELDS = [
-  { key: 'vdd',  label: 'VDD (V)',    digits: 2 },
-  { key: 'vth',  label: 'Vth (V)',    digits: 2 },
-  { key: 'temp', label: 'Temp (°C)',  digits: 1 }
-]
-const ALL_FIELDS = [...SCALAR_SIM_FIELDS, ...SCALAR_META_FIELDS]
 
-const AXIS_LABELS = {
-  vdd: 'VDD (V)', temp: 'Temperature (°C)', vth: 'Vth (V)',
-  gateLength: 'Gate Length', cpp: 'CPP',
-  iPeak: 'I_peak (μA)', iAvg: 'I_avg (μA)', delay: 'Delay (ps)'
-}
+// Per-tab simulation columns (FF or ICG depending on which Generate Chart was fired from)
+const simColumns = computed(() => props.chartData.simulationColumns || [])
 
 function labelFor(key) {
-  if (AXIS_LABELS[key]) return AXIS_LABELS[key]
-  const f = ALL_FIELDS.find(f => f.key === key)
-  if (f) return f.label
+  const labelMap = props.chartData.labelMap || {}
+  if (labelMap[key]) return labelMap[key]
+  const m = META_FIELDS.find(f => f.key === key)
+  if (m) return m.label
   const df = (props.chartData.derivedFormulas || []).find(d => `__df_${d.id}` === key)
   return df ? df.name : key
 }
 
 function digitsFor(key) {
-  return ALL_FIELDS.find(f => f.key === key)?.digits ?? 2
+  const m = META_FIELDS.find(f => f.key === key)
+  if (m) return m.digits
+  if (key === 'area') return 1
+  return 4
 }
 
-// All numeric keys: base fields + derived formula keys
+// All numeric keys: simulation columns + meta fields + derived formula keys
 const numericKeys = computed(() => {
-  const base = ALL_FIELDS.map(f => f.key)
+  const sim = simColumns.value.filter(c => c.numeric).map(c => c.prop)
+  const meta = META_FIELDS.map(f => f.key)
   const derived = (props.chartData.derivedFormulas || []).map(d => `__df_${d.id}`)
-  return [...base, ...derived]
+  return [...sim, ...meta, ...derived]
 })
 
-// Columns ordered: xAxis, yAxisPrimary, yAxisSecondary, remaining scalars, derived
+// Columns ordered: xAxis, yAxisPrimary, yAxisSecondary, simulation columns, meta fields, derived
 const columns = computed(() => {
   const cfg = props.chartData.config || {}
   const axisOrder = [cfg.xAxis, cfg.yAxisPrimary, cfg.yAxisSecondary].filter(Boolean)
@@ -98,7 +94,8 @@ const columns = computed(() => {
   }
 
   axisOrder.forEach(add)
-  ALL_FIELDS.forEach(f => add(f.key))
+  simColumns.value.forEach(c => add(c.prop))
+  META_FIELDS.forEach(f => add(f.key))
   ;(props.chartData.derivedFormulas || []).forEach(d => add(`__df_${d.id}`))
 
   return out

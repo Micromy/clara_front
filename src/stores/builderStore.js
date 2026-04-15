@@ -15,17 +15,24 @@ function savePersistedState(state) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota exceeded etc */ }
 }
 
-// Fields available for derived formula operands
-export const DERIVED_FIELDS = [
-  { value: 'iPeak',      label: 'I_peak (μA)' },
-  { value: 'iAvg',       label: 'I_avg (μA)' },
-  { value: 'delay',      label: 'Delay (ps)' },
-  { value: 'vdd',        label: 'VDD (V)' },
-  { value: 'temp',       label: 'Temp (°C)' },
-  { value: 'vth',        label: 'Vth (V)' },
-  { value: 'gateLength', label: 'Gate Length' },
-  { value: 'cpp',        label: 'CPP' }
+// Operating-condition fields (shared across cell types) usable as derived-formula operands
+const OPERATING_CONDITION_FIELDS = [
+  { value: 'vdd',         label: 'VDD (V)' },
+  { value: 'temperature', label: 'Temperature (°C)' },
+  { value: 'vth',         label: 'Vth (V)' },
+  { value: 'gateLength',  label: 'Gate Length' },
+  { value: 'cpp',         label: 'CPP' }
 ]
+
+// Build DERIVED_FIELDS dynamically from the simulation columns of the given cellType.
+// Falls back to operating-condition fields only if cellType is null/unknown.
+export function buildDerivedFields(cellType, config) {
+  const simCols = config?.selectedCellsSimulationColumns?.[cellType] || []
+  const simFields = simCols
+    .filter(c => c.numeric)
+    .map(c => ({ value: c.prop, label: c.label }))
+  return [...simFields, ...OPERATING_CONDITION_FIELDS]
+}
 
 export const DERIVED_OPS = [
   { value: '+', label: '+' },
@@ -52,7 +59,7 @@ export const GROUP_BY_OPTIONS = [
   { value: 'cellType',      label: 'Cell Type' },
   { value: 'driveStrength', label: 'Drive Strength' },
   { value: 'library',       label: 'Library' },
-  { value: 'feolCorner',    label: 'FEOL Corner' }
+  { value: 'feol',          label: 'FEOL' }
 ]
 
 export const UNARY_FNS = [
@@ -115,8 +122,8 @@ function computeDerivedValue(cell, df, stats) {
   return null
 }
 
-export function formulaDesc(df) {
-  const fl = v => DERIVED_FIELDS.find(f => f.value === v)?.label ?? v
+export function formulaDesc(df, derivedFields = []) {
+  const fl = v => derivedFields.find(f => f.value === v)?.label ?? v
   const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
   const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
   const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? (v ?? 'alias')
@@ -136,22 +143,14 @@ export function formulaDesc(df) {
 let nextDerivedId = 1
 
 // Cell type top-level classification (mutually exclusive).
-// The eventual backend will expose a real FF/ICG field; until then we
-// derive the category from the existing `cellType` values of the mock
-// data so the UI is testable. Swap this mapping out at the adapter layer.
+// `cellType` on each cell is now 'FF' or 'ICG' directly.
 export const CELL_TYPE_OPTIONS = [
   { value: 'FF',  label: 'FF' },
   { value: 'ICG', label: 'ICG' }
 ]
 
-const CELL_TYPE_CATEGORY_MAP = {
-  FF:  ['DFF'],
-  ICG: ['AOI', 'OAI']
-}
-
 function cellMatchesCategory(cell, category) {
-  const types = CELL_TYPE_CATEGORY_MAP[category]
-  return !!types && types.includes(cell.cellType)
+  return cell.cellType === category
 }
 
 function createEmptySearch() {
@@ -205,7 +204,7 @@ export const useBuilderStore = defineStore('builder', () => {
       chartType: 'scatter',
       chartTypeSecondary: null,   // null = same as primary
       xAxis: 'vdd',
-      yAxisPrimary: 'iPeak',
+      yAxisPrimary: 'pdpAvg',     // shared across FF/ICG
       yAxisSecondary: null,
       grouping: 'alias'
     }
@@ -369,10 +368,23 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const searchTableColumns = computed(() => config.value?.searchTableColumns ?? [])
   const selectedCellsMetadataColumns = computed(() => config.value?.selectedCellsMetadataColumns ?? [])
-  const selectedCellsSimulationColumns = computed(() => config.value?.selectedCellsSimulationColumns ?? [])
-  const chartOptions = computed(() => config.value?.chartOptions ?? {
-    chartTypes: [], xAxisOptions: [], yAxisOptions: [], groupingOptions: []
+
+  // Active cell-type context drives which simulation columns / Y-axis options are shown.
+  // Derives from the committed search; defaults to 'FF' so early-render getters don't crash.
+  const activeCellType = computed(() => appliedSearch.value.cellType ?? 'FF')
+
+  const selectedCellsSimulationColumns = computed(() => {
+    const cfg = config.value?.selectedCellsSimulationColumns
+    return cfg?.[activeCellType.value] ?? []
   })
+  const chartOptions = computed(() => config.value?.chartOptions ?? {
+    chartTypes: [], xAxisOptions: [], yAxisOptions: {}, groupingOptions: []
+  })
+  const yAxisOptions = computed(() => {
+    const y = chartOptions.value.yAxisOptions
+    return y?.[activeCellType.value] ?? []
+  })
+  const derivedFields = computed(() => buildDerivedFields(activeCellType.value, config.value))
   const numericSimFields = computed(() =>
     selectedCellsSimulationColumns.value.filter(c => c.numeric).map(c => c.prop)
   )
@@ -386,7 +398,7 @@ export const useBuilderStore = defineStore('builder', () => {
       numeric: true,
       isDerived: true,
       formula: df,
-      desc: formulaDesc(df)
+      desc: formulaDesc(df, derivedFields.value)
     }))
   })
 
@@ -396,7 +408,7 @@ export const useBuilderStore = defineStore('builder', () => {
   ])
 
   const augmentedYAxisOptions = computed(() => {
-    const base = chartOptions.value.yAxisOptions || []
+    const base = yAxisOptions.value || []
     const derived = (activeBuilder.value?.derivedFormulas || []).map(df => ({
       value: `__df_${df.id}`,
       label: df.name
@@ -432,6 +444,10 @@ export const useBuilderStore = defineStore('builder', () => {
       const idx = ids.indexOf(id)
       if (idx !== -1) ids.splice(idx, 1)
     })
+  }
+
+  function clearSelection() {
+    if (activeBuilder.value) activeBuilder.value.selectedCellIds = []
   }
 
   function addBuilder() {
@@ -472,7 +488,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (idx !== -1) formulas.splice(idx, 1)
     const key = `__df_${id}`
     const cfg = activeBuilder.value.chartConfig
-    if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = 'iPeak'
+    if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = 'pdpAvg'
     if (cfg.yAxisSecondary === key) cfg.yAxisSecondary = null
   }
 
@@ -481,15 +497,27 @@ export const useBuilderStore = defineStore('builder', () => {
     const cfg = activeBuilder.value.chartConfig
     const builderId = activeBuilder.value.id
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
+
+    // Build a label map so chart/table components can render axis/column labels
+    // without hardcoding them or depending on the store.
+    const labelMap = {}
+    ;(chartOptions.value.xAxisOptions || []).forEach(o => { labelMap[o.value] = o.label })
+    ;(yAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
+    ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
+    ;(selectedCellsMetadataColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
+
     const chartTab = {
       builderId,
       builderName: activeBuilder.value.name,
+      cellType: activeCellType.value,
       cells: selectedCells.value.map(c => ({
         ...c,
         alias: getCellAlias(builderId, c.id) || ''
       })),
       config: { ...cfg },
-      derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])]
+      derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])],
+      labelMap,
+      simulationColumns: [...(selectedCellsSimulationColumns.value || [])]
     }
     if (existingIdx !== -1) chartTabs.value[existingIdx] = chartTab
     else chartTabs.value.push(chartTab)
@@ -515,10 +543,11 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
+    chartOptions, yAxisOptions, derivedFields, activeCellType,
+    numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
-    toggleCellSelection, selectCells, deselectCells,
+    toggleCellSelection, selectCells, deselectCells, clearSelection,
     addBuilder, removeBuilder, updateChartConfig,
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,

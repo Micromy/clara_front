@@ -14,20 +14,9 @@ const COLORS = [
   '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#4dc9f6'
 ]
 
-const AXIS_LABELS = {
-  vdd: 'VDD (V)',
-  temp: 'Temperature (°C)',
-  vth: 'Vth (V)',
-  gateLength: 'Gate Length',
-  cpp: 'CPP',
-  iPeak: 'I_peak (μA)',
-  iAvg: 'I_avg (μA)',
-  delay: 'Delay (ps)'
-}
-
 function getAxisLabel(key) {
-  if (AXIS_LABELS[key]) return AXIS_LABELS[key]
-  // Derived formula label
+  const labelMap = props.chartData.labelMap || {}
+  if (labelMap[key]) return labelMap[key]
   const df = (props.chartData.derivedFormulas || []).find(d => `__df_${d.id}` === key)
   return df ? df.name : key
 }
