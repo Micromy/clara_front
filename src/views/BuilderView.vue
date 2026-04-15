@@ -5,12 +5,13 @@ import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
 import { ref } from 'vue'
 
 const bottomCollapsed = ref(false)
+const expanded = ref(false)
 </script>
 
 <template>
   <div class="builder-view">
-    <div class="top-section">
-      <CellSearchTable />
+    <div class="top-section" v-show="!expanded">
+      <CellSearchTable @expand="expanded = true" />
     </div>
 
     <div class="section-divider" @click="bottomCollapsed = !bottomCollapsed">
@@ -26,6 +27,20 @@ const bottomCollapsed = ref(false)
         <ChartConfigPanel />
       </div>
     </div>
+
+    <el-dialog
+      v-model="expanded"
+      title="Cell Search"
+      width="90%"
+      top="4vh"
+      append-to-body
+      destroy-on-close
+      class="cell-search-dialog"
+    >
+      <div class="dialog-body">
+        <CellSearchTable :show-expand-button="false" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -65,9 +80,6 @@ const bottomCollapsed = ref(false)
 .bottom-section {
   display: flex;
   gap: 16px;
-  /* Tall enough to fit the full ChartConfigPanel (9 form items + title +
-     action buttons) without clipping or scroll. Selected Cells panel
-     stretches to match via flex. */
   min-height: 680px;
   align-items: stretch;
 }
@@ -94,5 +106,17 @@ const bottomCollapsed = ref(false)
   flex-direction: column;
   overflow-y: auto;
   max-height: 800px;
+}
+
+.dialog-body {
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+</style>
+
+<style>
+.cell-search-dialog .el-dialog__body {
+  padding: 16px 20px;
 }
 </style>

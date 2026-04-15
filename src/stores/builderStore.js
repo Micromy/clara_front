@@ -135,6 +135,22 @@ export function formulaDesc(df) {
 
 let nextDerivedId = 1
 
+// Cell type top-level classification (mutually exclusive).
+// Mapping to backend DB fields is resolved in the adapter layer later;
+// for now we filter on `cell.cellType` directly.
+export const CELL_TYPE_OPTIONS = [
+  { value: 'FF',  label: 'FF' },
+  { value: 'ICG', label: 'ICG' }
+]
+
+function createEmptySearch() {
+  return {
+    cellType: null,                 // 'FF' | 'ICG' | null
+    query: '',                      // cellName partial match
+    columnFilters: {}               // { [columnKey]: string[] }  — empty/absent = all
+  }
+}
+
 export const useBuilderStore = defineStore('builder', () => {
   const allCells = ref([])
   const simulations = ref({})  // cellId -> { iPeak, iAvg, delay }
@@ -142,6 +158,11 @@ export const useBuilderStore = defineStore('builder', () => {
   const loading = ref(false)
   const error = ref(null)
   let initPromise = null
+
+  // ── Cell search: pending (user is editing) vs applied (committed on Search click) ──
+  const pendingSearch = ref(createEmptySearch())
+  const appliedSearch = ref(createEmptySearch())
+  const searchDirty = ref(false)    // true when pending diverges from applied
 
   // Restore persisted builder state (before first render)
   const _saved = loadPersistedState()
@@ -259,6 +280,79 @@ export const useBuilderStore = defineStore('builder', () => {
         merged[`__df_${df.id}`] = computeDerivedValue(c, df, stats)
       })
       return merged
+    })
+  })
+
+  // ── Search / filter logic ────────────────────────────────────────────────
+  const canSearch = computed(() => !!pendingSearch.value.cellType)
+
+  function setPendingCellType(v) {
+    pendingSearch.value.cellType = v
+    searchDirty.value = true
+  }
+  function setPendingQuery(v) {
+    pendingSearch.value.query = v
+    searchDirty.value = true
+  }
+  function setPendingColumnFilter(columnKey, values) {
+    if (!values || values.length === 0) {
+      delete pendingSearch.value.columnFilters[columnKey]
+    } else {
+      pendingSearch.value.columnFilters[columnKey] = [...values]
+    }
+    // force reactivity on nested object key changes
+    pendingSearch.value = { ...pendingSearch.value, columnFilters: { ...pendingSearch.value.columnFilters } }
+    searchDirty.value = true
+  }
+  function clearPendingColumnFilter(columnKey) {
+    setPendingColumnFilter(columnKey, [])
+  }
+
+  function applySearch() {
+    if (!canSearch.value) return false
+    appliedSearch.value = {
+      cellType: pendingSearch.value.cellType,
+      query: pendingSearch.value.query,
+      columnFilters: { ...pendingSearch.value.columnFilters }
+    }
+    searchDirty.value = false
+    return true
+  }
+
+  function resetSearch() {
+    pendingSearch.value = createEmptySearch()
+    appliedSearch.value = createEmptySearch()
+    searchDirty.value = false
+  }
+
+  // Distinct values for a column (used by ColumnFilterDropdown)
+  function columnFilterOptions(columnKey) {
+    const set = new Set()
+    for (const c of allCells.value) {
+      const v = c[columnKey]
+      if (v !== undefined && v !== null && v !== '') set.add(String(v))
+    }
+    return Array.from(set).sort((a, b) => {
+      const na = Number(a), nb = Number(b)
+      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb
+      return a.localeCompare(b)
+    })
+  }
+
+  // filteredCells: applied filters applied to allCells (null when no search yet)
+  const filteredCells = computed(() => {
+    const s = appliedSearch.value
+    if (!s.cellType) return []     // no search executed yet
+    const q = (s.query || '').toLowerCase().trim()
+    const colFilters = Object.entries(s.columnFilters || {})
+    return allCells.value.filter(cell => {
+      if (cell.cellType !== s.cellType) return false
+      if (q && !cell.cellName.toLowerCase().includes(q)) return false
+      for (const [key, vals] of colFilters) {
+        if (!vals || !vals.length) continue
+        if (!vals.includes(String(cell[key]))) return false
+      }
+      return true
     })
   })
 
@@ -416,6 +510,10 @@ export const useBuilderStore = defineStore('builder', () => {
     toggleCellSelection, selectCells, deselectCells,
     addBuilder, removeBuilder, updateChartConfig,
     addDerivedFormula, removeDerivedFormula,
-    generateChart, removeChartTab
+    generateChart, removeChartTab,
+    // search / filter
+    pendingSearch, appliedSearch, searchDirty, canSearch, filteredCells,
+    setPendingCellType, setPendingQuery, setPendingColumnFilter, clearPendingColumnFilter,
+    applySearch, resetSearch, columnFilterOptions
   }
 })
