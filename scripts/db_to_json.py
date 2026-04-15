@@ -111,8 +111,11 @@ def coerce(v):
         return str(v)
 
 
-def fetch(cursor, table, mapping):
-    cursor.execute(f'SELECT {", ".join(mapping.keys())} FROM {table}')
+def fetch(cursor, table, mapping, order_by=None):
+    sql = f'SELECT {", ".join(mapping.keys())} FROM {table}'
+    if order_by:
+        sql += f' ORDER BY {order_by} ASC'
+    cursor.execute(sql)
     col_order = [mapping[c[0]] for c in cursor.description]
     return [dict(zip(col_order, (coerce(v) for v in row))) for row in cursor]
 
@@ -136,21 +139,30 @@ def main():
 
     with oracledb.connect(user=user, password=password, dsn=dsn) as conn:
         with conn.cursor() as cur:
-            cells = fetch(cur, META_TABLE, META_MAP)
+            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID')
             ff_rows  = fetch(cur, FF_TABLE,  {**FF_SIM_MAP,  'CELL_ID': 'cellId'})
             icg_rows = fetch(cur, ICG_TABLE, {**ICG_SIM_MAP, 'CELL_ID': 'cellId'})
+
+    cells.sort(key=lambda c: c['id'])
 
     bad = [c['id'] for c in cells if c['cellType'] not in ('FF', 'ICG')]
     if bad:
         print(f'WARN: {len(bad)} cells have cellType not in (FF, ICG): {bad[:5]}...', file=sys.stderr)
 
-    sims = {}
+    # Merge FF + ICG sim rows, sort by cell id so keys end up in ascending order
+    # regardless of which table each row came from.
+    def sim_key(cid):
+        return str(int(cid)) if isinstance(cid, float) and cid.is_integer() else str(cid)
+
+    merged = []
     for r in ff_rows + icg_rows:
         cid = r.pop('cellId', None)
         if cid is None:
             continue
-        key = str(int(cid)) if isinstance(cid, float) and cid.is_integer() else str(cid)
-        sims[key] = r
+        merged.append((int(cid), sim_key(cid), r))
+    merged.sort(key=lambda t: t[0])
+
+    sims = {key: row for _, key, row in merged}
 
     (OUT_DIR / 'cells.json').write_text(json.dumps(cells, indent=2, ensure_ascii=False))
     (OUT_DIR / 'simulations.json').write_text(json.dumps(sims, indent=2, ensure_ascii=False))
