@@ -3,15 +3,31 @@ import CellSearchTable from '../components/builder/CellSearchTable.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
 import { ref } from 'vue'
+import { usePopupWindow } from '../composables/usePopupWindow.js'
 
 const bottomCollapsed = ref(false)
-const expanded = ref(false)
+const { popupRoot, isOpen, open, close } = usePopupWindow()
+
+function openPopup() {
+  open({
+    title: 'Cell Search — ARIAS',
+    width: 1400,
+    height: 900,
+    onClose: () => { /* handled by isOpen flipping false */ }
+  })
+}
 </script>
 
 <template>
   <div class="builder-view">
-    <div class="top-section" v-show="!expanded">
-      <CellSearchTable @expand="expanded = true" />
+    <div class="top-section" v-show="!isOpen">
+      <CellSearchTable @expand="openPopup" />
+    </div>
+
+    <div v-if="isOpen" class="popup-placeholder">
+      <el-icon :size="18"><InfoFilled /></el-icon>
+      <span>Cell search is open in a separate window.</span>
+      <el-button size="small" type="primary" @click="close">Close popup</el-button>
     </div>
 
     <div class="section-divider" @click="bottomCollapsed = !bottomCollapsed">
@@ -28,19 +44,11 @@ const expanded = ref(false)
       </div>
     </div>
 
-    <el-dialog
-      v-model="expanded"
-      title="Cell Search"
-      width="90%"
-      top="4vh"
-      append-to-body
-      destroy-on-close
-      class="cell-search-dialog"
-    >
-      <div class="dialog-body">
-        <CellSearchTable :show-expand-button="false" />
+    <Teleport v-if="popupRoot" :to="popupRoot">
+      <div class="popup-shell">
+        <CellSearchTable :show-expand-button="false" in-popup />
       </div>
-    </el-dialog>
+    </Teleport>
   </div>
 </template>
 
@@ -59,6 +67,20 @@ const expanded = ref(false)
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.popup-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 120px;
+  background: #fff;
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  padding: 16px;
+  color: #606266;
+  font-size: 13px;
 }
 
 .section-divider {
@@ -107,16 +129,15 @@ const expanded = ref(false)
   overflow-y: auto;
   max-height: 800px;
 }
-
-.dialog-body {
-  height: 80vh;
-  display: flex;
-  flex-direction: column;
-}
 </style>
 
 <style>
-.cell-search-dialog .el-dialog__body {
-  padding: 16px 20px;
+.popup-shell {
+  padding: 16px;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
 }
 </style>

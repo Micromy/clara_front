@@ -4,8 +4,9 @@ import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
 const emit = defineEmits(['expand'])
-defineProps({
-  showExpandButton: { type: Boolean, default: true }
+const props = defineProps({
+  showExpandButton: { type: Boolean, default: true },
+  inPopup: { type: Boolean, default: false }
 })
 
 const store = useBuilderStore()
@@ -137,7 +138,7 @@ function handleSelectionChange(selected) {
         <template #header>
           <span class="col-header">
             <span>{{ col.label }}</span>
-            <ColumnFilterDropdown :column-key="col.key" :label="col.label" />
+            <ColumnFilterDropdown :column-key="col.key" :label="col.label" :in-popup="props.inPopup" />
           </span>
         </template>
       </el-table-column>
