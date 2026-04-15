@@ -1,24 +1,27 @@
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount, createApp, h } from 'vue'
+import ElementPlus from 'element-plus'
+import * as ElementPlusIcons from '@element-plus/icons-vue'
+import { getActivePinia } from 'pinia'
 
 /**
- * Opens a real browser window (window.open) and exposes a reactive root
- * element inside it. Use with <Teleport :to="popupRoot"> to render Vue
- * components into that window while keeping them in the main app's JS
- * context (so Pinia stores stay shared).
+ * Opens a real browser window (window.open) and mounts a fresh Vue sub-app
+ * inside it so rendering, events, and lifecycle are cleanly scoped to that
+ * window. Pinia is shared via getActivePinia() so stores stay in sync.
  *
- * Caveats:
- *   - Element Plus popovers default to teleporting into document.body of
- *     the MAIN window — set `teleported="false"` on popovers/popups inside
- *     the teleported subtree so they render next to their trigger in the
- *     popup DOM.
- *   - Vite HMR style additions after the popup opens are not synced.
+ * Note on Element Plus teleports: the JS context is still the main window,
+ * so `document.body` references the main document. Components that teleport
+ * to body (el-select dropdown, el-popover, el-tooltip, …) render in the
+ * main window unless we explicitly redirect them. The sub-app provides
+ * `popupBody` via inject so descendants can set `append-to="popupBody"` or
+ * `teleported="false"` as needed.
  */
 export function usePopupWindow() {
-  const popupRoot = ref(null)
   const isOpen = ref(false)
   let popup = null
-  let unloadHandler = null
+  let popupApp = null
   let pollInterval = null
+  let unloadHandler = null
+  let closeCallback = null
 
   function copyStyles(targetDoc) {
     document.querySelectorAll('link[rel="stylesheet"]').forEach(node => {
@@ -26,35 +29,23 @@ export function usePopupWindow() {
     })
     document.querySelectorAll('style').forEach(node => {
       const clone = targetDoc.createElement('style')
-      if (node.sheet) {
-        try {
-          clone.textContent = Array.from(node.sheet.cssRules).map(r => r.cssText).join('\n')
-        } catch {
-          clone.textContent = node.textContent
-        }
-      } else {
+      try {
+        clone.textContent = Array.from(node.sheet.cssRules).map(r => r.cssText).join('\n')
+      } catch {
         clone.textContent = node.textContent
       }
       targetDoc.head.appendChild(clone)
     })
   }
 
-  function open({ title = 'Cell Search', width = 1400, height = 900, onClose } = {}) {
-    if (popup && !popup.closed) {
-      popup.focus()
-      return
-    }
-    const features = [
-      `width=${width}`,
-      `height=${height}`,
-      'menubar=no',
-      'toolbar=no',
-      'location=no',
-      'status=no',
-      'resizable=yes',
-      'scrollbars=yes'
-    ].join(',')
+  function open({ title = 'Popup', width = 1400, height = 900, component, props = {}, onClose } = {}) {
+    if (popup && !popup.closed) { popup.focus(); return }
 
+    const features = [
+      `width=${width}`, `height=${height}`,
+      'resizable=yes', 'scrollbars=yes',
+      'menubar=no', 'toolbar=no', 'location=no', 'status=no'
+    ].join(',')
     popup = window.open('', '_blank', features)
     if (!popup) {
       console.warn('[usePopupWindow] popup blocked by browser')
@@ -70,18 +61,29 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
-    popupRoot.value = popup.document.getElementById('popup-root')
-    isOpen.value = true
+    const mountEl = popup.document.getElementById('popup-root')
+    const popupBody = popup.document.body
 
-    // Close main → close popup
+    popupApp = createApp({
+      render: () => h(component, props)
+    })
+    popupApp.provide('popupBody', popupBody)
+    const pinia = getActivePinia()
+    if (pinia) popupApp.use(pinia)
+    popupApp.use(ElementPlus)
+    for (const [k, v] of Object.entries(ElementPlusIcons)) popupApp.component(k, v)
+    popupApp.mount(mountEl)
+
+    isOpen.value = true
+    closeCallback = onClose
+
     unloadHandler = () => { try { popup && popup.close() } catch {} }
     window.addEventListener('beforeunload', unloadHandler)
 
-    // Detect popup close by user (no reliable event across all browsers)
     pollInterval = window.setInterval(() => {
       if (popup && popup.closed) {
         cleanup()
-        if (onClose) onClose()
+        if (closeCallback) closeCallback()
       }
     }, 400)
   }
@@ -92,16 +94,14 @@ export function usePopupWindow() {
   }
 
   function cleanup() {
+    if (popupApp) { try { popupApp.unmount() } catch {}; popupApp = null }
     if (pollInterval) { window.clearInterval(pollInterval); pollInterval = null }
     if (unloadHandler) { window.removeEventListener('beforeunload', unloadHandler); unloadHandler = null }
-    popupRoot.value = null
     isOpen.value = false
     popup = null
   }
 
-  onBeforeUnmount(() => {
-    try { close() } catch {}
-  })
+  onBeforeUnmount(() => { try { close() } catch {} })
 
-  return { popupRoot, isOpen, open, close }
+  return { isOpen, open, close }
 }

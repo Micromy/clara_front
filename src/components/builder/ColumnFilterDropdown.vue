@@ -5,7 +5,10 @@ import { useBuilderStore } from '../../stores/builderStore.js'
 const props = defineProps({
   columnKey: { type: String, required: true },
   label: { type: String, default: '' },
-  inPopup: { type: Boolean, default: false }
+  inPopup: { type: Boolean, default: false },
+  // Passed down so the popover teleports into the popup window's body,
+  // bypassing the el-table header's overflow clipping.
+  popupBody: { type: Object, default: null }
 })
 
 const store = useBuilderStore()
@@ -119,7 +122,7 @@ function onTriggerClick(e) {
     placement="bottom-start"
     :width="240"
     trigger="manual"
-    :teleported="!inPopup"
+    :append-to="popupBody || undefined"
     popper-class="column-filter-popper"
   >
     <template #reference>

@@ -136,12 +136,23 @@ export function formulaDesc(df) {
 let nextDerivedId = 1
 
 // Cell type top-level classification (mutually exclusive).
-// Mapping to backend DB fields is resolved in the adapter layer later;
-// for now we filter on `cell.cellType` directly.
+// The eventual backend will expose a real FF/ICG field; until then we
+// derive the category from the existing `cellType` values of the mock
+// data so the UI is testable. Swap this mapping out at the adapter layer.
 export const CELL_TYPE_OPTIONS = [
   { value: 'FF',  label: 'FF' },
   { value: 'ICG', label: 'ICG' }
 ]
+
+const CELL_TYPE_CATEGORY_MAP = {
+  FF:  ['DFF'],
+  ICG: ['AOI', 'OAI']
+}
+
+function cellMatchesCategory(cell, category) {
+  const types = CELL_TYPE_CATEGORY_MAP[category]
+  return !!types && types.includes(cell.cellType)
+}
 
 function createEmptySearch() {
   return {
@@ -346,7 +357,7 @@ export const useBuilderStore = defineStore('builder', () => {
     const q = (s.query || '').toLowerCase().trim()
     const colFilters = Object.entries(s.columnFilters || {})
     return allCells.value.filter(cell => {
-      if (cell.cellType !== s.cellType) return false
+      if (!cellMatchesCategory(cell, s.cellType)) return false
       if (q && !cell.cellName.toLowerCase().includes(q)) return false
       for (const [key, vals] of colFilters) {
         if (!vals || !vals.length) continue

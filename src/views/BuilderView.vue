@@ -1,19 +1,20 @@
 <script setup>
 import CellSearchTable from '../components/builder/CellSearchTable.vue'
+import CellSearchPopupRoot from '../components/builder/CellSearchPopupRoot.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
 import { ref } from 'vue'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
 
 const bottomCollapsed = ref(false)
-const { popupRoot, isOpen, open, close } = usePopupWindow()
+const { isOpen, open, close } = usePopupWindow()
 
 function openPopup() {
   open({
     title: 'Cell Search — ARIAS',
     width: 1400,
     height: 900,
-    onClose: () => { /* handled by isOpen flipping false */ }
+    component: CellSearchPopupRoot
   })
 }
 </script>
@@ -43,12 +44,6 @@ function openPopup() {
         <ChartConfigPanel />
       </div>
     </div>
-
-    <Teleport v-if="popupRoot" :to="popupRoot">
-      <div class="popup-shell">
-        <CellSearchTable :show-expand-button="false" in-popup />
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -128,16 +123,5 @@ function openPopup() {
   flex-direction: column;
   overflow-y: auto;
   max-height: 800px;
-}
-</style>
-
-<style>
-.popup-shell {
-  padding: 16px;
-  height: 100vh;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
 }
 </style>

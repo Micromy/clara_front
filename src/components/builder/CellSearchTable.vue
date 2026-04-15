@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -10,12 +10,15 @@ const props = defineProps({
 })
 
 const store = useBuilderStore()
+// Popup window body is provided by usePopupWindow when the component is
+// mounted inside a popup sub-app; null in the main window.
+const popupBody = inject('popupBody', null)
 
 const currentPage = ref(1)
 const pageSize = ref(10)
 const tableRef = ref(null)
+const syncing = ref(false)
 
-// Bind inputs to pending state
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
   set: v => store.setPendingCellType(v)
@@ -25,7 +28,6 @@ const pendingQuery = computed({
   set: v => store.setPendingQuery(v)
 })
 
-// Reset to first page whenever a new search is applied
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
 const rows = computed(() => store.filteredCells)
@@ -35,15 +37,40 @@ const pagedCells = computed(() => {
   return rows.value.slice(start, start + pageSize.value)
 })
 const totalSelected = computed(() => store.activeBuilder?.selectedCellIds.length || 0)
-
 const hasSearched = computed(() => !!store.appliedSearch.cellType)
+
+const paginationLayout = computed(() =>
+  props.inPopup ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next'
+)
 
 function runSearch() {
   if (!store.canSearch) return
   store.applySearch()
 }
 
+// Sync el-table's internal selection state to the store's selectedCellIds
+// whenever the visible page changes. Without this, programmatic selections
+// from another view (or prior page) aren't reflected, and user clicks can
+// erroneously deselect cells that aren't rendered on this page.
+function syncTableSelection() {
+  const tbl = tableRef.value
+  if (!tbl) return
+  const ids = store.activeBuilder?.selectedCellIds || []
+  syncing.value = true
+  nextTick(() => {
+    pagedCells.value.forEach(row => {
+      tbl.toggleRowSelection(row, ids.includes(row.id))
+    })
+    nextTick(() => { syncing.value = false })
+  })
+}
+
+onMounted(syncTableSelection)
+watch(pagedCells, syncTableSelection)
+watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: true })
+
 function handleSelectionChange(selected) {
+  if (syncing.value) return
   const pageIds = pagedCells.value.map(c => c.id)
   const selectedIds = selected.map(r => r.id)
   const toDeselect = pageIds.filter(id => !selectedIds.includes(id))
@@ -61,6 +88,7 @@ function handleSelectionChange(selected) {
           placeholder="Cell Type *"
           style="width: 130px"
           clearable
+          :teleported="!inPopup"
         >
           <el-option
             v-for="opt in CELL_TYPE_OPTIONS"
@@ -138,7 +166,12 @@ function handleSelectionChange(selected) {
         <template #header>
           <span class="col-header">
             <span>{{ col.label }}</span>
-            <ColumnFilterDropdown :column-key="col.key" :label="col.label" :in-popup="props.inPopup" />
+            <ColumnFilterDropdown
+              :column-key="col.key"
+              :label="col.label"
+              :in-popup="inPopup"
+              :popup-body="popupBody"
+            />
           </span>
         </template>
       </el-table-column>
@@ -150,7 +183,7 @@ function handleSelectionChange(selected) {
         v-model:page-size="pageSize"
         :total="totalCells"
         :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
+        :layout="paginationLayout"
         small
       />
     </div>
