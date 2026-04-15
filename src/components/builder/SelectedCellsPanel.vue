@@ -90,6 +90,8 @@ function rowClassName({ row }) { return isRefRow(row) ? 'is-ref-row' : '' }
 // Digits per column prop — defaults to 4 since most FF/ICG metrics are small decimals (ns).
 function digitsFor(prop) {
   if (prop === 'area') return 1
+  if (prop === 'temperature') return 1
+  if (prop === 'vdd' || prop === 'vth') return 2
   return 4
 }
 
