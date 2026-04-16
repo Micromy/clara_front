@@ -113,6 +113,7 @@ function handleTabRemove(name) {
               @keyup.enter="commitEdit(`builder-${builder.id}`)"
               @blur="commitEdit(`builder-${builder.id}`)"
               @click.stop
+              @keydown.stop
             />
             <span v-else @dblclick.stop="startEdit(`builder-${builder.id}`, builder.name)">{{ builder.name }}</span>
           </template>
@@ -132,6 +133,7 @@ function handleTabRemove(name) {
               @keyup.enter="commitEdit(`chart-${chart.builderId}`)"
               @blur="commitEdit(`chart-${chart.builderId}`)"
               @click.stop
+              @keydown.stop
             />
             <span v-else @dblclick.stop="startEdit(`chart-${chart.builderId}`, chart.builderName)">Chart: {{ chart.builderName }}</span>
           </template>

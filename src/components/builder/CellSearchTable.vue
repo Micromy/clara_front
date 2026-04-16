@@ -23,10 +23,11 @@ const syncing = ref(false)
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
   set: async v => {
+    if (!v) return
     const prev = store.pendingSearch.cellType
     const selectedCount = store.activeBuilder?.selectedCellIds.length || 0
-    // If switching to a different non-null type while selections exist, confirm.
-    if (prev && v && prev !== v && selectedCount > 0) {
+
+    if (prev && prev !== v && selectedCount > 0) {
       try {
         await ElMessageBox.confirm(
           `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`,
@@ -34,14 +35,18 @@ const pendingCellType = computed({
           { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning' }
         )
       } catch {
-        // user canceled — dropdown was already updated by el-select; revert
         store.setPendingCellType(prev)
         return
       }
-      store.clearSelection(v)
-      ElMessage.info('Selection cleared.')
     }
+
+    if (prev && prev !== v) {
+      store.clearSelection(v)
+      store.resetSearch()
+    }
+
     store.setPendingCellType(v)
+    store.applySearch()
   }
 })
 const pendingQuery = computed({
@@ -86,7 +91,15 @@ function syncTableSelection() {
   })
 }
 
-onMounted(syncTableSelection)
+onMounted(() => {
+  if (!store.pendingSearch.cellType) {
+    store.setPendingCellType('FF')
+    store.applySearch()
+  } else if (!store.appliedSearch.cellType) {
+    store.applySearch()
+  }
+  syncTableSelection()
+})
 watch(pagedCells, syncTableSelection)
 watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: true })
 
@@ -108,7 +121,6 @@ function handleSelectionChange(selected) {
           v-model="pendingCellType"
           placeholder="Cell Type *"
           style="width: 130px"
-          clearable
           :teleported="!inPopup"
         >
           <el-option
