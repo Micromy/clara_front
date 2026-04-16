@@ -43,11 +43,15 @@ const pendingCellType = computed({
     if (prev && prev !== v) {
       store.clearSelection(v)
       store.resetSearch()
-      tableRef.value?.clearSelection()
     }
 
     store.setPendingCellType(v)
     store.applySearch()
+
+    if (prev && prev !== v) {
+      await nextTick()
+      tableRef.value?.clearSelection()
+    }
   }
 })
 const pendingQuery = computed({
@@ -98,8 +102,11 @@ watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: tr
 
 function handleSelectionChange(selected) {
   if (syncing.value) return
+  // Filter out any row keys el-table's reserve-selection kept from a
+  // previous cell-type — only keep selections that match current cells.
+  const validIds = new Set(store.filteredCells.map(c => c.id))
+  const selectedIds = selected.map(r => r.id).filter(id => validIds.has(id))
   const pageIds = pagedCells.value.map(c => c.id)
-  const selectedIds = selected.map(r => r.id)
   const toDeselect = pageIds.filter(id => !selectedIds.includes(id))
   store.deselectCells(toDeselect)
   store.selectCells(selectedIds)
