@@ -57,7 +57,7 @@ function openPopup() {
 
 .top-section {
   flex: 1;
-  min-height: 300px;
+  min-height: 480px;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
@@ -97,7 +97,7 @@ function openPopup() {
 .bottom-section {
   display: flex;
   gap: 16px;
-  min-height: 680px;
+  min-height: 500px;
   align-items: stretch;
 }
 

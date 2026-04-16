@@ -63,8 +63,6 @@
     ],
     "xAxisOptions": {
       "FF": [
-        { "value": "vdd",              "label": "VDD (V)" },
-        { "value": "temperature",      "label": "Temperature (°C)" },
         { "value": "dqWorst",          "label": "DQ_wst (ns)" },
         { "value": "dqAvg",            "label": "DQ_avg (ns)" },
         { "value": "cqDelayAvg",       "label": "CQ_delay_avg (ns)" },
@@ -77,8 +75,6 @@
         { "value": "pdpAvg",           "label": "PDP_avg" }
       ],
       "ICG": [
-        { "value": "vdd",              "label": "VDD (V)" },
-        { "value": "temperature",      "label": "Temperature (°C)" },
         { "value": "eeckWorst",        "label": "EECK_wst (ns)" },
         { "value": "eeckAvg",          "label": "EECK_avg (ns)" },
         { "value": "cqDelayAvg",       "label": "CQ_delay_avg (ns)" },
