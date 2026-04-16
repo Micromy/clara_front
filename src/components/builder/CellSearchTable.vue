@@ -43,6 +43,7 @@ const pendingCellType = computed({
     if (prev && prev !== v) {
       store.clearSelection(v)
       store.resetSearch()
+      tableRef.value?.clearSelection()
     }
 
     store.setPendingCellType(v)
