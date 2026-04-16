@@ -378,6 +378,10 @@ export const useBuilderStore = defineStore('builder', () => {
   const chartOptions = computed(() => config.value?.chartOptions ?? {
     chartTypes: [], xAxisOptions: [], yAxisOptions: {}, groupingOptions: []
   })
+  const xAxisOptions = computed(() => {
+    const x = chartOptions.value.xAxisOptions
+    return x?.[activeCellType.value] ?? []
+  })
   const yAxisOptions = computed(() => {
     const y = chartOptions.value.yAxisOptions
     return y?.[activeCellType.value] ?? []
@@ -499,7 +503,7 @@ export const useBuilderStore = defineStore('builder', () => {
     // Build a label map so chart/table components can render axis/column labels
     // without hardcoding them or depending on the store.
     const labelMap = {}
-    ;(chartOptions.value.xAxisOptions || []).forEach(o => { labelMap[o.value] = o.label })
+    ;(xAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(yAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
     ;(selectedCellsMetadataColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
@@ -541,7 +545,7 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, yAxisOptions, derivedFields, activeCellType,
+    chartOptions, xAxisOptions, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,

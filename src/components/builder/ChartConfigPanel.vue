@@ -114,7 +114,7 @@ function onGenerate() {
           @update:model-value="val => store.updateChartConfig('xAxis', val)"
           style="width: 100%"
         >
-          <el-option v-for="opt in store.chartOptions.xAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-option v-for="opt in store.xAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
       </el-form-item>
 
