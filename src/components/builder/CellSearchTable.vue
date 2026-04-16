@@ -91,15 +91,7 @@ function syncTableSelection() {
   })
 }
 
-onMounted(() => {
-  if (!store.pendingSearch.cellType) {
-    store.setPendingCellType('FF')
-    store.applySearch()
-  } else if (!store.appliedSearch.cellType) {
-    store.applySearch()
-  }
-  syncTableSelection()
-})
+onMounted(syncTableSelection)
 watch(pagedCells, syncTableSelection)
 watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: true })
 

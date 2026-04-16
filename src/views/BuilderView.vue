@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
 .builder-view {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
   gap: 0;
 }
 
