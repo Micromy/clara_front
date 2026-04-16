@@ -13,6 +13,7 @@ Usage:
 Env vars (DB_USER / DB_PASSWORD / DB_DSN / ORACLE_CLIENT_LIB) override
 values from .env when present.
 """
+import argparse
 import json
 import os
 import sys
@@ -111,16 +112,23 @@ def coerce(v):
         return str(v)
 
 
-def fetch(cursor, table, mapping, order_by=None):
+def fetch(cursor, table, mapping, order_by=None, suffix=''):
     sql = f'SELECT {", ".join(mapping.keys())} FROM {table}'
     if order_by:
         sql += f' ORDER BY {order_by} ASC'
+    sql += suffix
     cursor.execute(sql)
     col_order = [mapping[c[0]] for c in cursor.description]
     return [dict(zip(col_order, (coerce(v) for v in row))) for row in cursor]
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Export Oracle DB → cells.json + simulations.json')
+    parser.add_argument('--limit', type=int, default=0,
+                        help='Max rows to fetch from arias_cell_meta (0 = all). '
+                             'Only matching simulations are exported.')
+    args = parser.parse_args()
+
     env = load_env_file(ENV_FILE)
 
     def get(key):
@@ -137,11 +145,19 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    limit_clause = f' FETCH FIRST {args.limit} ROWS ONLY' if args.limit else ''
+
     with oracledb.connect(user=user, password=password, dsn=dsn) as conn:
         with conn.cursor() as cur:
-            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID')
+            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID', suffix=limit_clause)
+            cell_ids = {c['id'] for c in cells}
             ff_rows  = fetch(cur, FF_TABLE,  {**FF_SIM_MAP,  'CELL_ID': 'cellId'})
             icg_rows = fetch(cur, ICG_TABLE, {**ICG_SIM_MAP, 'CELL_ID': 'cellId'})
+
+    # Filter simulations to only include cells we fetched
+    if args.limit:
+        ff_rows  = [r for r in ff_rows  if r.get('cellId') in cell_ids]
+        icg_rows = [r for r in icg_rows if r.get('cellId') in cell_ids]
 
     cells.sort(key=lambda c: c['id'])
 
