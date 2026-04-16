@@ -8,7 +8,7 @@ import { usePopupWindow } from '../composables/usePopupWindow.js'
 
 const { isOpen, open, close } = usePopupWindow()
 const containerRef = ref(null)
-const splitRatio = ref(0.55)
+const topHeight = ref(500)
 const dragging = ref(false)
 
 function openPopup() {
@@ -30,8 +30,8 @@ function onMouseDown(e) {
 function onMouseMove(e) {
   if (!dragging.value || !containerRef.value) return
   const rect = containerRef.value.getBoundingClientRect()
-  const ratio = (e.clientY - rect.top) / rect.height
-  splitRatio.value = Math.min(Math.max(ratio, 0.2), 0.8)
+  const newHeight = e.clientY - rect.top
+  topHeight.value = Math.max(200, newHeight)
 }
 
 function onMouseUp() {
@@ -48,7 +48,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="containerRef" class="builder-view" :class="{ dragging }">
-    <div class="top-section" :style="{ flex: splitRatio }" v-show="!isOpen">
+    <div class="top-section" :style="{ height: topHeight + 'px' }" v-show="!isOpen">
       <CellSearchTable @expand="openPopup" />
     </div>
 
@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
       <div class="splitter-handle"></div>
     </div>
 
-    <div class="bottom-section" :style="{ flex: 1 - splitRatio }">
+    <div class="bottom-section">
       <div class="bottom-left">
         <SelectedCellsPanel />
       </div>
@@ -87,6 +87,7 @@ onBeforeUnmount(() => {
 }
 
 .top-section {
+  flex-shrink: 0;
   min-height: 200px;
   background: #fff;
   border-radius: 8px;
@@ -111,7 +112,7 @@ onBeforeUnmount(() => {
 
 .splitter {
   flex-shrink: 0;
-  height: 10px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
