@@ -3,40 +3,13 @@ import CellSearchTable from '../components/builder/CellSearchTable.vue'
 import CellSearchPopupRoot from '../components/builder/CellSearchPopupRoot.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
-import { ref, computed, onBeforeUnmount } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
+import { ref, onBeforeUnmount } from 'vue'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
-import { useBuilderStore } from '../stores/builderStore.js'
 
-const store = useBuilderStore()
 const { isOpen, open, close } = usePopupWindow()
 const containerRef = ref(null)
 const topHeight = ref(500)
 const dragging = ref(false)
-
-const selectedCount = computed(() => store.activeBuilder?.selectedCellIds.length || 0)
-
-async function applyBulkAlias() {
-  if (selectedCount.value === 0) return
-  try {
-    const { value } = await ElMessageBox.prompt(
-      `Apply the same alias to ${selectedCount.value} selected cell${selectedCount.value > 1 ? 's' : ''}.`,
-      'Set Alias',
-      {
-        confirmButtonText: 'Apply',
-        cancelButtonText: 'Cancel',
-        inputPlaceholder: 'Enter alias (group name)',
-        inputValidator: v => (v && v.trim()) ? true : 'Alias cannot be empty'
-      }
-    )
-    const alias = value.trim()
-    const builderId = store.activeBuilder.id
-    store.activeBuilder.selectedCellIds.forEach(cellId => {
-      store.setCellAlias(builderId, cellId, alias)
-    })
-    ElMessage.success(`Alias "${alias}" applied to ${selectedCount.value} cells.`)
-  } catch { /* canceled */ }
-}
 
 function openPopup() {
   open({
@@ -86,16 +59,6 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="splitter" @mousedown="onMouseDown">
-      <div class="splitter-handle"></div>
-      <button
-        class="splitter-action"
-        :disabled="selectedCount === 0"
-        @mousedown.stop
-        @click.stop="applyBulkAlias"
-      >
-        ↓ Set Alias
-        <span v-if="selectedCount > 0" class="splitter-action-count">{{ selectedCount }}</span>
-      </button>
       <div class="splitter-handle"></div>
     </div>
 
@@ -149,18 +112,17 @@ onBeforeUnmount(() => {
 
 .splitter {
   flex-shrink: 0;
-  height: 36px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   cursor: row-resize;
   position: relative;
   z-index: 5;
 }
 
 .splitter-handle {
-  width: 64px;
+  width: 48px;
   height: 4px;
   border-radius: 2px;
   background: #c0c4cc;
@@ -170,50 +132,7 @@ onBeforeUnmount(() => {
 .splitter:hover .splitter-handle,
 .builder-view.dragging .splitter-handle {
   background: #409eff;
-  width: 80px;
-}
-
-.splitter-action {
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  font-size: 12.5px;
-  font-weight: 500;
-  background: #fff;
-  color: #303133;
-  border: 1px solid #dcdfe6;
-  border-radius: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  transition: all 0.15s;
-  user-select: none;
-}
-.splitter-action:not(:disabled):hover {
-  background: #409eff;
-  color: #fff;
-  border-color: #409eff;
-}
-.splitter-action:disabled {
-  cursor: not-allowed;
-  color: #c0c4cc;
-  background: #fafafa;
-}
-.splitter-action-count {
-  display: inline-block;
-  min-width: 18px;
-  padding: 0 5px;
-  background: #409eff;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 9px;
-  line-height: 16px;
-  text-align: center;
-}
-.splitter-action:hover .splitter-action-count {
-  background: #fff;
-  color: #409eff;
+  width: 64px;
 }
 
 .bottom-section {
