@@ -197,12 +197,15 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const chartTabs = ref([])
 
-  function createDefaultChartConfig() {
+  function createDefaultChartConfig(cellType) {
+    const ct = cellType || activeCellType.value || 'FF'
+    const xOpts = config.value?.chartOptions?.xAxisOptions?.[ct] || []
+    const yOpts = config.value?.chartOptions?.yAxisOptions?.[ct] || []
     return {
       chartType: 'scatter',
-      chartTypeSecondary: null,   // null = same as primary
-      xAxis: 'vdd',
-      yAxisPrimary: 'pdpAvg',     // shared across FF/ICG
+      chartTypeSecondary: null,
+      xAxis: xOpts[0]?.value || 'pdpAvg',
+      yAxisPrimary: yOpts[0]?.value || 'pdpAvg',
       yAxisSecondary: null,
       grouping: 'alias'
     }
@@ -448,8 +451,11 @@ export const useBuilderStore = defineStore('builder', () => {
     })
   }
 
-  function clearSelection() {
-    if (activeBuilder.value) activeBuilder.value.selectedCellIds = []
+  function clearSelection(newCellType) {
+    if (!activeBuilder.value) return
+    activeBuilder.value.selectedCellIds = []
+    activeBuilder.value.chartConfig = createDefaultChartConfig(newCellType)
+    activeBuilder.value.derivedFormulas = []
   }
 
   function addBuilder() {
@@ -490,7 +496,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (idx !== -1) formulas.splice(idx, 1)
     const key = `__df_${id}`
     const cfg = activeBuilder.value.chartConfig
-    if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = 'pdpAvg'
+    if (cfg.yAxisPrimary === key) cfg.yAxisPrimary = yAxisOptions.value[0]?.value || 'pdpAvg'
     if (cfg.yAxisSecondary === key) cfg.yAxisSecondary = null
   }
 

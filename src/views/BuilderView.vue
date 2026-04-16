@@ -3,11 +3,13 @@ import CellSearchTable from '../components/builder/CellSearchTable.vue'
 import CellSearchPopupRoot from '../components/builder/CellSearchPopupRoot.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
 
-const bottomCollapsed = ref(false)
 const { isOpen, open, close } = usePopupWindow()
+const containerRef = ref(null)
+const splitRatio = ref(0.55)
+const dragging = ref(false)
 
 function openPopup() {
   open({
@@ -17,11 +19,36 @@ function openPopup() {
     component: CellSearchPopupRoot
   })
 }
+
+function onMouseDown(e) {
+  e.preventDefault()
+  dragging.value = true
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
+
+function onMouseMove(e) {
+  if (!dragging.value || !containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  const ratio = (e.clientY - rect.top) / rect.height
+  splitRatio.value = Math.min(Math.max(ratio, 0.2), 0.8)
+}
+
+function onMouseUp() {
+  dragging.value = false
+  document.removeEventListener('mousemove', onMouseMove)
+  document.removeEventListener('mouseup', onMouseUp)
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', onMouseMove)
+  document.removeEventListener('mouseup', onMouseUp)
+})
 </script>
 
 <template>
-  <div class="builder-view">
-    <div class="top-section" v-show="!isOpen">
+  <div ref="containerRef" class="builder-view" :class="{ dragging }">
+    <div class="top-section" :style="{ flex: splitRatio }" v-show="!isOpen">
       <CellSearchTable @expand="openPopup" />
     </div>
 
@@ -31,12 +58,11 @@ function openPopup() {
       <el-button size="small" type="primary" @click="close">Close popup</el-button>
     </div>
 
-    <div class="section-divider" @click="bottomCollapsed = !bottomCollapsed">
-      <el-icon><component :is="bottomCollapsed ? 'ArrowDown' : 'ArrowUp'" /></el-icon>
-      <span>{{ bottomCollapsed ? 'Show' : 'Hide' }} Selected Cells & Chart Config</span>
+    <div class="splitter" @mousedown="onMouseDown">
+      <div class="splitter-handle"></div>
     </div>
 
-    <div v-show="!bottomCollapsed" class="bottom-section">
+    <div class="bottom-section" :style="{ flex: 1 - splitRatio }">
       <div class="bottom-left">
         <SelectedCellsPanel />
       </div>
@@ -55,13 +81,18 @@ function openPopup() {
   gap: 0;
 }
 
+.builder-view.dragging {
+  cursor: row-resize;
+  user-select: none;
+}
+
 .top-section {
-  flex: 1;
-  min-height: 480px;
+  min-height: 200px;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: auto;
 }
 
 .popup-placeholder {
@@ -78,27 +109,37 @@ function openPopup() {
   font-size: 13px;
 }
 
-.section-divider {
+.splitter {
+  flex-shrink: 0;
+  height: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 0;
-  cursor: pointer;
-  color: #909399;
-  font-size: 12px;
-  user-select: none;
+  cursor: row-resize;
+  position: relative;
+  z-index: 5;
 }
 
-.section-divider:hover {
-  color: var(--clara-primary);
+.splitter-handle {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: #c0c4cc;
+  transition: background 0.15s, width 0.15s;
+}
+
+.splitter:hover .splitter-handle,
+.builder-view.dragging .splitter-handle {
+  background: #409eff;
+  width: 64px;
 }
 
 .bottom-section {
   display: flex;
   gap: 16px;
-  min-height: 500px;
+  min-height: 200px;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .bottom-left {
@@ -122,6 +163,5 @@ function openPopup() {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  max-height: 800px;
 }
 </style>

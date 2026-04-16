@@ -1,11 +1,39 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 
 const router = useRouter()
 const route = useRoute()
 const store = useBuilderStore()
+
+const editingTab = ref(null)
+const editingValue = ref('')
+const editInput = ref(null)
+
+function startEdit(tabName, currentLabel) {
+  editingTab.value = tabName
+  editingValue.value = currentLabel
+  nextTick(() => {
+    editInput.value?.focus()
+    editInput.value?.select()
+  })
+}
+
+function commitEdit(tabName) {
+  const val = editingValue.value.trim()
+  if (!val) { editingTab.value = null; return }
+  if (tabName.startsWith('builder-')) {
+    const id = Number(tabName.replace('builder-', ''))
+    const b = store.builders.find(b => b.id === id)
+    if (b) b.name = val
+  } else if (tabName.startsWith('chart-')) {
+    const builderId = Number(tabName.replace('chart-', ''))
+    const c = store.chartTabs.find(t => t.builderId === builderId)
+    if (c) c.builderName = val
+  }
+  editingTab.value = null
+}
 
 const activeTab = computed(() => {
   if (route.name === 'Chart') return `chart-${route.params.builderId}`
@@ -73,17 +101,41 @@ function handleTabRemove(name) {
         <el-tab-pane
           v-for="builder in store.builders"
           :key="`builder-${builder.id}`"
-          :label="builder.name"
           :name="`builder-${builder.id}`"
           :closable="store.builders.length > 1"
-        />
+        >
+          <template #label>
+            <input
+              v-if="editingTab === `builder-${builder.id}`"
+              ref="editInput"
+              v-model="editingValue"
+              class="tab-edit-input"
+              @keyup.enter="commitEdit(`builder-${builder.id}`)"
+              @blur="commitEdit(`builder-${builder.id}`)"
+              @click.stop
+            />
+            <span v-else @dblclick.stop="startEdit(`builder-${builder.id}`, builder.name)">{{ builder.name }}</span>
+          </template>
+        </el-tab-pane>
         <el-tab-pane
           v-for="chart in store.chartTabs"
           :key="`chart-${chart.builderId}`"
-          :label="`Chart: ${chart.builderName}`"
           :name="`chart-${chart.builderId}`"
           closable
-        />
+        >
+          <template #label>
+            <input
+              v-if="editingTab === `chart-${chart.builderId}`"
+              ref="editInput"
+              v-model="editingValue"
+              class="tab-edit-input"
+              @keyup.enter="commitEdit(`chart-${chart.builderId}`)"
+              @blur="commitEdit(`chart-${chart.builderId}`)"
+              @click.stop
+            />
+            <span v-else @dblclick.stop="startEdit(`chart-${chart.builderId}`, chart.builderName)">Chart: {{ chart.builderName }}</span>
+          </template>
+        </el-tab-pane>
       </el-tabs>
       <el-button
         class="add-builder-btn"
@@ -160,5 +212,17 @@ function handleTabRemove(name) {
   flex: 1;
   overflow: auto;
   padding: 16px;
+}
+
+.tab-edit-input {
+  font: inherit;
+  font-size: 12.5px;
+  width: 140px;
+  padding: 2px 6px;
+  border: 1px solid #409eff;
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+  color: #303133;
 }
 </style>

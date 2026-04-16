@@ -38,7 +38,7 @@ const pendingCellType = computed({
         store.setPendingCellType(prev)
         return
       }
-      store.clearSelection()
+      store.clearSelection(v)
       ElMessage.info('Selection cleared.')
     }
     store.setPendingCellType(v)

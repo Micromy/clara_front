@@ -1,10 +1,10 @@
 {
   "searchTableColumns": [
     { "key": "cellType",      "label": "Cell Type",      "width": 90  },
-    { "key": "pdk",           "label": "PDK",            "width": 250 },
+    { "key": "pdk",           "label": "PDK",            "width": 410 },
     { "key": "version",       "label": "Version",        "width": 140 },
     { "key": "library",       "label": "Library",        "width": 110 },
-    { "key": "cellName",      "label": "Cell Name",      "width": 210 },
+    { "key": "cellName",      "label": "Cell Name",      "width": 280 },
     { "key": "cell",          "label": "Cell",           "width": 100 },
     { "key": "feol",          "label": "FEOL",           "width": 80  },
     { "key": "beol",          "label": "BEOL",           "width": 90  },
@@ -20,7 +20,7 @@
     { "key": "characTool",    "label": "Charac Tool",    "width": 110 }
   ],
   "selectedCellsMetadataColumns": [
-    { "prop": "pdk",         "label": "PDK",       "width": 250 },
+    { "prop": "pdk",         "label": "PDK",       "width": 410 },
     { "prop": "version",     "label": "Version",   "width": 140 },
     { "prop": "library",     "label": "Library",   "width": 110 },
     { "prop": "feol",        "label": "FEOL",      "width": 80  },
