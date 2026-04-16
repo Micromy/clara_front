@@ -174,6 +174,20 @@ const chartOption = computed(() => {
       top: 50,
       bottom: 72
     },
+    toolbox: {
+      show: true,
+      right: 20,
+      top: 10,
+      feature: {
+        dataZoom: { yAxisIndex: 'none', title: { zoom: 'Box Zoom', back: 'Reset Zoom' } },
+        restore: { title: 'Reset' },
+        saveAsImage: { title: 'Save PNG' }
+      }
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, start: 5, end: 95, filterMode: 'none' },
+      { type: 'inside', yAxisIndex: 0, start: 5, end: 95, filterMode: 'none' }
+    ],
     xAxis: isBar
       ? {
           type: 'category',
