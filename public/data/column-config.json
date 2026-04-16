@@ -13,11 +13,11 @@
     { "key": "gdsOverlay",    "label": "GDS Overlay",    "width": 100 },
     { "key": "driveStrength", "label": "Drive Strength", "width": 120 },
     { "key": "nanosheet",     "label": "Nanosheet",      "width": 90  },
+    { "key": "vth",           "label": "Vth",            "width": 80  },
     { "key": "gateLength",    "label": "Gate Length",    "width": 100 },
     { "key": "cellHeight",    "label": "Cell Height",    "width": 100 },
-    { "key": "vth",           "label": "Vth",            "width": 80  },
     { "key": "cpp",           "label": "CPP",            "width": 70  },
-    { "key": "characTool",    "label": "Charac Tool",    "width": 110 }
+    { "key": "characTool",    "label": "Charac Tool",    "width": 210 }
   ],
   "selectedCellsMetadataColumns": [
     { "prop": "pdk",         "label": "PDK",       "width": 410 },
