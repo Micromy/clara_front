@@ -297,7 +297,11 @@ export const useBuilderStore = defineStore('builder', () => {
   })
 
   // ── Search / filter logic ────────────────────────────────────────────────
-  const canSearch = computed(() => !!pendingSearch.value.cellType)
+  const canSearch = computed(() =>
+    !!pendingSearch.value.cellType &&
+    !!pendingSearch.value.pdk &&
+    pendingSearch.value.libraries.length > 0
+  )
 
   function setPendingCellType(v) {
     pendingSearch.value.cellType = v
@@ -353,10 +357,10 @@ export const useBuilderStore = defineStore('builder', () => {
     searchDirty.value = false
   }
 
-  // Distinct values for a column (used by ColumnFilterDropdown)
+  // Distinct values for a column based on current filtered rows (excluding columnFilters)
   function columnFilterOptions(columnKey) {
     const set = new Set()
-    for (const c of allCells.value) {
+    for (const c of preColumnFilteredCells.value) {
       const v = c[columnKey]
       if (v !== undefined && v !== null && v !== '') set.add(String(v))
     }
@@ -391,17 +395,27 @@ export const useBuilderStore = defineStore('builder', () => {
     cellIds.forEach(id => { cellAliases.value[`${builderId}-${id}`] = alias })
   }
 
-  // filteredCells: applied filters applied to allCells (null when no search yet)
-  const filteredCells = computed(() => {
+  // Pre-column-filter stage: type + pdk + libraries + query only (no columnFilters).
+  // Used as the source for columnFilterOptions to avoid circular dependency.
+  const preColumnFilteredCells = computed(() => {
     const s = appliedSearch.value
-    if (!s.cellType) return []     // no search executed yet
+    if (!s.cellType || !s.pdk || s.libraries.length === 0) return []
     const q = (s.query || '').toLowerCase().trim()
-    const colFilters = Object.entries(s.columnFilters || {})
     return allCells.value.filter(cell => {
       if (!cellMatchesCategory(cell, s.cellType)) return false
       if (s.pdk && cell.pdk !== s.pdk) return false
       if (s.libraries.length > 0 && !s.libraries.includes(cell.library)) return false
       if (q && !cell.cellName.toLowerCase().includes(q)) return false
+      return true
+    })
+  })
+
+  // Final filtered cells: preColumnFilteredCells + columnFilters
+  const filteredCells = computed(() => {
+    const s = appliedSearch.value
+    const colFilters = Object.entries(s.columnFilters || {})
+    if (colFilters.every(([, vals]) => !vals || !vals.length)) return preColumnFilteredCells.value
+    return preColumnFilteredCells.value.filter(cell => {
       for (const [key, vals] of colFilters) {
         if (!vals || !vals.length) continue
         if (!vals.includes(String(cell[key]))) return false
@@ -487,10 +501,12 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function deselectCells(cellIds) {
+    const builderId = activeBuilder.value.id
     const ids = activeBuilder.value.selectedCellIds
     cellIds.forEach(id => {
       const idx = ids.indexOf(id)
       if (idx !== -1) ids.splice(idx, 1)
+      delete cellAliases.value[`${builderId}-${id}`]
     })
   }
 

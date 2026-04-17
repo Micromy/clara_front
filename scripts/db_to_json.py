@@ -54,6 +54,7 @@ META_MAP = {
     'ID':             'id',
     'CELL_TYPE':      'cellType',
     'PDK':            'pdk',
+    'VENDOR':         'vendor',
     'CELL_NAME':      'cellName',
     'CELL':           'cell',
     'VERSION':        'version',

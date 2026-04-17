@@ -71,7 +71,12 @@ const chartOption = computed(() => {
         const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
         return Math.round(avg * 100) / 100
       })
-      series.push({ name: groupName, type: 'bar', data, itemStyle: { color }, label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName } })
+      series.push({
+        name: groupName, type: 'bar', data, itemStyle: { color },
+        emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
+        label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName }
+      })
     } else {
       const sortedCells = isLine
         ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
@@ -86,6 +91,8 @@ const chartOption = computed(() => {
         symbolSize: isLine ? 5 : 8,
         lineStyle: { width: 2 },
         itemStyle: { color },
+        emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
         label: {
           show: props.showLabels,
           position: 'top',
@@ -111,6 +118,8 @@ const chartOption = computed(() => {
           yAxisIndex: 1,
           data,
           itemStyle: { color, opacity: 0.6 },
+          emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
           barGap: '30%',
           label: {
             show: props.showLabels,
@@ -133,6 +142,8 @@ const chartOption = computed(() => {
           symbolSize: isLineSec ? 5 : 8,
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color },
+          emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
           label: {
             show: props.showLabels,
             position: 'top',
@@ -177,18 +188,20 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 10,
-      top: 'middle',
-      itemGap: 10,
-      itemWidth: 16,
+      right: 0,
+      top: 80,
+      bottom: 20,
+      width: 140,
+      itemGap: 8,
+      itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266' }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 100 }
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 220 : 170,
+      right: config.yAxisSecondary ? 240 : 180,
       top: 50,
       bottom: 40
     },
@@ -203,8 +216,8 @@ const chartOption = computed(() => {
       }
     },
     dataZoom: [
-      { type: 'inside', xAxisIndex: 0, start: 5, end: 95, filterMode: 'none' },
-      { type: 'inside', yAxisIndex: 0, start: 5, end: 95, filterMode: 'none' }
+      { type: 'inside', xAxisIndex: 0, start: 0, end: 100, filterMode: 'none' },
+      { type: 'inside', yAxisIndex: 0, start: 0, end: 100, filterMode: 'none' }
     ],
     xAxis: isBar
       ? {
@@ -216,6 +229,7 @@ const chartOption = computed(() => {
         }
       : {
           type: 'value',
+          scale: true,
           name: getAxisLabel(config.xAxis),
           nameLocation: 'center',
           nameGap: 30
@@ -223,6 +237,7 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
+        scale: true,
         name: getAxisLabel(config.yAxisPrimary),
         nameLocation: 'center',
         nameGap: 40
@@ -234,6 +249,7 @@ const chartOption = computed(() => {
   if (config.yAxisSecondary) {
     option.yAxis.push({
       type: 'value',
+      scale: true,
       name: getAxisLabel(config.yAxisSecondary),
       nameLocation: 'center',
       nameGap: 40,

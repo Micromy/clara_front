@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ref, computed, watch, nextTick, inject } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
+import { useDragSelect } from '../../composables/useDragSelect.js'
 
 const emit = defineEmits(['expand'])
 const props = defineProps({
@@ -19,7 +19,7 @@ const popupBody = inject('popupBody', null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const tableRef = ref(null)
-const syncing = ref(false)
+const { onCellMouseEnter } = useDragSelect(tableRef)
 
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
@@ -81,30 +81,18 @@ watch(pendingPdk, () => {
   pendingLibraries.value = []
 })
 
-// "Add & Alias" — add checked cells to selection and optionally set alias
-async function addAndAlias() {
+function getCheckedIds() {
   const tbl = tableRef.value
-  if (!tbl) return
-  const selected = tbl.getSelection ? tbl.getSelection() : []
-  const ids = selected.map(r => r.id)
-  if (ids.length === 0) {
-    ElMessage.warning('No cells checked in the search table.')
-    return
-  }
-  store.selectCells(ids)
-  try {
-    const { value: alias } = await ElMessageBox.prompt(
-      `Enter alias for ${ids.length} selected cell${ids.length > 1 ? 's' : ''}:`,
-      'Set Alias',
-      { confirmButtonText: 'Apply', cancelButtonText: 'Skip', inputPlaceholder: 'alias' }
-    )
-    if (alias && alias.trim()) {
-      store.batchSetAlias(store.activeBuilder.id, ids, alias.trim())
-    }
-  } catch {
-    // user clicked Skip or closed — alias not set, cells already added
-  }
+  if (!tbl) return []
+  const selected = tbl.getSelectionRows ? tbl.getSelectionRows() : []
+  return selected.map(r => r.id)
 }
+
+function clearChecks() {
+  tableRef.value?.clearSelection()
+}
+
+defineExpose({ getCheckedIds, clearChecks })
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
@@ -115,42 +103,13 @@ const pagedCells = computed(() => {
   return rows.value.slice(start, start + pageSize.value)
 })
 const totalSelected = computed(() => store.activeBuilder?.selectedCellIds.length || 0)
-const hasSearched = computed(() => !!store.appliedSearch.cellType)
+const hasSearched = computed(() =>
+  !!store.appliedSearch.cellType &&
+  !!store.appliedSearch.pdk &&
+  store.appliedSearch.libraries.length > 0
+)
 
 const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
-
-// Sync el-table's internal selection state to the store's selectedCellIds
-// whenever the visible page changes. Without this, programmatic selections
-// from another view (or prior page) aren't reflected, and user clicks can
-// erroneously deselect cells that aren't rendered on this page.
-function syncTableSelection() {
-  const tbl = tableRef.value
-  if (!tbl) return
-  const ids = store.activeBuilder?.selectedCellIds || []
-  syncing.value = true
-  nextTick(() => {
-    pagedCells.value.forEach(row => {
-      tbl.toggleRowSelection(row, ids.includes(row.id))
-    })
-    nextTick(() => { syncing.value = false })
-  })
-}
-
-onMounted(syncTableSelection)
-watch(pagedCells, syncTableSelection)
-watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: true })
-
-function handleSelectionChange(selected) {
-  if (syncing.value) return
-  // Filter out any row keys el-table's reserve-selection kept from a
-  // previous cell-type — only keep selections that match current cells.
-  const validIds = new Set(store.filteredCells.map(c => c.id))
-  const selectedIds = selected.map(r => r.id).filter(id => validIds.has(id))
-  const pageIds = pagedCells.value.map(c => c.id)
-  const toDeselect = pageIds.filter(id => !selectedIds.includes(id))
-  store.deselectCells(toDeselect)
-  store.selectCells(selectedIds)
-}
 </script>
 
 <template>
@@ -175,7 +134,7 @@ function handleSelectionChange(selected) {
           v-model="pendingPdk"
           placeholder="PDK"
           clearable
-          style="width: 200px"
+          style="width: 360px"
           :teleported="!inPopup"
         >
           <el-option
@@ -214,12 +173,6 @@ function handleSelectionChange(selected) {
       </div>
 
       <div class="right-controls">
-        <el-button
-          size="small"
-          :icon="ArrowDown"
-          @click="addAndAlias"
-          title="Add checked cells & set alias"
-        >Add &amp; Alias</el-button>
         <span class="selected-count">
           Selected: <strong>{{ totalSelected }}</strong>
         </span>
@@ -242,9 +195,9 @@ function handleSelectionChange(selected) {
       size="small"
       height="100%"
       style="width: 100%; flex: 1"
-      @selection-change="handleSelectionChange"
       :row-key="row => row.id"
-      :empty-text="hasSearched ? 'No matching cells' : 'Select a Cell Type and press Search'"
+      :empty-text="hasSearched ? 'No matching cells' : 'Select Cell Type, PDK, and Library to search'"
+      @cell-mouse-enter="onCellMouseEnter"
     >
       <el-table-column type="selection" width="45" :reserve-selection="true" />
       <el-table-column
@@ -252,20 +205,22 @@ function handleSelectionChange(selected) {
         :key="col.key"
         :prop="col.key"
         :label="col.label"
-        :min-width="col.width"
+        :width="col.width"
         sortable
         show-overflow-tooltip
       >
         <template #header>
-          <span class="col-header">
-            <span>{{ col.label }}</span>
-            <ColumnFilterDropdown
-              :column-key="col.key"
-              :label="col.label"
-              :in-popup="inPopup"
-              :popup-body="popupBody"
-            />
-          </span>
+          <div class="col-header">
+            <span class="col-label">{{ col.label }}</span>
+            <div class="col-icons">
+              <ColumnFilterDropdown
+                :column-key="col.key"
+                :label="col.label"
+                :in-popup="inPopup"
+                :popup-body="popupBody"
+              />
+            </div>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -318,18 +273,40 @@ function handleSelectionChange(selected) {
 }
 
 .col-header {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   width: 100%;
-  justify-content: space-between;
+  min-height: 36px;
 }
-.col-header > span:first-child {
+.col-label {
   flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: normal;
 }
-.col-header > :last-child {
+.col-icons {
   flex-shrink: 0;
-  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* Position Element Plus sort caret next to filter icon */
+.cell-search-table :deep(.el-table .cell) {
+  display: flex;
+  align-items: center;
+}
+.cell-search-table :deep(th .caret-wrapper) {
+  height: 20px;
 }
 
 .table-footer {
