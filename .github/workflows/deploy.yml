@@ -7,23 +7,36 @@ on:
       - snp
       - claude/copy-clara-mockup-6dqyU
       - claude/arias-rebrand-and-features
+      - claude/ui-improvements
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Compute deploy subdirectory
+        id: subdir
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$BRANCH" = "main" ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+            echo "base=/clara_front/" >> "$GITHUB_OUTPUT"
+          else
+            # Convert branch name to URL-safe slug: claude/ui-improvements -> ui-improvements
+            SLUG=$(echo "$BRANCH" | sed 's|.*/||')
+            echo "dir=$SLUG" >> "$GITHUB_OUTPUT"
+            echo "base=/clara_front/$SLUG/" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,25 +48,12 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build -- --base ${{ steps.subdir.outputs.base }}
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: ${{ steps.subdir.outputs.dir }}
+          keep_files: true
