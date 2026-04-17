@@ -3,7 +3,8 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
-  chartData: { type: Object, required: true }
+  chartData: { type: Object, required: true },
+  showLabels: { type: Boolean, default: false }
 })
 
 const chartContainer = ref(null)
@@ -70,7 +71,7 @@ const chartOption = computed(() => {
         const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
         return Math.round(avg * 100) / 100
       })
-      series.push({ name: groupName, type: 'bar', data, itemStyle: { color } })
+      series.push({ name: groupName, type: 'bar', data, itemStyle: { color }, label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName } })
     } else {
       const sortedCells = isLine
         ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
@@ -84,7 +85,13 @@ const chartOption = computed(() => {
         symbol: 'circle',
         symbolSize: isLine ? 5 : 8,
         lineStyle: { width: 2 },
-        itemStyle: { color }
+        itemStyle: { color },
+        label: {
+          show: props.showLabels,
+          position: 'top',
+          fontSize: 10,
+          formatter: () => groupName
+        }
       })
     }
 
@@ -104,7 +111,13 @@ const chartOption = computed(() => {
           yAxisIndex: 1,
           data,
           itemStyle: { color, opacity: 0.6 },
-          barGap: '30%'
+          barGap: '30%',
+          label: {
+            show: props.showLabels,
+            position: 'top',
+            fontSize: 10,
+            formatter: () => groupName
+          }
         })
       } else {
         const sortedCells = isLineSec
@@ -119,7 +132,13 @@ const chartOption = computed(() => {
           symbol: isLineSec ? 'triangle' : 'diamond',
           symbolSize: isLineSec ? 5 : 8,
           lineStyle: { width: 1, type: 'dashed' },
-          itemStyle: { color }
+          itemStyle: { color },
+          label: {
+            show: props.showLabels,
+            position: 'top',
+            fontSize: 10,
+            formatter: () => groupName
+          }
         })
       }
     }
@@ -157,11 +176,10 @@ const chartOption = computed(() => {
     },
     legend: {
       type: 'scroll',
-      orient: 'horizontal',
-      bottom: 6,
-      left: 'center',
-      width: '92%',
-      itemGap: 14,
+      orient: 'vertical',
+      right: 10,
+      top: 'middle',
+      itemGap: 10,
       itemWidth: 16,
       itemHeight: 10,
       pageIconSize: 10,
@@ -170,9 +188,9 @@ const chartOption = computed(() => {
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 60 : 30,
+      right: config.yAxisSecondary ? 220 : 170,
       top: 50,
-      bottom: 72
+      bottom: 40
     },
     toolbox: {
       show: true,
@@ -223,6 +241,30 @@ const chartOption = computed(() => {
     })
   }
 
+  // Build cellId -> (seriesIndex, dataIndex) mapping for highlight
+  const cellMap = new Map()
+  let sIdx = 0
+  groups.forEach((groupCells, groupName) => {
+    if (isBar) {
+      // For bar charts, cells within a group map to xCategory indices
+      groupCells.forEach(cell => {
+        const xCat = String(cell[config.xAxis])
+        const dIdx = xCategories.indexOf(xCat)
+        if (dIdx !== -1) cellMap.set(cell.id, { seriesIndex: sIdx, dataIndex: dIdx })
+      })
+    } else {
+      const sortedCells = isLine
+        ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
+        : groupCells
+      sortedCells.forEach((cell, dIdx) => {
+        cellMap.set(cell.id, { seriesIndex: sIdx, dataIndex: dIdx })
+      })
+    }
+    sIdx++ // primary series
+    if (config.yAxisSecondary) sIdx++ // secondary series
+  })
+  option._cellMap = cellMap
+
   return option
 })
 
@@ -258,7 +300,26 @@ watch(chartOption, () => renderChart(), { deep: true })
 defineExpose({
   getChartImage: (pixelRatio = 2) =>
     chartInstance?.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' }) ?? null,
-  resize: () => chartInstance?.resize()
+  resize: () => chartInstance?.resize(),
+  highlightCells(cellIds) {
+    if (!chartInstance) return
+    chartInstance.dispatchAction({ type: 'downplay' })
+    const cellMap = chartOption.value._cellMap
+    if (!cellMap) return
+    cellIds.forEach(id => {
+      const entry = cellMap.get(id)
+      if (entry) {
+        chartInstance.dispatchAction({
+          type: 'highlight',
+          seriesIndex: entry.seriesIndex,
+          dataIndex: entry.dataIndex
+        })
+      }
+    })
+  },
+  unhighlightAll() {
+    chartInstance?.dispatchAction({ type: 'downplay' })
+  }
 })
 </script>
 

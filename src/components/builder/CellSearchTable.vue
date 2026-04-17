@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -46,7 +47,6 @@ const pendingCellType = computed({
     }
 
     store.setPendingCellType(v)
-    store.applySearch()
 
     if (prev && prev !== v) {
       await nextTick()
@@ -54,10 +54,57 @@ const pendingCellType = computed({
     }
   }
 })
+let queryDebounceTimer = null
 const pendingQuery = computed({
   get: () => store.pendingSearch.query,
-  set: v => store.setPendingQuery(v)
+  set: v => {
+    store.pendingSearch.query = v
+    clearTimeout(queryDebounceTimer)
+    queryDebounceTimer = setTimeout(() => store.applySearch(), 300)
+  }
 })
+
+const pendingPdk = computed({
+  get: () => store.pendingSearch.pdk,
+  set: v => {
+    store.setPendingPdk(v)
+  }
+})
+
+const pendingLibraries = computed({
+  get: () => store.pendingSearch.libraries,
+  set: v => store.setPendingLibraries(v)
+})
+
+// When PDK changes, reset library selection (cascading)
+watch(pendingPdk, () => {
+  pendingLibraries.value = []
+})
+
+// "Add & Alias" — add checked cells to selection and optionally set alias
+async function addAndAlias() {
+  const tbl = tableRef.value
+  if (!tbl) return
+  const selected = tbl.getSelection ? tbl.getSelection() : []
+  const ids = selected.map(r => r.id)
+  if (ids.length === 0) {
+    ElMessage.warning('No cells checked in the search table.')
+    return
+  }
+  store.selectCells(ids)
+  try {
+    const { value: alias } = await ElMessageBox.prompt(
+      `Enter alias for ${ids.length} selected cell${ids.length > 1 ? 's' : ''}:`,
+      'Set Alias',
+      { confirmButtonText: 'Apply', cancelButtonText: 'Skip', inputPlaceholder: 'alias' }
+    )
+    if (alias && alias.trim()) {
+      store.batchSetAlias(store.activeBuilder.id, ids, alias.trim())
+    }
+  } catch {
+    // user clicked Skip or closed — alias not set, cells already added
+  }
+}
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
@@ -70,14 +117,7 @@ const pagedCells = computed(() => {
 const totalSelected = computed(() => store.activeBuilder?.selectedCellIds.length || 0)
 const hasSearched = computed(() => !!store.appliedSearch.cellType)
 
-const paginationLayout = computed(() =>
-  props.inPopup ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next'
-)
-
-function runSearch() {
-  if (!store.canSearch) return
-  store.applySearch()
-}
+const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
 // Sync el-table's internal selection state to the store's selectedCellIds
 // whenever the visible page changes. Without this, programmatic selections
@@ -131,35 +171,55 @@ function handleSelectionChange(selected) {
           />
         </el-select>
 
+        <el-select
+          v-model="pendingPdk"
+          placeholder="PDK"
+          clearable
+          style="width: 200px"
+          :teleported="!inPopup"
+        >
+          <el-option
+            v-for="opt in store.pdkOptions"
+            :key="opt"
+            :label="opt"
+            :value="opt"
+          />
+        </el-select>
+
+        <el-select
+          v-model="pendingLibraries"
+          placeholder="Library"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          style="width: 200px"
+          :teleported="!inPopup"
+        >
+          <el-option
+            v-for="opt in store.libraryOptions"
+            :key="opt"
+            :label="opt"
+            :value="opt"
+          />
+        </el-select>
+
         <el-input
           v-model="pendingQuery"
           placeholder="Search by Cell Name…"
           clearable
           prefix-icon="Search"
           style="width: 320px"
-          @keyup.enter="runSearch"
         />
-
-        <el-button
-          type="primary"
-          :icon="'Search'"
-          :disabled="!store.canSearch"
-          @click="runSearch"
-        >
-          Search
-        </el-button>
-
-        <el-tag
-          v-if="store.searchDirty && hasSearched"
-          type="warning"
-          size="small"
-          effect="plain"
-        >
-          Pending changes
-        </el-tag>
       </div>
 
       <div class="right-controls">
+        <el-button
+          size="small"
+          :icon="ArrowDown"
+          @click="addAndAlias"
+          title="Add checked cells & set alias"
+        >Add &amp; Alias</el-button>
         <span class="selected-count">
           Selected: <strong>{{ totalSelected }}</strong>
         </span>
@@ -192,7 +252,7 @@ function handleSelectionChange(selected) {
         :key="col.key"
         :prop="col.key"
         :label="col.label"
-        :width="col.width"
+        :min-width="col.width"
         sortable
         show-overflow-tooltip
       >
@@ -261,6 +321,15 @@ function handleSelectionChange(selected) {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  width: 100%;
+  justify-content: space-between;
+}
+.col-header > span:first-child {
+  flex: 1;
+}
+.col-header > :last-child {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .table-footer {

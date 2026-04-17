@@ -5,6 +5,8 @@ const props = defineProps({
   chartData: { type: Object, required: true }
 })
 
+const emit = defineEmits(['row-click', 'row-hover'])
+
 // Comparison state
 const comparisonMode  = ref('off')   // 'off' | 'diff'
 const referenceCellId = ref(null)
@@ -145,14 +147,16 @@ function cellInfo(row, col) {
 
   if (v === null || v === undefined) return { text: '—', cls: '' }
   if (typeof v !== 'number') return { text: String(v), cls: '' }
-  if (mode === 'off' || isRefRow(row)) return { text: formatNumber(v, col.digits), cls: '' }
+  if (mode === 'off' || isRefRow(row)) return { text: formatNumber(v, col.digits), cls: 'cell-num' }
   const colMode = effectiveMode(col.key)
   if (colMode === 'diff') {
     const sign = v > 0 ? '+' : ''
     return { text: `${sign}${formatNumber(v, col.digits)}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
   }
-  // ratio
-  return { text: `×${formatNumber(v, col.digits)}`, cls: v > 1 ? 'cell-pos' : v < 1 ? 'cell-neg' : '' }
+  // ratio — show as percentage
+  const pct = (v - 1) * 100
+  const pctSign = pct > 0 ? '+' : ''
+  return { text: `${pctSign}${formatNumber(pct, 2)}%`, cls: pct > 0 ? 'cell-pos' : pct < 0 ? 'cell-neg' : '' }
 }
 </script>
 
@@ -192,6 +196,9 @@ function cellInfo(row, col) {
       stripe
       size="small"
       max-height="480"
+      @row-click="row => emit('row-click', row.id)"
+      @cell-mouse-enter="row => emit('row-hover', row.id)"
+      @cell-mouse-leave="() => emit('row-hover', null)"
     >
       <!-- Alias (fixed, 1st) -->
       <el-table-column label="Alias" fixed width="140" show-overflow-tooltip>
@@ -274,8 +281,9 @@ function cellInfo(row, col) {
   font-weight: 600;
 }
 
-.source-data-table :deep(.cell-pos) { color: #67c23a; font-weight: 600; }
-.source-data-table :deep(.cell-neg) { color: #f56c6c; font-weight: 600; }
+.source-data-table :deep(.cell-pos) { color: #67c23a; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.source-data-table :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.source-data-table :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
 
 .col-header { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .col-label { font-size: 12px; font-weight: 500; }

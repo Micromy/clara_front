@@ -155,7 +155,9 @@ function createEmptySearch() {
   return {
     cellType: null,                 // 'FF' | 'ICG' | null
     query: '',                      // cellName partial match
-    columnFilters: {}               // { [columnKey]: string[] }  — empty/absent = all
+    columnFilters: {},              // { [columnKey]: string[] }  — empty/absent = all
+    pdk: null,                      // single PDK filter
+    libraries: []                   // multiple library filter
   }
 }
 
@@ -300,10 +302,12 @@ export const useBuilderStore = defineStore('builder', () => {
   function setPendingCellType(v) {
     pendingSearch.value.cellType = v
     searchDirty.value = true
+    applySearch()
   }
   function setPendingQuery(v) {
     pendingSearch.value.query = v
     searchDirty.value = true
+    applySearch()
   }
   function setPendingColumnFilter(columnKey, values) {
     if (!values || values.length === 0) {
@@ -314,6 +318,17 @@ export const useBuilderStore = defineStore('builder', () => {
     // force reactivity on nested object key changes
     pendingSearch.value = { ...pendingSearch.value, columnFilters: { ...pendingSearch.value.columnFilters } }
     searchDirty.value = true
+    applySearch()
+  }
+  function setPendingPdk(v) {
+    pendingSearch.value.pdk = v
+    searchDirty.value = true
+    applySearch()
+  }
+  function setPendingLibraries(v) {
+    pendingSearch.value.libraries = v
+    searchDirty.value = true
+    applySearch()
   }
   function clearPendingColumnFilter(columnKey) {
     setPendingColumnFilter(columnKey, [])
@@ -324,7 +339,9 @@ export const useBuilderStore = defineStore('builder', () => {
     appliedSearch.value = {
       cellType: pendingSearch.value.cellType,
       query: pendingSearch.value.query,
-      columnFilters: { ...pendingSearch.value.columnFilters }
+      columnFilters: { ...pendingSearch.value.columnFilters },
+      pdk: pendingSearch.value.pdk,
+      libraries: [...pendingSearch.value.libraries]
     }
     searchDirty.value = false
     return true
@@ -350,6 +367,30 @@ export const useBuilderStore = defineStore('builder', () => {
     })
   }
 
+  // PDK dropdown options: unique pdk values from allCells, sorted
+  const pdkOptions = computed(() => {
+    const set = new Set()
+    for (const c of allCells.value) {
+      if (c.pdk != null && c.pdk !== '') set.add(c.pdk)
+    }
+    return Array.from(set).sort()
+  })
+
+  // Library dropdown options: unique library values, cascading on selected PDK
+  const libraryOptions = computed(() => {
+    const pdk = pendingSearch.value.pdk
+    const set = new Set()
+    for (const c of allCells.value) {
+      if (pdk && c.pdk !== pdk) continue
+      if (c.library != null && c.library !== '') set.add(c.library)
+    }
+    return Array.from(set).sort()
+  })
+
+  function batchSetAlias(builderId, cellIds, alias) {
+    cellIds.forEach(id => { cellAliases.value[`${builderId}-${id}`] = alias })
+  }
+
   // filteredCells: applied filters applied to allCells (null when no search yet)
   const filteredCells = computed(() => {
     const s = appliedSearch.value
@@ -358,6 +399,8 @@ export const useBuilderStore = defineStore('builder', () => {
     const colFilters = Object.entries(s.columnFilters || {})
     return allCells.value.filter(cell => {
       if (!cellMatchesCategory(cell, s.cellType)) return false
+      if (s.pdk && cell.pdk !== s.pdk) return false
+      if (s.libraries.length > 0 && !s.libraries.includes(cell.library)) return false
       if (q && !cell.cellName.toLowerCase().includes(q)) return false
       for (const [key, vals] of colFilters) {
         if (!vals || !vals.length) continue
@@ -562,6 +605,7 @@ export const useBuilderStore = defineStore('builder', () => {
     // search / filter
     pendingSearch, appliedSearch, searchDirty, canSearch, filteredCells,
     setPendingCellType, setPendingQuery, setPendingColumnFilter, clearPendingColumnFilter,
+    setPendingPdk, setPendingLibraries, pdkOptions, libraryOptions, batchSetAlias,
     applySearch, resetSearch, columnFilterOptions
   }
 })

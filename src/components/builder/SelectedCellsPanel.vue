@@ -8,6 +8,15 @@ const displayMode    = ref('metadata')  // 'metadata' | 'simulation'
 const comparisonMode = ref('off')       // 'off' | 'diff'
 const referenceCellId = ref(null)
 const columnModes    = ref({})          // colProp -> 'diff' | 'ratio' (per-column override)
+const checkedCellIds = ref([])
+
+function handleSelectionChange(selected) {
+  checkedCellIds.value = selected.map(r => r.id)
+}
+function removeChecked() {
+  store.deselectCells(checkedCellIds.value)
+  checkedCellIds.value = []
+}
 
 const COMPARISON_OPTIONS = [
   { label: 'Raw',  value: 'off' },
@@ -107,14 +116,16 @@ function simCellInfo(row, col) {
   if (v === null || v === undefined) return { text: '—', cls: '' }
   if (typeof v !== 'number') return { text: String(v), cls: '' }
   if (comparisonMode.value === 'off' || displayMode.value !== 'simulation' || isRefRow(row)) {
-    return { text: formatNum(v, digits), cls: '' }
+    return { text: formatNum(v, digits), cls: 'cell-num' }
   }
   const mode = effectiveMode(col.prop)
   if (mode === 'diff') {
     const sign = v > 0 ? '+' : ''
     return { text: `${sign}${formatNum(v, digits)}`, cls: v > 0 ? 'cell-pos' : v < 0 ? 'cell-neg' : '' }
   }
-  return { text: `×${formatNum(v, digits)}`, cls: v > 1 ? 'cell-pos' : v < 1 ? 'cell-neg' : '' }
+  const pct = (v - 1) * 100
+  const sign = pct > 0 ? '+' : ''
+  return { text: `${sign}${formatNum(pct, 2)}%`, cls: pct > 0 ? 'cell-pos' : pct < 0 ? 'cell-neg' : '' }
 }
 </script>
 
@@ -123,6 +134,12 @@ function simCellInfo(row, col) {
     <div class="panel-header">
       <h3 class="panel-title">Selected Cells</h3>
       <div class="panel-controls">
+        <el-button
+          type="danger"
+          size="small"
+          :disabled="checkedCellIds.length === 0"
+          @click="removeChecked"
+        >Remove Selected ({{ checkedCellIds.length }})</el-button>
         <el-switch
           v-model="displayMode"
           active-value="simulation"
@@ -157,8 +174,12 @@ function simCellInfo(row, col) {
       :row-class-name="rowClassName"
       border stripe size="small" max-height="580"
       empty-text="No cells selected. Select cells from the table above."
+      @selection-change="handleSelectionChange"
     >
-      <!-- Alias input (fixed 1st) -->
+      <!-- Selection checkbox (fixed 1st) -->
+      <el-table-column type="selection" width="45" fixed />
+
+      <!-- Alias input (fixed 2nd) -->
       <el-table-column label="Alias" width="140" fixed>
         <template #default="{ row }">
           <el-input
@@ -212,12 +233,6 @@ function simCellInfo(row, col) {
         </el-table-column>
       </template>
 
-      <!-- Remove button -->
-      <el-table-column label="" width="50" fixed="right">
-        <template #default="{ row }">
-          <el-button type="danger" link size="small" @click="removeCell(row.id)">✕</el-button>
-        </template>
-      </el-table-column>
     </el-table>
   </div>
 </template>
@@ -239,6 +254,7 @@ function simCellInfo(row, col) {
 .col-mode-tag:hover { opacity: 0.8; }
 
 .selected-cells-panel :deep(.is-ref-row) td { background-color: #ecf5ff !important; font-weight: 600; }
-.selected-cells-panel :deep(.cell-pos) { color: #67c23a; font-weight: 600; }
-.selected-cells-panel :deep(.cell-neg) { color: #f56c6c; font-weight: 600; }
+.selected-cells-panel :deep(.cell-pos) { color: #67c23a; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.selected-cells-panel :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.selected-cells-panel :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
 </style>

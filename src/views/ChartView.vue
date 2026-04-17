@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 import ChartDisplay from '../components/chart/ChartDisplay.vue'
 import SourceDataTable from '../components/chart/SourceDataTable.vue'
-import html2canvas from 'html2canvas'
 
 const route = useRoute()
 const store = useBuilderStore()
@@ -16,7 +15,7 @@ const chartTab = computed(() => {
 
 const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
-const tableContainerRef = ref(null)
+const showLabels = ref(false)
 
 function toggleSplit() {
   tableExpanded.value = !tableExpanded.value
@@ -32,60 +31,13 @@ function exportChartPng() {
   a.click()
 }
 
-async function exportTablePng() {
-  const el = tableContainerRef.value
-  if (!el) return
+function onRowHover(cellId) {
+  if (cellId) chartDisplayRef.value?.highlightCells([cellId])
+  else chartDisplayRef.value?.unhighlightAll()
+}
 
-  // Element Plus el-table clips rows inside .el-scrollbar__wrap and
-  // .el-table__body-wrapper with overflow:hidden + fixed height.
-  // Temporarily remove those constraints so html2canvas sees all rows.
-  const clipped = el.querySelectorAll(
-    '.el-scrollbar__wrap, .el-table__body-wrapper, .el-scrollbar'
-  )
-  const saved = Array.from(clipped).map(node => ({
-    node,
-    overflow:  node.style.overflow,
-    maxHeight: node.style.maxHeight,
-    height:    node.style.height
-  }))
-  saved.forEach(({ node }) => {
-    node.style.overflow  = 'visible'
-    node.style.maxHeight = 'none'
-    node.style.height    = 'auto'
-  })
-
-  // Also let the container itself expand
-  const prevOverflow = el.style.overflow
-  const prevHeight   = el.style.height
-  el.style.overflow  = 'visible'
-  el.style.height    = 'auto'
-
-  // Wait one frame for layout to settle
-  await new Promise(r => requestAnimationFrame(r))
-
-  try {
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false
-    })
-    const a = document.createElement('a')
-    a.href = canvas.toDataURL('image/png')
-    a.download = `${chartTab.value?.builderName ?? 'table'}-data.png`
-    a.click()
-  } catch (e) {
-    console.error('[ChartView] Table PNG export failed:', e)
-  } finally {
-    // Restore every element
-    saved.forEach(({ node, overflow, maxHeight, height }) => {
-      node.style.overflow  = overflow
-      node.style.maxHeight = maxHeight
-      node.style.height    = height
-    })
-    el.style.overflow = prevOverflow
-    el.style.height   = prevHeight
-  }
+function onRowClick(cellId) {
+  chartDisplayRef.value?.highlightCells([cellId])
 }
 </script>
 
@@ -94,12 +46,13 @@ async function exportTablePng() {
 
     <!-- Chart panel -->
     <div class="chart-left">
-      <el-button
-        class="btn-export-chart"
-        size="small"
-        @click="exportChartPng"
-      >Export PNG</el-button>
-      <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
+      <div class="chart-toolbar">
+        <el-button size="small" @click="exportChartPng">Export PNG</el-button>
+        <el-button size="small" @click="showLabels = !showLabels">
+          {{ showLabels ? 'Hide Labels' : 'Show Labels' }}
+        </el-button>
+      </div>
+      <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" :show-labels="showLabels" />
     </div>
 
     <!-- Splitter -->
@@ -113,11 +66,12 @@ async function exportTablePng() {
 
     <!-- Table panel -->
     <div class="chart-right">
-      <div class="table-panel-header">
-        <el-button size="small" @click="exportTablePng">Export PNG</el-button>
-      </div>
-      <div ref="tableContainerRef" class="table-panel-body">
-        <SourceDataTable :chart-data="chartTab" />
+      <div class="table-panel-body">
+        <SourceDataTable
+          :chart-data="chartTab"
+          @row-hover="onRowHover"
+          @row-click="onRowClick"
+        />
       </div>
     </div>
 
@@ -149,11 +103,13 @@ async function exportTablePng() {
   z-index: 1;
 }
 
-.btn-export-chart {
+.chart-toolbar {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 2;
+  display: flex;
+  gap: 6px;
 }
 
 /* ── Table panel ─────────────────────────────────────────────────────────── */
@@ -176,17 +132,10 @@ async function exportTablePng() {
   width: 70%;
 }
 
-.table-panel-header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 10px 14px 6px;
-}
-
 .table-panel-body {
   flex: 1;
   overflow: auto;
-  padding: 0 14px 14px;
+  padding: 10px 14px 14px;
 }
 
 /* ── Splitter ────────────────────────────────────────────────────────────── */
