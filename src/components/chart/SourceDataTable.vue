@@ -71,7 +71,7 @@ function digitsFor(key) {
   const m = META_FIELDS.find(f => f.key === key)
   if (m) return m.digits
   if (key === 'area') return 1
-  return 4
+  return 8
 }
 
 // All numeric keys: simulation columns + meta fields + derived formula keys

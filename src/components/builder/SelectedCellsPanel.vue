@@ -105,8 +105,8 @@ function rowClassName({ row }) { return isRefRow(row) ? 'is-ref-row' : '' }
 function digitsFor(prop) {
   if (prop === 'area') return 1
   if (prop === 'temperature') return 1
-  if (prop === 'vdd' || prop === 'vth') return 2
-  return 4
+  if (prop === 'vdd') return 2
+  return 8
 }
 
 function formatNum(v, digits) {
@@ -203,7 +203,7 @@ function simCellInfo(row, col) {
       <template v-if="displayMode === 'metadata'">
         <el-table-column
           v-for="col in store.selectedCellsMetadataColumns"
-          :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width"
+          :key="col.prop" :prop="col.prop" :label="col.label" :min-width="col.width"
         />
       </template>
 
@@ -211,7 +211,7 @@ function simCellInfo(row, col) {
       <template v-else>
         <el-table-column
           v-for="col in simColumns"
-          :key="col.prop" :width="col.width" min-width="110"
+          :key="col.prop" :min-width="col.width || 110"
         >
           <template #header>
             <div class="col-header">

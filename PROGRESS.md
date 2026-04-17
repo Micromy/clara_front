@@ -1,7 +1,7 @@
 # ARIAS Front Mockup — 진행 상황
 
 > 마지막 업데이트: 2026-04-17
-> 현재 작업 브랜치: `claude/ui-improvements` (HEAD: `032d3a9`)
+> 현재 브랜치: `main` (HEAD: `fb57fdc`)
 > 리포: `Micromy/clara_front`
 
 ---
@@ -32,21 +32,33 @@
 ### 3-1. 셀 검색 & 선택
 - **CellSearchTable** — 페이지네이션, 컬럼별 정렬, 컬럼 필터 드롭다운, `show-overflow-tooltip`
 - **Cell Type 드롭다운** (FF / ICG) — 선택 시 자동 검색, 변경 시 확인 다이얼로그
+- **PDK 드롭다운** — 단일 선택, cellType 기반 동적 옵션
+- **Library 드롭다운** — 다중 선택 (`multiple` + `collapse-tags`), PDK 변경 시 자동 초기화
+- **Cell Name 검색** — 디바운스 300ms, 입력 즉시 필터링 (Search 버튼 불필요)
+- Cell Type / PDK / Library 3개 필터 AND 조합으로 검색
 - 타입 변경 시 selected cells / 검색 결과 / chartConfig / derivedFormulas 일괄 초기화
 - el-table `reserve-selection` 누수 방지 가드 (`filteredCells`로 화이트리스트)
-- 다중 선택, 페이지 간 선택 유지
+- 다중 선택, 페이지 간 선택 유지, **드래그 선택** (`useDragSelect` composable)
 - 별도 팝업창으로 검색 분리 가능 (`usePopupWindow` — Pinia / Element Plus 공유)
+- 상단 검색 테이블에서 `cellType` / `PDK` 컬럼 제거 (드롭다운으로 이미 필터링하므로 중복)
 
-### 3-2. Selected Cells 패널
+### 3-2. 셀 추가 & Aliasing
+- 상단 검색 테이블에서 체크 → **액션 바**의 화살표 클릭 → 하단 Selected Cells에 추가 + **alias 일괄 적용** (프롬프트 입력)
+- 같은 alias를 부여하면 차트에서 "By Alias" 그룹핑으로 하나의 시리즈로 묶임
+
+### 3-3. Selected Cells 패널
+- **체크박스 (좌측 고정)** + 체크 항목 **일괄 제거** (X 버튼 제거됨)
 - **Alias / Cell Name** 고정 2열 (Cell Name 280px)
 - **Metadata ↔ Simulation** 토글 (el-switch)
 - **Raw ↔ Diff** 비교 모드 + Reference 셀 선택
 - **컬럼별 Diff ↔ Ratio 오버라이드** (`[−|÷]` 토글, 전역 모드 변경 시 초기화)
+- Ratio 모드: **백분율 표시** (`+12.34%` / `-5.67%`)
 - 색상 강조: 양수 초록 / 음수 빨강 / Reference 행 "REF" 배지
 - Derived 컬럼은 `f(x)` 태그
 - cellType 에 따라 시뮬 컬럼 셋이 자동 전환 (FF/ICG 별 다른 필드)
+- 드래그 선택 지원 (`useDragSelect`)
 
-### 3-3. 차트 설정 (ChartConfigPanel)
+### 3-4. 차트 설정 (ChartConfigPanel)
 - 차트 타입 (scatter / line / bar)
 - **X / Y1 / Y2 축** — 활성 cellType 의 옵션만 표시 (자동 전환)
 - Primary / Secondary Y 축 **독립 차트 타입** (x-axis 호환성 clamp)
@@ -54,31 +66,34 @@
 - **Derived Metrics 다이얼로그** — 6 + 2 종 (Binary, Math Function, Z-score, Relative to Mean, Delta from Mean, % of Max, Group Mean, Group Std)
 - cellType 변경 시 chartConfig 기본값(X/Y) + derivedFormulas 자동 리셋
 
-### 3-4. 차트 (ChartDisplay)
+### 3-5. 차트 (ChartDisplay)
 - ECharts scatter / line / bar
 - Grouping 기준 시리즈 분할 (셀 1개 = 점 1개)
 - **인터랙티브 줌** — 마우스 휠, 드래그 팬, Box Zoom, Reset, Save Image (toolbox)
 - 기본 zoom: 양쪽 5% 크롭하여 데이터 영역 강조
-- legend scroll + pagination
+- **데이터 라벨 토글** — `showLabels` prop으로 점 위에 이름 고정 표시
+- **emphasis / blur** — 시리즈 호버 시 다른 시리즈 blur (opacity 0.3)
+- **테이블 행 선택 → 차트 하이라이트** 연동
+- **범례 우측 세로 배치** (기존 하단 → 오른쪽)
 - PNG 내보내기 (Export PNG 버튼)
 
-### 3-5. 차트 페이지
+### 3-6. 차트 페이지
 - ChartView 좌/우 분할 (차트 70% / Source Data 30%)
 - Splitter 클릭 → 테이블이 차트 위로 **오버레이 슬라이드** (차트 크기 고정)
 - **SourceDataTable** — 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw / Diff 비교, 컬럼별 −/÷ 오버라이드
-- 차트 PNG / 테이블 PNG 내보내기 (전체 행 캡처를 위해 scrollbar 제약 임시 해제)
+- 차트 PNG 내보내기 (테이블 Export PNG 제거)
 
-### 3-6. 빌더 / 탭 관리
+### 3-7. 빌더 / 탭 관리
 - 다중 Builder 탭 + Builder 별 Chart 탭 자동 생성
 - **더블클릭으로 탭 이름 인라인 편집** (Builder / Chart 모두, `@keydown.stop` 으로 backspace 누수 차단)
 - 새 Builder 추가, 닫기
 
-### 3-7. 레이아웃
+### 3-8. 레이아웃
 - 상단 / 하단 **드래그 splitter** — 상단 높이만 조절, 하단은 자체 크기 유지
 - 컨텐츠가 뷰포트 넘으면 페이지 스크롤
 - 우측 ChartConfigPanel 360px 고정
 
-### 3-8. 영속성
+### 3-9. 영속성
 - localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name), `cellAliases`, `activeBuilderIndex`
 - 첫 렌더 전 동기 복원
 - `nextBuilderId` / `nextDerivedId` 충돌 방지
@@ -101,13 +116,14 @@ src/
 
 ### 4-2. `cells.json` 스키마
 
-배열 형태, 각 셀 19개 필드:
+배열 형태, 각 셀 20개 필드:
 
 ```json
 {
   "id": 1,
   "cellType": "FF",
   "pdk": "[SF2P] HSPICE: V1.0.0.0 / LVS: V1.0.0.0 / PEX: V1.0.0.0",
+  "vendor": "SPIL",
   "cellName": "SDFF_D2_N2_C01L03_SCH168",
   "cell": "SDFF",
   "version": "2025-01-04 09:37",
@@ -238,6 +254,7 @@ npm run preview     # 빌드 결과 확인
 - **URL**: https://micromy.github.io/clara_front/
 - **워크플로**: `.github/workflows/deploy.yml`
 - **트리거 브랜치**: `main`, `snp`, `claude/*` — push 시 자동 빌드 + 배포
+- **브랜치별 서브디렉토리**: feature 브랜치는 `/clara_front/{slug}/`에 배포 (예: `claude/ui-improvements` → `/clara_front/ui-improvements/`). `main`은 루트(`/clara_front/`)에 배포. `peaceiris/actions-gh-pages@v4` + `destination_dir` + `keep_files: true`.
 
 ---
 
@@ -247,7 +264,6 @@ npm run preview     # 빌드 결과 확인
 - **Save Preset** — 버튼만 존재, 동작 미구현 (현재는 localStorage 자동 저장만)
 - **localStorage 마이그레이션** — `builders` 스키마 변경 시 충돌 가능. 버전 키 도입 필요
 - **반응형** — 모바일/태블릿 레이아웃 미검증
-- **Comparison Ratio 자릿수** — 소수 4자리 고정. 매우 작은 차이가 잘 안 보일 수 있음
 
 ---
 

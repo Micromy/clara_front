@@ -205,7 +205,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         :key="col.key"
         :prop="col.key"
         :label="col.label"
-        :width="col.width"
+        :min-width="col.width"
         sortable
         show-overflow-tooltip
       >
