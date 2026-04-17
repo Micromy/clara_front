@@ -1,0 +1,126 @@
+{
+  "searchTableColumns": [
+    { "key": "cellType",      "label": "Cell Type",      "width": 90  },
+    { "key": "pdk",           "label": "PDK",            "width": 410 },
+    { "key": "version",       "label": "Version",        "width": 140 },
+    { "key": "library",       "label": "Library",        "width": 110 },
+    { "key": "cellName",      "label": "Cell Name",      "width": 280 },
+    { "key": "cell",          "label": "Cell",           "width": 100 },
+    { "key": "feol",          "label": "FEOL",           "width": 80  },
+    { "key": "beol",          "label": "BEOL",           "width": 90  },
+    { "key": "vdd",           "label": "VDD",            "width": 80  },
+    { "key": "temperature",   "label": "Temperature",    "width": 110 },
+    { "key": "gdsOverlay",    "label": "GDS Overlay",    "width": 100 },
+    { "key": "driveStrength", "label": "Drive Strength", "width": 120 },
+    { "key": "nanosheet",     "label": "Nanosheet",      "width": 90  },
+    { "key": "vth",           "label": "Vth",            "width": 80  },
+    { "key": "gateLength",    "label": "Gate Length",    "width": 100 },
+    { "key": "cellHeight",    "label": "Cell Height",    "width": 100 },
+    { "key": "cpp",           "label": "CPP",            "width": 70  },
+    { "key": "characTool",    "label": "Charac Tool",    "width": 210 }
+  ],
+  "selectedCellsMetadataColumns": [
+    { "prop": "pdk",         "label": "PDK",       "width": 410 },
+    { "prop": "version",     "label": "Version",   "width": 140 },
+    { "prop": "library",     "label": "Library",   "width": 110 },
+    { "prop": "feol",        "label": "FEOL",      "width": 80  },
+    { "prop": "beol",        "label": "BEOL",      "width": 90  },
+    { "prop": "vdd",         "label": "VDD (V)",   "width": 90  },
+    { "prop": "temperature", "label": "Temp (°C)", "width": 100 }
+  ],
+  "selectedCellsSimulationColumns": {
+    "FF": [
+      { "prop": "dqWorst",         "label": "DQ_wst (ns)",        "width": 120, "numeric": true },
+      { "prop": "dqAvg",           "label": "DQ_avg (ns)",        "width": 120, "numeric": true },
+      { "prop": "cqDelayAvg",      "label": "CQ_delay_avg (ns)",  "width": 140, "numeric": true },
+      { "prop": "dSetup3SigmaAvg", "label": "D_setup_3σ_avg (ns)","width": 160, "numeric": true },
+      { "prop": "dHoldSohmAvg",    "label": "D_hold_sohm_avg (ns)","width": 170, "numeric": true },
+      { "prop": "area",            "label": "Area (cpp)",         "width": 110, "numeric": true },
+      { "prop": "ckCap",           "label": "CK_Cap (pF)",        "width": 110, "numeric": true },
+      { "prop": "pLeakage",        "label": "P_Leakage (μW)",     "width": 120, "numeric": true },
+      { "prop": "pDyn",            "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
+      { "prop": "pdpAvg",          "label": "PDP_avg",            "width": 110, "numeric": true }
+    ],
+    "ICG": [
+      { "prop": "eeckWorst",       "label": "EECK_wst (ns)",      "width": 130, "numeric": true },
+      { "prop": "eeckAvg",         "label": "EECK_avg (ns)",      "width": 130, "numeric": true },
+      { "prop": "cqDelayAvg",      "label": "CQ_delay_avg (ns)",  "width": 140, "numeric": true },
+      { "prop": "eSetup3SigmaAvg", "label": "E_setup_3σ_avg (ns)","width": 160, "numeric": true },
+      { "prop": "eHoldSohmAvg",    "label": "E_hold_sohm_avg (ns)","width": 170, "numeric": true },
+      { "prop": "delayTranRfRatio","label": "Delay_Tran_rf_ratio","width": 170, "numeric": true },
+      { "prop": "area",            "label": "Area (cpp)",         "width": 110, "numeric": true },
+      { "prop": "ckCap",           "label": "CK_Cap (pF)",        "width": 110, "numeric": true },
+      { "prop": "pLeakage",        "label": "P_Leakage (μW)",     "width": 120, "numeric": true },
+      { "prop": "pDyn",            "label": "Pdyn (pJ)",          "width": 110, "numeric": true },
+      { "prop": "pdpAvg",          "label": "PDP_avg",            "width": 110, "numeric": true }
+    ]
+  },
+  "chartOptions": {
+    "chartTypes": [
+      { "value": "scatter", "label": "Scatter Plot" },
+      { "value": "line", "label": "Line Chart" },
+      { "value": "bar", "label": "Bar Chart" }
+    ],
+    "xAxisOptions": {
+      "FF": [
+        { "value": "dqWorst",          "label": "DQ_wst (ns)" },
+        { "value": "dqAvg",            "label": "DQ_avg (ns)" },
+        { "value": "cqDelayAvg",       "label": "CQ_delay_avg (ns)" },
+        { "value": "dSetup3SigmaAvg",  "label": "D_setup_3σ_avg (ns)" },
+        { "value": "dHoldSohmAvg",     "label": "D_hold_sohm_avg (ns)" },
+        { "value": "area",             "label": "Area (cpp)" },
+        { "value": "ckCap",            "label": "CK_Cap (pF)" },
+        { "value": "pLeakage",         "label": "P_Leakage (μW)" },
+        { "value": "pDyn",             "label": "Pdyn (pJ)" },
+        { "value": "pdpAvg",           "label": "PDP_avg" }
+      ],
+      "ICG": [
+        { "value": "eeckWorst",        "label": "EECK_wst (ns)" },
+        { "value": "eeckAvg",          "label": "EECK_avg (ns)" },
+        { "value": "cqDelayAvg",       "label": "CQ_delay_avg (ns)" },
+        { "value": "eSetup3SigmaAvg",  "label": "E_setup_3σ_avg (ns)" },
+        { "value": "eHoldSohmAvg",     "label": "E_hold_sohm_avg (ns)" },
+        { "value": "delayTranRfRatio", "label": "Delay_Tran_rf_ratio" },
+        { "value": "area",             "label": "Area (cpp)" },
+        { "value": "ckCap",            "label": "CK_Cap (pF)" },
+        { "value": "pLeakage",         "label": "P_Leakage (μW)" },
+        { "value": "pDyn",             "label": "Pdyn (pJ)" },
+        { "value": "pdpAvg",           "label": "PDP_avg" }
+      ]
+    },
+    "yAxisOptions": {
+      "FF": [
+        { "value": "dqWorst",         "label": "DQ_wst (ns)" },
+        { "value": "dqAvg",           "label": "DQ_avg (ns)" },
+        { "value": "cqDelayAvg",      "label": "CQ_delay_avg (ns)" },
+        { "value": "dSetup3SigmaAvg", "label": "D_setup_3σ_avg (ns)" },
+        { "value": "dHoldSohmAvg",    "label": "D_hold_sohm_avg (ns)" },
+        { "value": "area",            "label": "Area (cpp)" },
+        { "value": "ckCap",           "label": "CK_Cap (pF)" },
+        { "value": "pLeakage",        "label": "P_Leakage (μW)" },
+        { "value": "pDyn",            "label": "Pdyn (pJ)" },
+        { "value": "pdpAvg",          "label": "PDP_avg" }
+      ],
+      "ICG": [
+        { "value": "eeckWorst",       "label": "EECK_wst (ns)" },
+        { "value": "eeckAvg",         "label": "EECK_avg (ns)" },
+        { "value": "cqDelayAvg",      "label": "CQ_delay_avg (ns)" },
+        { "value": "eSetup3SigmaAvg", "label": "E_setup_3σ_avg (ns)" },
+        { "value": "eHoldSohmAvg",    "label": "E_hold_sohm_avg (ns)" },
+        { "value": "delayTranRfRatio","label": "Delay_Tran_rf_ratio" },
+        { "value": "area",            "label": "Area (cpp)" },
+        { "value": "ckCap",           "label": "CK_Cap (pF)" },
+        { "value": "pLeakage",        "label": "P_Leakage (μW)" },
+        { "value": "pDyn",            "label": "Pdyn (pJ)" },
+        { "value": "pdpAvg",          "label": "PDP_avg" }
+      ]
+    },
+    "groupingOptions": [
+      { "value": "alias", "label": "By Alias" },
+      { "value": "cellType", "label": "By Cell Type" },
+      { "value": "driveStrength", "label": "By Drive Strength" },
+      { "value": "library", "label": "By Library" },
+      { "value": "feol", "label": "By FEOL" }
+    ]
+  }
+}
