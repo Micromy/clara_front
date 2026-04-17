@@ -2,8 +2,9 @@
   "searchTableColumns": [
     { "key": "cellType",      "label": "Cell Type",      "width": 90  },
     { "key": "pdk",           "label": "PDK",            "width": 410 },
-    { "key": "version",       "label": "Version",        "width": 140 },
+    { "key": "vendor",        "label": "Vendor",         "width": 90  },
     { "key": "library",       "label": "Library",        "width": 110 },
+    { "key": "version",       "label": "Version",        "width": 140 },
     { "key": "cellName",      "label": "Cell Name",      "width": 280 },
     { "key": "cell",          "label": "Cell",           "width": 100 },
     { "key": "feol",          "label": "FEOL",           "width": 80  },
@@ -21,8 +22,9 @@
   ],
   "selectedCellsMetadataColumns": [
     { "prop": "pdk",         "label": "PDK",       "width": 410 },
-    { "prop": "version",     "label": "Version",   "width": 140 },
+    { "prop": "vendor",      "label": "Vendor",    "width": 90  },
     { "prop": "library",     "label": "Library",   "width": 110 },
+    { "prop": "version",     "label": "Version",   "width": 140 },
     { "prop": "feol",        "label": "FEOL",      "width": 80  },
     { "prop": "beol",        "label": "BEOL",      "width": 90  },
     { "prop": "vdd",         "label": "VDD (V)",   "width": 90  },
