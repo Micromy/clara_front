@@ -501,10 +501,12 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function deselectCells(cellIds) {
+    const builderId = activeBuilder.value.id
     const ids = activeBuilder.value.selectedCellIds
     cellIds.forEach(id => {
       const idx = ids.indexOf(id)
       if (idx !== -1) ids.splice(idx, 1)
+      delete cellAliases.value[`${builderId}-${id}`]
     })
   }
 

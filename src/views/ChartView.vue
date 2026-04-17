@@ -22,15 +22,6 @@ function toggleSplit() {
   setTimeout(() => chartDisplayRef.value?.resize(), 260)
 }
 
-function exportChartPng() {
-  const dataUrl = chartDisplayRef.value?.getChartImage(2)
-  if (!dataUrl) return
-  const a = document.createElement('a')
-  a.href = dataUrl
-  a.download = `${chartTab.value?.builderName ?? 'chart'}.png`
-  a.click()
-}
-
 function onRowHover(cellId) {
   if (cellId) chartDisplayRef.value?.highlightCells([cellId])
   else chartDisplayRef.value?.unhighlightAll()
@@ -47,10 +38,11 @@ function onRowClick(cellId) {
     <!-- Chart panel -->
     <div class="chart-left">
       <div class="chart-toolbar">
-        <el-button size="small" @click="exportChartPng">Export PNG</el-button>
-        <el-button size="small" @click="showLabels = !showLabels">
-          {{ showLabels ? 'Hide Labels' : 'Show Labels' }}
-        </el-button>
+        <el-button
+          size="small"
+          :type="showLabels ? 'primary' : ''"
+          @click="showLabels = !showLabels"
+        >Labels</el-button>
       </div>
       <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" :show-labels="showLabels" />
     </div>

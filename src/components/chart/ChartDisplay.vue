@@ -177,18 +177,20 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 10,
-      top: 'middle',
-      itemGap: 10,
-      itemWidth: 16,
+      right: 0,
+      top: 40,
+      bottom: 20,
+      width: 140,
+      itemGap: 8,
+      itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266' }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 100 }
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 220 : 170,
+      right: config.yAxisSecondary ? 240 : 180,
       top: 50,
       bottom: 40
     },

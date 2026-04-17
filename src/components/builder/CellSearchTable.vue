@@ -202,15 +202,17 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         show-overflow-tooltip
       >
         <template #header>
-          <span class="col-header">
-            <span>{{ col.label }}</span>
-            <ColumnFilterDropdown
-              :column-key="col.key"
-              :label="col.label"
-              :in-popup="inPopup"
-              :popup-body="popupBody"
-            />
-          </span>
+          <div class="col-header">
+            <span class="col-label">{{ col.label }}</span>
+            <div class="col-icons">
+              <ColumnFilterDropdown
+                :column-key="col.key"
+                :label="col.label"
+                :in-popup="inPopup"
+                :popup-body="popupBody"
+              />
+            </div>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -263,18 +265,29 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 }
 
 .col-header {
-  display: inline-flex;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 36px;
+}
+.col-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.col-icons {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 100%;
-  justify-content: space-between;
-}
-.col-header > span:first-child {
-  flex: 1;
-}
-.col-header > :last-child {
-  flex-shrink: 0;
-  margin-left: auto;
 }
 
 .table-footer {
