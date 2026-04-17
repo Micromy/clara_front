@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
 
 const STORAGE_KEY = 'arias-builder-state'
@@ -173,14 +173,20 @@ export const useBuilderStore = defineStore('builder', () => {
   const pendingSearch = ref(createEmptySearch())
   const appliedSearch = ref(createEmptySearch())
   const searchDirty = ref(false)    // true when pending diverges from applied
+  const restoringSearch = ref(false) // true during builder switch restore
 
   // Restore persisted builder state (before first render)
   const _saved = loadPersistedState()
 
+  function ensureBuilderSearch(b) {
+    if (!b.search) b.search = { pending: createEmptySearch(), applied: createEmptySearch() }
+    return b
+  }
+
   const builders = ref(
-    _saved?.builders ?? [
+    (_saved?.builders ?? [
       { id: 1, name: 'Builder 1', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
-    ]
+    ]).map(ensureBuilderSearch)
   )
   const activeBuilderIndex = ref(
     _saved?.activeBuilderIndex != null
@@ -199,8 +205,47 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const chartTabs = ref([])
 
+  function saveSearchToBuilder() {
+    const b = builders.value[activeBuilderIndex.value]
+    if (b) {
+      b.search = {
+        pending: { ...pendingSearch.value, columnFilters: { ...pendingSearch.value.columnFilters }, libraries: [...pendingSearch.value.libraries] },
+        applied: { ...appliedSearch.value, columnFilters: { ...appliedSearch.value.columnFilters }, libraries: [...appliedSearch.value.libraries] }
+      }
+    }
+  }
+
+  function restoreSearchFromBuilder() {
+    restoringSearch.value = true
+    const b = builders.value[activeBuilderIndex.value]
+    if (b?.search) {
+      pendingSearch.value = { ...b.search.pending, columnFilters: { ...b.search.pending.columnFilters }, libraries: [...b.search.pending.libraries] }
+      appliedSearch.value = { ...b.search.applied, columnFilters: { ...b.search.applied.columnFilters }, libraries: [...b.search.applied.libraries] }
+    } else {
+      pendingSearch.value = createEmptySearch()
+      appliedSearch.value = createEmptySearch()
+    }
+    searchDirty.value = false
+    nextTick(() => { restoringSearch.value = false })
+  }
+
+  // Restore search state from the active builder on load
+  restoreSearchFromBuilder()
+
+  // Swap search state when switching builders
+  watch(activeBuilderIndex, (_newIdx, oldIdx) => {
+    const oldBuilder = builders.value[oldIdx]
+    if (oldBuilder) {
+      oldBuilder.search = {
+        pending: { ...pendingSearch.value, columnFilters: { ...pendingSearch.value.columnFilters }, libraries: [...pendingSearch.value.libraries] },
+        applied: { ...appliedSearch.value, columnFilters: { ...appliedSearch.value.columnFilters }, libraries: [...appliedSearch.value.libraries] }
+      }
+    }
+    restoreSearchFromBuilder()
+  })
+
   function createDefaultChartConfig(cellType) {
-    const ct = cellType || activeCellType.value || 'FF'
+    const ct = cellType || appliedSearch.value?.cellType || 'FF'
     const xOpts = config.value?.chartOptions?.xAxisOptions?.[ct] || []
     const yOpts = config.value?.chartOptions?.yAxisOptions?.[ct] || []
     return {
@@ -556,13 +601,15 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function addBuilder() {
+    saveSearchToBuilder()
     const id = nextBuilderId++
     builders.value.push({
       id,
       name: `Builder ${id}`,
       selectedCellIds: [],
       chartConfig: createDefaultChartConfig(),
-      derivedFormulas: []
+      derivedFormulas: [],
+      search: { pending: createEmptySearch(), applied: createEmptySearch() }
     })
     activeBuilderIndex.value = builders.value.length - 1
   }
@@ -657,7 +704,7 @@ export const useBuilderStore = defineStore('builder', () => {
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,
     // search / filter
-    pendingSearch, appliedSearch, searchDirty, canSearch, filteredCells,
+    pendingSearch, appliedSearch, searchDirty, restoringSearch, canSearch, filteredCells,
     setPendingCellType, setPendingQuery, setPendingColumnFilter, clearPendingColumnFilter,
     setPendingPdk, setPendingLibraries, pdkOptions, libraryOptions, batchSetAlias,
     applySearch, resetSearch, columnFilterOptions

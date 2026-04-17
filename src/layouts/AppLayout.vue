@@ -289,7 +289,7 @@ function ctxClose() {
   background: var(--clara-header-bg);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 20px 0 28px;
   flex-shrink: 0;
 }
 
@@ -297,11 +297,6 @@ function ctxClose() {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.logo-icon {
-  font-size: 24px;
-  color: #60a5fa;
 }
 
 .header-logo h1 {
@@ -314,7 +309,7 @@ function ctxClose() {
 .tab-bar {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: #fafafa;
   border-bottom: 1px solid #e4e7ed;
   padding: 0 20px;
   flex-shrink: 0;

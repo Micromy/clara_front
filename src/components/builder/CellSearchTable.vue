@@ -77,8 +77,9 @@ const pendingLibraries = computed({
   set: v => store.setPendingLibraries(v)
 })
 
-// When PDK changes, reset library selection (cascading)
+// When PDK changes, reset library selection (cascading) — skip during builder restore
 watch(pendingPdk, () => {
+  if (store.restoringSearch) return
   pendingLibraries.value = []
 })
 

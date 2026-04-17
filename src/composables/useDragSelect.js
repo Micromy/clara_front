@@ -81,18 +81,21 @@ export function useDragSelect(tableRef) {
     targetState = !selected.has(row.id)
     tableRef.value?.toggleRowSelection(row, targetState)
 
-    // Block the upcoming click event so Element Plus doesn't re-toggle
-    document.addEventListener('click', suppressClick, { capture: true, once: true })
-    document.addEventListener('mouseup', onMouseUp, { once: true })
+    // Use the event target's ownerDocument so this works in popup windows too
+    const doc = event.target.ownerDocument || document
+    doc.addEventListener('click', suppressClick, { capture: true, once: true })
+    doc.addEventListener('mouseup', onMouseUp, { once: true })
   }
 
-  function onCellMouseEnter(row, _column) {
+  function onCellMouseEnter(row, column) {
     if (!dragging.value) return
+    if (column.type !== 'selection') return
     tableRef.value?.toggleRowSelection(row, targetState)
   }
 
   function onMouseUp() {
     dragging.value = false
+    document.removeEventListener('mouseup', onMouseUp)
   }
 
   // Attach / detach native mousedown on the table's body wrapper

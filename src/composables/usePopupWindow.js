@@ -61,13 +61,25 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
-    const rootStyle = getComputedStyle(document.documentElement)
-    const vars = ['--clara-primary', '--el-color-primary', '--el-color-primary-light-3',
-      '--el-color-primary-light-5', '--el-color-primary-light-7', '--el-color-primary-light-9',
-      '--el-color-primary-dark-2']
-    vars.forEach(v => {
-      const val = rootStyle.getPropertyValue(v)
-      if (val) popup.document.documentElement.style.setProperty(v, val)
+    // Copy all CSS custom properties from main window to popup
+    const mainStyles = getComputedStyle(document.documentElement)
+    const varsToSync = []
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) {
+          if (rule.style) {
+            for (let i = 0; i < rule.style.length; i++) {
+              const prop = rule.style[i]
+              if (prop.startsWith('--')) varsToSync.push(prop)
+            }
+          }
+        }
+      } catch {}
+    }
+    const unique = [...new Set(varsToSync)]
+    unique.forEach(v => {
+      const val = mainStyles.getPropertyValue(v)
+      if (val) popup.document.documentElement.style.setProperty(v, val.trim())
     })
 
     const mountEl = popup.document.getElementById('popup-root')
