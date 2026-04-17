@@ -58,6 +58,13 @@ export function useDragSelect(tableRef) {
     return data[rowIndex]
   }
 
+  // Suppress the click event that follows our mousedown toggle to prevent
+  // Element Plus checkbox from double-toggling the selection.
+  function suppressClick(e) {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+
   function onNativeMouseDown(event) {
     // Only handle left-click
     if (event.button !== 0) return
@@ -67,12 +74,15 @@ export function useDragSelect(tableRef) {
 
     // Prevent default checkbox behavior — we handle it ourselves
     event.preventDefault()
+    event.stopPropagation()
 
     dragging.value = true
     const selected = getSelectedSet()
     targetState = !selected.has(row.id)
     tableRef.value?.toggleRowSelection(row, targetState)
 
+    // Block the upcoming click event so Element Plus doesn't re-toggle
+    document.addEventListener('click', suppressClick, { capture: true, once: true })
     document.addEventListener('mouseup', onMouseUp, { once: true })
   }
 
