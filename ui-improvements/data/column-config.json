@@ -1,8 +1,6 @@
 {
   "searchTableColumns": [
-    { "key": "cellType",      "label": "Cell Type",      "width": 90  },
-    { "key": "pdk",           "label": "PDK",            "width": 410 },
-    { "key": "vendor",        "label": "Vendor",         "width": 90  },
+    { "key": "vendor",        "label": "Vendor",         "width": 110 },
     { "key": "library",       "label": "Library",        "width": 110 },
     { "key": "version",       "label": "Version",        "width": 140 },
     { "key": "cellName",      "label": "Cell Name",      "width": 280 },
