@@ -1,7 +1,5 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -81,30 +79,14 @@ watch(pendingPdk, () => {
   pendingLibraries.value = []
 })
 
-// "Add & Alias" — add checked cells to selection and optionally set alias
-async function addAndAlias() {
+function getCheckedIds() {
   const tbl = tableRef.value
-  if (!tbl) return
+  if (!tbl) return []
   const selected = tbl.getSelection ? tbl.getSelection() : []
-  const ids = selected.map(r => r.id)
-  if (ids.length === 0) {
-    ElMessage.warning('No cells checked in the search table.')
-    return
-  }
-  store.selectCells(ids)
-  try {
-    const { value: alias } = await ElMessageBox.prompt(
-      `Enter alias for ${ids.length} selected cell${ids.length > 1 ? 's' : ''}:`,
-      'Set Alias',
-      { confirmButtonText: 'Apply', cancelButtonText: 'Skip', inputPlaceholder: 'alias' }
-    )
-    if (alias && alias.trim()) {
-      store.batchSetAlias(store.activeBuilder.id, ids, alias.trim())
-    }
-  } catch {
-    // user clicked Skip or closed — alias not set, cells already added
-  }
+  return selected.map(r => r.id)
 }
+
+defineExpose({ getCheckedIds })
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
@@ -214,12 +196,6 @@ function handleSelectionChange(selected) {
       </div>
 
       <div class="right-controls">
-        <el-button
-          size="small"
-          :icon="ArrowDown"
-          @click="addAndAlias"
-          title="Add checked cells & set alias"
-        >Add &amp; Alias</el-button>
         <span class="selected-count">
           Selected: <strong>{{ totalSelected }}</strong>
         </span>

@@ -18,6 +18,8 @@ function removeChecked() {
   checkedCellIds.value = []
 }
 
+defineExpose({ getCheckedCellIds: () => [...checkedCellIds.value], removeChecked })
+
 const COMPARISON_OPTIONS = [
   { label: 'Raw',  value: 'off' },
   { label: 'Diff', value: 'diff' }
@@ -134,12 +136,6 @@ function simCellInfo(row, col) {
     <div class="panel-header">
       <h3 class="panel-title">Selected Cells</h3>
       <div class="panel-controls">
-        <el-button
-          type="danger"
-          size="small"
-          :disabled="checkedCellIds.length === 0"
-          @click="removeChecked"
-        >Remove Selected ({{ checkedCellIds.length }})</el-button>
         <el-switch
           v-model="displayMode"
           active-value="simulation"
