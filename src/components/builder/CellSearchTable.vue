@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, inject } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -201,7 +202,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         :key="col.key"
         :prop="col.key"
         :label="col.label"
-        :min-width="col.width"
+        :width="col.width"
         sortable
         show-overflow-tooltip
       >

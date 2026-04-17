@@ -73,7 +73,8 @@ const chartOption = computed(() => {
       })
       series.push({
         name: groupName, type: 'bar', data, itemStyle: { color },
-        emphasis: { focus: 'series', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
         label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName }
       })
     } else {
@@ -90,7 +91,8 @@ const chartOption = computed(() => {
         symbolSize: isLine ? 5 : 8,
         lineStyle: { width: 2 },
         itemStyle: { color },
-        emphasis: { focus: 'series', scale: 2, itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
         label: {
           show: props.showLabels,
           position: 'top',
@@ -116,7 +118,8 @@ const chartOption = computed(() => {
           yAxisIndex: 1,
           data,
           itemStyle: { color, opacity: 0.6 },
-          emphasis: { focus: 'series', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+          emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
           barGap: '30%',
           label: {
             show: props.showLabels,
@@ -139,7 +142,8 @@ const chartOption = computed(() => {
           symbolSize: isLineSec ? 5 : 8,
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color },
-          emphasis: { focus: 'series', scale: 2, itemStyle: { borderWidth: 2, borderColor: '#000' } },
+          emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
           label: {
             show: props.showLabels,
             position: 'top',
