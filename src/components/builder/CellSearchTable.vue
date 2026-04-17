@@ -81,7 +81,7 @@ watch(pendingPdk, () => {
 function getCheckedIds() {
   const tbl = tableRef.value
   if (!tbl) return []
-  const selected = tbl.getSelection ? tbl.getSelection() : []
+  const selected = tbl.getSelectionRows ? tbl.getSelectionRows() : []
   return selected.map(r => r.id)
 }
 
