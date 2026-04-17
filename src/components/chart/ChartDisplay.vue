@@ -229,6 +229,7 @@ const chartOption = computed(() => {
         }
       : {
           type: 'value',
+          scale: true,
           name: getAxisLabel(config.xAxis),
           nameLocation: 'center',
           nameGap: 30
@@ -236,6 +237,7 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
+        scale: true,
         name: getAxisLabel(config.yAxisPrimary),
         nameLocation: 'center',
         nameGap: 40
@@ -247,6 +249,7 @@ const chartOption = computed(() => {
   if (config.yAxisSecondary) {
     option.yAxis.push({
       type: 'value',
+      scale: true,
       name: getAxisLabel(config.yAxisSecondary),
       nameLocation: 'center',
       nameGap: 40,
