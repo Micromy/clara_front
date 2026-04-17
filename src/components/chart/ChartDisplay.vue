@@ -88,7 +88,7 @@ const chartOption = computed(() => {
         data,
         smooth: false,
         symbol: 'circle',
-        symbolSize: isLine ? 5 : 8,
+        symbolSize: isLine ? 6 : 10,
         lineStyle: { width: 2 },
         itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
@@ -139,7 +139,7 @@ const chartOption = computed(() => {
           yAxisIndex: 1,
           data,
           symbol: isLineSec ? 'triangle' : 'diamond',
-          symbolSize: isLineSec ? 5 : 8,
+          symbolSize: isLineSec ? 6 : 10,
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color },
           emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
@@ -158,8 +158,9 @@ const chartOption = computed(() => {
   const option = {
     title: {
       text: props.chartData.builderName,
-      left: 'center',
-      textStyle: { fontSize: 14 }
+      left: 0,
+      top: 0,
+      textStyle: { fontSize: 14, fontWeight: 600, color: '#303133', fontFamily: 'Segoe UI, system-ui, -apple-system, sans-serif' }
     },
     tooltip: {
       trigger: isBar ? 'axis' : 'item',
@@ -207,8 +208,10 @@ const chartOption = computed(() => {
     },
     toolbox: {
       show: true,
-      right: 20,
-      top: 10,
+      right: 160,
+      top: 6,
+      itemSize: 14,
+      itemGap: 10,
       feature: {
         dataZoom: { yAxisIndex: 'none', title: { zoom: 'Box Zoom', back: 'Reset Zoom' } },
         restore: { title: 'Reset' },
@@ -216,8 +219,8 @@ const chartOption = computed(() => {
       }
     },
     dataZoom: [
-      { type: 'inside', xAxisIndex: 0, start: 0, end: 100, filterMode: 'none' },
-      { type: 'inside', yAxisIndex: 0, start: 0, end: 100, filterMode: 'none' }
+      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+      { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
     ],
     xAxis: isBar
       ? {

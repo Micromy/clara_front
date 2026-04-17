@@ -4,44 +4,12 @@ import CellSearchPopupRoot from '../components/builder/CellSearchPopupRoot.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
 import { ref, onBeforeUnmount } from 'vue'
-import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
-import { useBuilderStore } from '../stores/builderStore.js'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
 
-const store = useBuilderStore()
 const { isOpen, open, close } = usePopupWindow()
 const containerRef = ref(null)
-const cellSearchRef = ref(null)
-const selectedPanelRef = ref(null)
 const topHeight = ref(500)
 const dragging = ref(false)
-const aliasInput = ref('')
-
-function addToSelection() {
-  const ids = cellSearchRef.value?.getCheckedIds() || []
-  if (ids.length === 0) {
-    ElMessage.warning('No cells checked in the search table.')
-    return
-  }
-  store.selectCells(ids)
-  if (aliasInput.value.trim()) {
-    store.batchSetAlias(store.activeBuilder.id, ids, aliasInput.value.trim())
-  }
-  aliasInput.value = ''
-  cellSearchRef.value?.clearChecks()
-}
-
-function removeFromSelection() {
-  const panel = selectedPanelRef.value
-  if (!panel) return
-  const ids = panel.getCheckedCellIds()
-  if (ids.length === 0) {
-    ElMessage.warning('No cells checked in the selected panel.')
-    return
-  }
-  panel.removeChecked()
-}
 
 function openPopup() {
   open({
@@ -81,7 +49,7 @@ onBeforeUnmount(() => {
 <template>
   <div ref="containerRef" class="builder-view" :class="{ dragging }">
     <div class="top-section" :style="{ height: topHeight + 'px' }" v-show="!isOpen">
-      <CellSearchTable ref="cellSearchRef" @expand="openPopup" />
+      <CellSearchTable @expand="openPopup" />
     </div>
 
     <div v-if="isOpen" class="popup-placeholder">
@@ -90,40 +58,13 @@ onBeforeUnmount(() => {
       <el-button size="small" type="primary" @click="close">Close popup</el-button>
     </div>
 
-    <div class="splitter-area">
-      <div class="splitter" @mousedown="onMouseDown">
-        <div class="splitter-handle"></div>
-      </div>
-      <div class="action-bar">
-        <el-button
-          :icon="ArrowDown"
-          size="small"
-          text
-          class="action-icon-btn"
-          @click="addToSelection"
-          title="Add checked cells to selection"
-        />
-        <el-input
-          v-model="aliasInput"
-          size="small"
-          placeholder="Alias (optional)"
-          style="width: 160px"
-          @keyup.enter="addToSelection"
-        />
-        <el-button
-          :icon="ArrowUp"
-          size="small"
-          text
-          class="action-icon-btn"
-          @click="removeFromSelection"
-          title="Remove checked cells from selection"
-        />
-      </div>
+    <div class="splitter" @mousedown="onMouseDown">
+      <div class="splitter-handle"></div>
     </div>
 
     <div class="bottom-section">
       <div class="bottom-left">
-        <SelectedCellsPanel ref="selectedPanelRef" />
+        <SelectedCellsPanel />
       </div>
       <div class="bottom-right">
         <ChartConfigPanel />
@@ -198,7 +139,7 @@ onBeforeUnmount(() => {
 
 .splitter:hover .splitter-handle,
 .builder-view.dragging .splitter-handle {
-  background: #409eff;
+  background: var(--clara-primary);
   width: 64px;
 }
 
@@ -206,8 +147,17 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 0;
+}
+
+.action-checked-count {
+  font-size: 13px;
+  color: #606266;
+  margin-left: auto;
+}
+.action-checked-count strong {
+  color: #303133;
 }
 
 .action-icon-btn {
@@ -243,7 +193,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
+  padding: 16px 16px 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;

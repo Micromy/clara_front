@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 import ChartDisplay from '../components/chart/ChartDisplay.vue'
@@ -15,7 +15,35 @@ const chartTab = computed(() => {
 
 const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
+const chartViewRef = ref(null)
 const showLabels = ref(false)
+const chartWidthPx = ref(800)
+
+const ASPECT_RATIO = 4 / 3
+
+let resizeObserver = null
+
+function updateChartWidth() {
+  const el = chartViewRef.value
+  if (!el) return
+  const h = el.clientHeight
+  const w = el.clientWidth
+  const ideal = Math.round(h * ASPECT_RATIO)
+  const maxPx = Math.round(w * 0.7)
+  const minPx = Math.round(w * 0.3)
+  chartWidthPx.value = Math.min(maxPx, Math.max(minPx, ideal))
+  chartDisplayRef.value?.resize()
+}
+
+onMounted(() => {
+  updateChartWidth()
+  resizeObserver = new ResizeObserver(updateChartWidth)
+  if (chartViewRef.value) resizeObserver.observe(chartViewRef.value)
+})
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+})
 
 function toggleSplit() {
   tableExpanded.value = !tableExpanded.value
@@ -33,11 +61,11 @@ function onRowClick(cellId) {
 </script>
 
 <template>
-  <div class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
+  <div ref="chartViewRef" class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
 
     <!-- Chart panel -->
-    <div class="chart-left">
-      <div class="chart-toolbar">
+    <div class="chart-left" :style="{ width: chartWidthPx + 'px' }">
+      <div class="chart-top-bar">
         <el-switch
           v-model="showLabels"
           active-text="Labels"
@@ -52,6 +80,7 @@ function onRowClick(cellId) {
     <!-- Splitter -->
     <div
       class="chart-splitter"
+      :style="{ left: (tableExpanded ? '30%' : chartWidthPx + 'px') }"
       :title="tableExpanded ? 'Collapse table' : 'Expand table'"
       @click="toggleSplit"
     >
@@ -59,7 +88,7 @@ function onRowClick(cellId) {
     </div>
 
     <!-- Table panel -->
-    <div class="chart-right">
+    <div class="chart-right" :style="{ left: (tableExpanded ? '30%' : chartWidthPx + 'px'), right: 0 }">
       <div class="table-panel-body">
         <SourceDataTable
           :chart-data="chartTab"
@@ -88,22 +117,23 @@ function onRowClick(cellId) {
   position: absolute;
   left: 0;
   top: 0;
-  width: 70%;
   height: 100%;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   z-index: 1;
+  transition: width 0.3s ease;
 }
 
-.chart-toolbar {
+.chart-top-bar {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 6px;
+  right: 220px;
   z-index: 2;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ── Table panel ─────────────────────────────────────────────────────────── */
@@ -111,20 +141,16 @@ function onRowClick(cellId) {
   position: absolute;
   right: 0;
   top: 0;
-  width: 30%;
   height: 100%;
   background: #fff;
   border-radius: 8px;
   box-shadow: -6px 0 14px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  transition: width 0.25s ease;
   z-index: 3;
+  transition: left 0.3s ease;
 }
 
-.chart-view.expanded .chart-right {
-  width: 70%;
-}
 
 .table-panel-body {
   flex: 1;
@@ -138,20 +164,16 @@ function onRowClick(cellId) {
   top: 0;
   height: 100%;
   width: 16px;
-  right: 30%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   background: transparent;
-  transition: right 0.25s ease, background 0.15s;
+  transition: left 0.3s ease, background 0.15s;
   user-select: none;
   z-index: 4;
 }
 
-.chart-view.expanded .chart-splitter {
-  right: 70%;
-}
 
 .chart-splitter:hover {
   background: rgba(144, 147, 153, 0.18);

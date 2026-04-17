@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, inject } from 'vue'
 import { ElMessageBox } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 import { useDragSelect } from '../../composables/useDragSelect.js'
@@ -92,7 +93,26 @@ function clearChecks() {
   tableRef.value?.clearSelection()
 }
 
-defineExpose({ getCheckedIds, clearChecks })
+const checkedCount = ref(0)
+
+function onSelectionChange() {
+  checkedCount.value = tableRef.value?.getSelectionRows?.().length || 0
+}
+
+const aliasInput = ref('')
+
+function addToSelection() {
+  const ids = getCheckedIds()
+  if (ids.length === 0) return
+  store.selectCells(ids)
+  if (aliasInput.value.trim()) {
+    store.batchSetAlias(store.activeBuilder.id, ids, aliasInput.value.trim())
+  }
+  aliasInput.value = ''
+  clearChecks()
+}
+
+defineExpose({ getCheckedIds, clearChecks, checkedCount })
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
@@ -165,7 +185,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
         <el-input
           v-model="pendingQuery"
-          placeholder="Search by Cell Name…"
+          placeholder="Search by Cell Name… (e.g. MDFF, D2)"
           clearable
           prefix-icon="Search"
           style="width: 320px"
@@ -173,9 +193,6 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
       </div>
 
       <div class="right-controls">
-        <span class="selected-count">
-          Selected: <strong>{{ totalSelected }}</strong>
-        </span>
         <el-button
           v-if="showExpandButton"
           :icon="'FullScreen'"
@@ -198,14 +215,15 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
       :row-key="row => row.id"
       :empty-text="hasSearched ? 'No matching cells' : 'Select Cell Type, PDK, and Library to search'"
       @cell-mouse-enter="onCellMouseEnter"
+      @selection-change="onSelectionChange"
     >
-      <el-table-column type="selection" width="45" :reserve-selection="true" />
+      <el-table-column type="selection" width="38" :reserve-selection="true" align="center" />
       <el-table-column
         v-for="col in store.searchTableColumns"
         :key="col.key"
         :prop="col.key"
         :label="col.label"
-        :min-width="col.width"
+        :min-width="col.autoWidth || col.width"
         sortable
         show-overflow-tooltip
       >
@@ -226,6 +244,26 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
     </el-table>
 
     <div class="table-footer">
+      <div class="footer-actions">
+        <span class="checked-count">
+          Checked: <strong>{{ checkedCount }}</strong>
+        </span>
+        <el-input
+          v-model="aliasInput"
+          size="small"
+          placeholder="Alias (optional)"
+          style="width: 150px"
+          :disabled="checkedCount === 0"
+          @keyup.enter="addToSelection"
+        />
+        <el-button
+          :icon="ArrowDown"
+          size="small"
+          type="primary"
+          :disabled="checkedCount === 0"
+          @click="addToSelection"
+        >Add</el-button>
+      </div>
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
@@ -305,12 +343,29 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   display: flex;
   align-items: center;
 }
+.cell-search-table :deep(.el-table-column--selection .cell) {
+  display: flex;
+  justify-content: center;
+}
 .cell-search-table :deep(th .caret-wrapper) {
   height: 20px;
 }
 
 .table-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checked-count {
+  font-size: 13px;
+  color: #606266;
+}
+.checked-count strong {
+  color: #303133;
 }
 </style>

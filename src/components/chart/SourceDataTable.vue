@@ -203,12 +203,12 @@ function cellInfo(row, col) {
       <!-- Alias (fixed, 1st) -->
       <el-table-column label="Alias" prop="alias" fixed width="140" sortable show-overflow-tooltip>
         <template #default="{ row }">
-          <span class="cell-alias">{{ row.alias && row.alias !== row.cellName ? row.alias : '—' }}</span>
+          <span class="cell-alias">{{ row.alias && row.alias !== row.cellName ? row.alias : row.cellName }}</span>
         </template>
       </el-table-column>
 
       <!-- Cell Name (fixed, 2nd) -->
-      <el-table-column label="Cell Name" prop="cellName" fixed width="150" sortable show-overflow-tooltip>
+      <el-table-column label="Cell Name" prop="cellName" fixed width="280" sortable show-overflow-tooltip>
         <template #default="{ row }">
           <span class="cell-id">
             <el-tag v-if="isRefRow(row)" size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
@@ -251,7 +251,7 @@ function cellInfo(row, col) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -267,6 +267,18 @@ function cellInfo(row, col) {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+.table-controls :deep(.el-segmented) {
+  border-radius: 8px;
+  --el-segmented-item-selected-bg-color: var(--clara-primary);
+  --el-segmented-item-selected-color: #fff;
+}
+.table-controls :deep(.el-segmented .el-segmented__item) {
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.table-controls :deep(.el-segmented .el-segmented__item-selected) {
+  border-radius: 6px;
 }
 
 .cell-alias {
@@ -287,7 +299,18 @@ function cellInfo(row, col) {
 .source-data-table :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .source-data-table :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
 
-.col-header { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.source-data-table :deep(.el-table .cell) {
+  display: flex;
+  align-items: center;
+}
+.source-data-table :deep(.el-table-column--selection .cell) {
+  display: flex;
+  justify-content: center;
+}
+.source-data-table :deep(th .caret-wrapper) {
+  height: 20px;
+}
+.col-header { display: flex; align-items: center; gap: 4px; width: 100%; }
 .col-label { font-size: 12px; font-weight: 500; }
 .col-mode-tag { cursor: pointer; user-select: none; font-weight: 700; }
 .col-mode-tag:hover { opacity: 0.8; }

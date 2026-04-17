@@ -91,13 +91,11 @@ function onGenerate() {
 
 <template>
   <div class="chart-config-panel" v-if="store.activeBuilder">
-    <h3 class="panel-title">Chart Configuration</h3>
+    <div class="panel-header">
+      <h3 class="panel-title">Chart Configuration</h3>
+    </div>
 
     <el-form label-position="top" size="small">
-      <el-form-item label="Builder Name">
-        <el-input v-model="store.activeBuilder.name" />
-      </el-form-item>
-
       <el-form-item label="Chart Type">
         <el-select
           :model-value="store.activeBuilder.chartConfig.chartType"
@@ -108,7 +106,7 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="X-Axis Attribute">
+      <el-form-item label="X-Axis">
         <el-select
           :model-value="store.activeBuilder.chartConfig.xAxis"
           @update:model-value="val => store.updateChartConfig('xAxis', val)"
@@ -118,7 +116,7 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="First Y-Axis (required)">
+      <el-form-item label="Y-Axis">
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisPrimary"
           @update:model-value="val => store.updateChartConfig('yAxisPrimary', val)"
@@ -128,7 +126,7 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Secondary Y-Axis (optional)">
+      <el-form-item label="Y-Axis 2">
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisSecondary"
           @update:model-value="val => store.updateChartConfig('yAxisSecondary', val)"
@@ -140,7 +138,7 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="store.activeBuilder.chartConfig.yAxisSecondary" label="Secondary Y-Axis Chart Type">
+      <el-form-item v-if="store.activeBuilder.chartConfig.yAxisSecondary" label="Y2 Chart Type">
         <el-select
           :model-value="store.activeBuilder.chartConfig.chartTypeSecondary"
           @update:model-value="val => store.updateChartConfig('chartTypeSecondary', val || null)"
@@ -152,7 +150,7 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Grouping / Legend">
+      <el-form-item label="Group By">
         <el-select
           :model-value="store.activeBuilder.chartConfig.grouping"
           @update:model-value="val => store.updateChartConfig('grouping', val)"
@@ -162,7 +160,8 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <!-- Derived Metrics -->
+      <el-divider />
+
       <el-form-item label="Derived Metrics">
         <div class="derived-list">
           <div v-for="df in store.activeBuilder.derivedFormulas" :key="df.id" class="derived-item">
@@ -170,22 +169,23 @@ function onGenerate() {
             <span class="derived-formula">{{ formulaDesc(df, derivedFields) }}</span>
             <el-button type="danger" link size="small" @click="store.removeDerivedFormula(df.id)">✕</el-button>
           </div>
-          <el-button type="primary" link size="small" @click="openDerivedDialog">
+          <el-button type="primary" link size="small" class="add-derived-btn" @click="openDerivedDialog">
             + Add Derived Metric
           </el-button>
         </div>
       </el-form-item>
 
       <el-form-item>
-        <el-button
-          type="primary"
-          class="action-btn"
-          :disabled="store.selectedCells.length === 0"
-          @click="onGenerate"
-        >Generate Chart</el-button>
-      </el-form-item>
-      <el-form-item>
-        <el-button class="action-btn">Save Preset</el-button>
+        <div class="action-row" style="margin-top: 12px">
+          <el-button
+            type="primary"
+            size="default"
+            class="action-btn-main"
+            :disabled="store.selectedCells.length === 0"
+            @click="onGenerate"
+          >Generate Chart</el-button>
+          <el-button size="default" class="action-btn-sub" disabled>Save</el-button>
+        </div>
       </el-form-item>
     </el-form>
 
@@ -275,14 +275,38 @@ function onGenerate() {
 
 <style scoped>
 .chart-config-panel { display: flex; flex-direction: column; }
-.panel-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #303133; }
-.action-btn { width: 100%; }
+.chart-config-panel :deep(.el-divider) { margin: 10px 0 10px; }
+.chart-config-panel :deep(.el-form-item) { margin-bottom: 12px; }
+.chart-config-panel :deep(.el-form-item__label) { padding-bottom: 0; line-height: 1.4; }
+.panel-header {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin-bottom: 12px;
+}
+.panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
+.action-row { display: flex; gap: 4px; width: 100%; }
+.action-btn-main { flex: 1; }
+.action-btn-sub { flex-shrink: 0; min-width: 80px; }
 .chart-config-panel :deep(.el-form-item__content) { width: 100%; }
 
-.derived-list { display: flex; flex-direction: column; gap: 6px; width: 100%; overflow: hidden; }
-.derived-item { display: flex; align-items: center; gap: 8px; background: #f5f7fa; border-radius: 4px; padding: 4px 8px; min-width: 0; overflow: hidden; }
+.derived-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+  min-height: 36px;
+  background: #fafafa;
+  border: 1px dashed #dcdfe6;
+  border-radius: 4px;
+  padding: 8px;
+}
+.derived-list:empty { display: none; }
+.derived-item { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #ebeef5; border-radius: 4px; padding: 5px 8px; min-width: 0; overflow: hidden; }
 .derived-name { font-weight: 600; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
 .derived-formula { flex: 1; font-size: 11px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.add-derived-btn { align-self: flex-start; }
 
 .formula-row { display: flex; gap: 6px; align-items: center; width: 100%; }
 .formula-preview {

@@ -246,6 +246,22 @@ function simCellInfo(row, col) {
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .panel-controls { display: flex; gap: 12px; align-items: center; }
 
+.panel-controls :deep(.el-switch .el-switch__inner .is-text) {
+  font-size: 12.5px;
+}
+.panel-controls :deep(.el-segmented) {
+  border-radius: 8px;
+  --el-segmented-item-selected-bg-color: var(--clara-primary);
+  --el-segmented-item-selected-color: #fff;
+}
+.panel-controls :deep(.el-segmented .el-segmented__item) {
+  font-size: 12.5px;
+  border-radius: 6px;
+}
+.panel-controls :deep(.el-segmented .el-segmented__item-selected) {
+  border-radius: 6px;
+}
+
 .col-header {
   display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
 }

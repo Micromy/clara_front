@@ -1,9 +1,17 @@
 :root {
-  --clara-primary: #409eff;
+  --clara-primary: #4078C0;
   --clara-bg: #f5f7fa;
   --clara-header-bg: #1a1a2e;
   --clara-header-height: 56px;
   --clara-tab-height: 40px;
+
+  /* Element Plus primary override */
+  --el-color-primary: #4078C0;
+  --el-color-primary-light-3: #6A9AD4;
+  --el-color-primary-light-5: #93B7E0;
+  --el-color-primary-light-7: #BDD4EC;
+  --el-color-primary-light-9: #E8F0F8;
+  --el-color-primary-dark-2: #3468A8;
 }
 
 * {
@@ -16,8 +24,15 @@ html, body, #app {
   height: 100%;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   background: var(--clara-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .el-table .cell {
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.el-table .caret-wrapper {
+  height: 17px !important;
 }

@@ -179,7 +179,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const builders = ref(
     _saved?.builders ?? [
-      { id: 1, name: 'Builder 1_Main (v2)', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
+      { id: 1, name: 'Builder 1', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
     ]
   )
   const activeBuilderIndex = ref(
@@ -339,7 +339,10 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function applySearch() {
-    if (!canSearch.value) return false
+    if (!canSearch.value) {
+      appliedSearch.value = { ...appliedSearch.value, libraries: [], pdk: pendingSearch.value.pdk }
+      return false
+    }
     appliedSearch.value = {
       cellType: pendingSearch.value.cellType,
       query: pendingSearch.value.query,
@@ -400,12 +403,12 @@ export const useBuilderStore = defineStore('builder', () => {
   const preColumnFilteredCells = computed(() => {
     const s = appliedSearch.value
     if (!s.cellType || !s.pdk || s.libraries.length === 0) return []
-    const q = (s.query || '').toLowerCase().trim()
+    const terms = (s.query || '').toLowerCase().split(',').map(t => t.trim()).filter(Boolean)
     return allCells.value.filter(cell => {
       if (!cellMatchesCategory(cell, s.cellType)) return false
       if (s.pdk && cell.pdk !== s.pdk) return false
       if (s.libraries.length > 0 && !s.libraries.includes(cell.library)) return false
-      if (q && !cell.cellName.toLowerCase().includes(q)) return false
+      if (terms.length && !terms.every(t => cell.cellName.toLowerCase().includes(t))) return false
       return true
     })
   })
@@ -424,8 +427,43 @@ export const useBuilderStore = defineStore('builder', () => {
     })
   })
 
-  const searchTableColumns = computed(() => config.value?.searchTableColumns ?? [])
-  const selectedCellsMetadataColumns = computed(() => config.value?.selectedCellsMetadataColumns ?? [])
+  const CHAR_WIDTH = 8
+  const HEADER_PADDING = 32
+  const CELL_PADDING = 24
+  const MIN_COL_WIDTH = 50
+
+  function calcAutoWidth(key, cells) {
+    let maxContent = 0
+    const len = Math.min(cells.length, 200)
+    for (let i = 0; i < len; i++) {
+      const v = cells[i][key]
+      if (v != null) {
+        const w = String(v).length
+        if (w > maxContent) maxContent = w
+      }
+    }
+    return maxContent * CHAR_WIDTH + CELL_PADDING || MIN_COL_WIDTH
+  }
+
+  const searchTableColumns = computed(() => {
+    const cols = config.value?.searchTableColumns ?? []
+    const cells = filteredCells.value
+    if (!cells.length) return cols
+    return cols.map(col => ({
+      ...col,
+      autoWidth: Math.max(calcAutoWidth(col.key, cells), col.width || 0)
+    }))
+  })
+
+  const selectedCellsMetadataColumns = computed(() => {
+    const cols = config.value?.selectedCellsMetadataColumns ?? []
+    const cells = selectedCells.value
+    if (!cells.length) return cols
+    return cols.map(col => ({
+      ...col,
+      autoWidth: Math.max(calcAutoWidth(col.prop, cells), col.width || 0)
+    }))
+  })
 
   // Active cell-type context drives which simulation columns / Y-axis options are shown.
   // Derives from the committed search; defaults to 'FF' so early-render getters don't crash.
