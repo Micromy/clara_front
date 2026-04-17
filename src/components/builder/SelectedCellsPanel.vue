@@ -139,6 +139,12 @@ function simCellInfo(row, col) {
     <div class="panel-header">
       <h3 class="panel-title">Selected Cells</h3>
       <div class="panel-controls">
+        <el-button
+          v-if="checkedCellIds.length > 0"
+          size="small"
+          class="remove-btn"
+          @click="removeChecked"
+        >Remove {{ checkedCellIds.length }}</el-button>
         <el-switch
           v-model="displayMode"
           active-value="simulation"
@@ -245,6 +251,11 @@ function simCellInfo(row, col) {
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .panel-controls { display: flex; gap: 12px; align-items: center; }
+.remove-btn:hover {
+  color: #f56c6c !important;
+  border-color: #f56c6c !important;
+  background: rgba(245, 108, 108, 0.06) !important;
+}
 
 .panel-controls :deep(.el-switch .el-switch__inner .is-text) {
   font-size: 12.5px;

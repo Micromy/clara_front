@@ -61,6 +61,15 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
+    const rootStyle = getComputedStyle(document.documentElement)
+    const vars = ['--clara-primary', '--el-color-primary', '--el-color-primary-light-3',
+      '--el-color-primary-light-5', '--el-color-primary-light-7', '--el-color-primary-light-9',
+      '--el-color-primary-dark-2']
+    vars.forEach(v => {
+      const val = rootStyle.getPropertyValue(v)
+      if (val) popup.document.documentElement.style.setProperty(v, val)
+    })
+
     const mountEl = popup.document.getElementById('popup-root')
     const popupBody = popup.document.body
 
