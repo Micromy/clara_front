@@ -71,7 +71,11 @@ const chartOption = computed(() => {
         const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
         return Math.round(avg * 100) / 100
       })
-      series.push({ name: groupName, type: 'bar', data, itemStyle: { color }, label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName } })
+      series.push({
+        name: groupName, type: 'bar', data, itemStyle: { color },
+        emphasis: { focus: 'series', itemStyle: { borderWidth: 2, borderColor: '#000' } },
+        label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName }
+      })
     } else {
       const sortedCells = isLine
         ? [...groupCells].sort((a, b) => (a[config.xAxis] ?? 0) - (b[config.xAxis] ?? 0))
@@ -86,6 +90,7 @@ const chartOption = computed(() => {
         symbolSize: isLine ? 5 : 8,
         lineStyle: { width: 2 },
         itemStyle: { color },
+        emphasis: { focus: 'series', scale: 2, itemStyle: { borderWidth: 2, borderColor: '#000' } },
         label: {
           show: props.showLabels,
           position: 'top',
@@ -111,6 +116,7 @@ const chartOption = computed(() => {
           yAxisIndex: 1,
           data,
           itemStyle: { color, opacity: 0.6 },
+          emphasis: { focus: 'series', itemStyle: { borderWidth: 2, borderColor: '#000' } },
           barGap: '30%',
           label: {
             show: props.showLabels,
@@ -133,6 +139,7 @@ const chartOption = computed(() => {
           symbolSize: isLineSec ? 5 : 8,
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color },
+          emphasis: { focus: 'series', scale: 2, itemStyle: { borderWidth: 2, borderColor: '#000' } },
           label: {
             show: props.showLabels,
             position: 'top',
@@ -178,7 +185,7 @@ const chartOption = computed(() => {
       type: 'scroll',
       orient: 'vertical',
       right: 0,
-      top: 40,
+      top: 80,
       bottom: 20,
       width: 140,
       itemGap: 8,

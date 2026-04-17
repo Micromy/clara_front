@@ -29,6 +29,7 @@ function addToSelection() {
     store.batchSetAlias(store.activeBuilder.id, ids, aliasInput.value.trim())
   }
   aliasInput.value = ''
+  cellSearchRef.value?.clearChecks()
 }
 
 function removeFromSelection() {

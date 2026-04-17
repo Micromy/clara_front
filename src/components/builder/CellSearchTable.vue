@@ -85,7 +85,11 @@ function getCheckedIds() {
   return selected.map(r => r.id)
 }
 
-defineExpose({ getCheckedIds })
+function clearChecks() {
+  tableRef.value?.clearSelection()
+}
+
+defineExpose({ getCheckedIds, clearChecks })
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
 
@@ -269,7 +273,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   align-items: center;
   gap: 4px;
   width: 100%;
-  height: 36px;
+  min-height: 36px;
 }
 .col-label {
   flex: 1;
@@ -287,7 +291,16 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 0;
+}
+
+/* Position Element Plus sort caret next to filter icon */
+.cell-search-table :deep(.el-table .cell) {
+  display: flex;
+  align-items: center;
+}
+.cell-search-table :deep(th .caret-wrapper) {
+  height: 20px;
 }
 
 .table-footer {

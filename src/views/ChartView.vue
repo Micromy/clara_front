@@ -38,11 +38,13 @@ function onRowClick(cellId) {
     <!-- Chart panel -->
     <div class="chart-left">
       <div class="chart-toolbar">
-        <el-button
+        <el-switch
+          v-model="showLabels"
+          active-text="Labels"
+          inactive-text="Labels"
+          inline-prompt
           size="small"
-          :type="showLabels ? 'primary' : ''"
-          @click="showLabels = !showLabels"
-        >Labels</el-button>
+        />
       </div>
       <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" :show-labels="showLabels" />
     </div>
