@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, inject } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
+import { useDragSelect } from '../../composables/useDragSelect.js'
 
 const emit = defineEmits(['expand'])
 const props = defineProps({
@@ -18,6 +19,7 @@ const popupBody = inject('popupBody', null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const tableRef = ref(null)
+const { onCellMouseEnter } = useDragSelect(tableRef)
 
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
@@ -195,6 +197,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
       style="width: 100%; flex: 1"
       :row-key="row => row.id"
       :empty-text="hasSearched ? 'No matching cells' : 'Select Cell Type, PDK, and Library to search'"
+      @cell-mouse-enter="onCellMouseEnter"
     >
       <el-table-column type="selection" width="45" :reserve-selection="true" />
       <el-table-column
@@ -285,7 +288,9 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: normal;
 }
 .col-icons {
   flex-shrink: 0;

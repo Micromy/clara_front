@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
+import { useDragSelect } from '../../composables/useDragSelect.js'
 
 const store = useBuilderStore()
+const selectedTableRef = ref(null)
+const { onCellMouseEnter: onSelCellMouseEnter } = useDragSelect(selectedTableRef)
 
 const displayMode    = ref('metadata')  // 'metadata' | 'simulation'
 const comparisonMode = ref('off')       // 'off' | 'diff'
@@ -166,11 +169,13 @@ function simCellInfo(row, col) {
     </div>
 
     <el-table
+      ref="selectedTableRef"
       :data="tableRows"
       :row-class-name="rowClassName"
       border stripe size="small" max-height="580"
       empty-text="No cells selected. Select cells from the table above."
       @selection-change="handleSelectionChange"
+      @cell-mouse-enter="onSelCellMouseEnter"
     >
       <!-- Selection checkbox (fixed 1st) -->
       <el-table-column type="selection" width="45" fixed />
