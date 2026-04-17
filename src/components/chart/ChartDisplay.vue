@@ -216,8 +216,8 @@ const chartOption = computed(() => {
       }
     },
     dataZoom: [
-      { type: 'inside', xAxisIndex: 0, start: 5, end: 95, filterMode: 'none' },
-      { type: 'inside', yAxisIndex: 0, start: 5, end: 95, filterMode: 'none' }
+      { type: 'inside', xAxisIndex: 0, start: 0, end: 100, filterMode: 'none' },
+      { type: 'inside', yAxisIndex: 0, start: 0, end: 100, filterMode: 'none' }
     ],
     xAxis: isBar
       ? {
