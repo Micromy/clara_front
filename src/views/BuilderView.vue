@@ -97,7 +97,8 @@ onBeforeUnmount(() => {
         <el-button
           :icon="ArrowDown"
           size="small"
-          type="primary"
+          text
+          class="action-icon-btn"
           @click="addToSelection"
           title="Add checked cells to selection"
         />
@@ -111,7 +112,8 @@ onBeforeUnmount(() => {
         <el-button
           :icon="ArrowUp"
           size="small"
-          type="danger"
+          text
+          class="action-icon-btn"
           @click="removeFromSelection"
           title="Remove checked cells from selection"
         />
@@ -205,6 +207,15 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   padding: 4px 0;
+}
+
+.action-icon-btn {
+  color: #909399;
+  font-size: 16px;
+}
+.action-icon-btn:hover {
+  color: #606266;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .bottom-section {

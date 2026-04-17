@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick, inject } from 'vue'
+import { ref, computed, watch, nextTick, inject } from 'vue'
 import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 
@@ -17,7 +17,6 @@ const popupBody = inject('popupBody', null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const tableRef = ref(null)
-const syncing = ref(false)
 
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
@@ -97,42 +96,13 @@ const pagedCells = computed(() => {
   return rows.value.slice(start, start + pageSize.value)
 })
 const totalSelected = computed(() => store.activeBuilder?.selectedCellIds.length || 0)
-const hasSearched = computed(() => !!store.appliedSearch.cellType)
+const hasSearched = computed(() =>
+  !!store.appliedSearch.cellType &&
+  !!store.appliedSearch.pdk &&
+  store.appliedSearch.libraries.length > 0
+)
 
 const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
-
-// Sync el-table's internal selection state to the store's selectedCellIds
-// whenever the visible page changes. Without this, programmatic selections
-// from another view (or prior page) aren't reflected, and user clicks can
-// erroneously deselect cells that aren't rendered on this page.
-function syncTableSelection() {
-  const tbl = tableRef.value
-  if (!tbl) return
-  const ids = store.activeBuilder?.selectedCellIds || []
-  syncing.value = true
-  nextTick(() => {
-    pagedCells.value.forEach(row => {
-      tbl.toggleRowSelection(row, ids.includes(row.id))
-    })
-    nextTick(() => { syncing.value = false })
-  })
-}
-
-onMounted(syncTableSelection)
-watch(pagedCells, syncTableSelection)
-watch(() => store.activeBuilder?.selectedCellIds, syncTableSelection, { deep: true })
-
-function handleSelectionChange(selected) {
-  if (syncing.value) return
-  // Filter out any row keys el-table's reserve-selection kept from a
-  // previous cell-type — only keep selections that match current cells.
-  const validIds = new Set(store.filteredCells.map(c => c.id))
-  const selectedIds = selected.map(r => r.id).filter(id => validIds.has(id))
-  const pageIds = pagedCells.value.map(c => c.id)
-  const toDeselect = pageIds.filter(id => !selectedIds.includes(id))
-  store.deselectCells(toDeselect)
-  store.selectCells(selectedIds)
-}
 </script>
 
 <template>
@@ -157,7 +127,7 @@ function handleSelectionChange(selected) {
           v-model="pendingPdk"
           placeholder="PDK"
           clearable
-          style="width: 200px"
+          style="width: 360px"
           :teleported="!inPopup"
         >
           <el-option
@@ -218,9 +188,8 @@ function handleSelectionChange(selected) {
       size="small"
       height="100%"
       style="width: 100%; flex: 1"
-      @selection-change="handleSelectionChange"
       :row-key="row => row.id"
-      :empty-text="hasSearched ? 'No matching cells' : 'Select a Cell Type and press Search'"
+      :empty-text="hasSearched ? 'No matching cells' : 'Select Cell Type, PDK, and Library to search'"
     >
       <el-table-column type="selection" width="45" :reserve-selection="true" />
       <el-table-column
