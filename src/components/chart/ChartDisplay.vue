@@ -3,12 +3,15 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
-  chartData: { type: Object, required: true },
-  showLabels: { type: Boolean, default: false }
+  chartData: { type: Object, required: true }
 })
 
 const chartContainer = ref(null)
 let chartInstance = null
+const labelsOn = ref(false)
+
+const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="18" y2="4"/><line x1="12" y1="4" x2="12" y2="20"/></svg>')
+const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="4" fill="#4078C0"/><line x1="7" y1="6" x2="17" y2="6" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="6" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>')
 
 const COLORS = [
   '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
@@ -189,38 +192,61 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 0,
-      top: 80,
+      right: 30,
+      top: 55,
       bottom: 20,
-      width: 140,
+      width: 240,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 100 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 200 }
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 240 : 180,
+      right: config.yAxisSecondary ? 300 : 240,
       top: 50,
       bottom: 40
     },
     toolbox: {
       show: true,
-      right: 160,
+      right: 230,
       top: 6,
-      itemSize: 14,
-      itemGap: 10,
+      itemSize: 16,
+      itemGap: 12,
+      iconStyle: {
+        borderColor: 'transparent',
+        borderWidth: 0
+      },
+      emphasis: {
+        iconStyle: {
+          borderColor: 'transparent'
+        }
+      },
       feature: {
-        dataZoom: { yAxisIndex: 'none', title: { zoom: 'Box Zoom', back: 'Reset Zoom' } },
-        restore: { title: 'Reset' },
-        saveAsImage: { title: 'Save PNG' }
+        myLabels: {
+          show: true,
+          title: labelsOn.value ? 'Hide Labels' : 'Show Labels',
+          icon: labelsOn.value ? LABEL_ICON_ON : LABEL_ICON_OFF,
+          onclick: function() {
+            labelsOn.value = !labelsOn.value
+          }
+        },
+        restore: {
+          title: 'Reset',
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>')
+        },
+        saveAsImage: {
+          title: 'Save PNG',
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>')
+        }
       }
     },
     dataZoom: [
-      { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
-      { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
+      { type: 'inside', xAxisIndex: 0, yAxisIndex: 0, filterMode: 'none',
+        zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false,
+        minSpan: 0, maxSpan: 100, startValue: null, endValue: null }
     ],
     xAxis: isBar
       ? {
@@ -315,6 +341,40 @@ onBeforeUnmount(() => {
 })
 
 watch(chartOption, () => renderChart(), { deep: true })
+watch(labelsOn, (val) => {
+  if (!chartInstance) return
+  const opt = chartInstance.getOption()
+  chartInstance.setOption({
+    series: opt.series.map(s => ({
+      label: {
+        show: val,
+        position: 'top',
+        fontSize: 12,
+        color: '#303133',
+        backgroundColor: '#fff',
+        borderColor: '#dcdfe6',
+        borderWidth: 1,
+        padding: [3, 6],
+        distance: 12,
+        overflow: 'truncate',
+        formatter: (p) => p.seriesName
+      },
+      labelLine: {
+        show: val,
+        lineStyle: { color: '#ccc', width: 1 }
+      },
+      labelLayout: val ? { moveOverlap: 'shiftY', hideOverlap: true } : undefined
+    })),
+    toolbox: {
+      feature: {
+        myLabels: {
+          icon: val ? LABEL_ICON_ON : LABEL_ICON_OFF,
+          title: val ? 'Hide Labels' : 'Show Labels'
+        }
+      }
+    }
+  })
+})
 
 defineExpose({
   getChartImage: (pixelRatio = 2) =>

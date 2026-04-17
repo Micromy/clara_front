@@ -16,7 +16,6 @@ const chartTab = computed(() => {
 const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
 const chartViewRef = ref(null)
-const showLabels = ref(false)
 const chartWidthPx = ref(800)
 
 const ASPECT_RATIO = 4 / 3
@@ -65,16 +64,7 @@ function onRowClick(cellId) {
 
     <!-- Chart panel -->
     <div class="chart-left" :style="{ width: chartWidthPx + 'px' }">
-      <div class="chart-top-bar">
-        <el-switch
-          v-model="showLabels"
-          active-text="Labels"
-          inactive-text="Labels"
-          inline-prompt
-          size="small"
-        />
-      </div>
-      <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" :show-labels="showLabels" />
+      <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
     </div>
 
     <!-- Splitter -->
@@ -126,15 +116,6 @@ function onRowClick(cellId) {
   transition: width 0.3s ease;
 }
 
-.chart-top-bar {
-  position: absolute;
-  top: 6px;
-  right: 220px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 /* ── Table panel ─────────────────────────────────────────────────────────── */
 .chart-right {
