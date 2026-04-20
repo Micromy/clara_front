@@ -179,12 +179,13 @@ function simCellInfo(row, col) {
       :data="tableRows"
       :row-class-name="rowClassName"
       border stripe size="small" max-height="580"
+      :show-overflow-tooltip="{ showAfter: 500 }"
       empty-text="No cells selected. Select cells from the table above."
       @selection-change="handleSelectionChange"
       @cell-mouse-enter="onSelCellMouseEnter"
     >
       <!-- Selection checkbox (fixed 1st) -->
-      <el-table-column type="selection" width="45" fixed />
+      <el-table-column type="selection" width="38" fixed align="center" />
 
       <!-- Alias input (fixed 2nd) -->
       <el-table-column label="Alias" width="140" fixed>
@@ -209,7 +210,7 @@ function simCellInfo(row, col) {
       <template v-if="displayMode === 'metadata'">
         <el-table-column
           v-for="col in store.selectedCellsMetadataColumns"
-          :key="col.prop" :prop="col.prop" :label="col.label" :min-width="col.width"
+          :key="col.prop" :prop="col.prop" :label="col.label" :min-width="col.autoWidth || col.width"
         />
       </template>
 

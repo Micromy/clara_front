@@ -113,6 +113,16 @@ function addToSelection() {
   clearChecks()
 }
 
+function isSelectable(row) {
+  const ids = store.activeBuilder?.selectedCellIds || []
+  return !ids.includes(row.id)
+}
+
+function rowClassName({ row }) {
+  const ids = store.activeBuilder?.selectedCellIds || []
+  return ids.includes(row.id) ? 'row-already-selected' : ''
+}
+
 defineExpose({ getCheckedIds, clearChecks, checkedCount })
 
 watch(() => store.appliedSearch, () => { currentPage.value = 1 }, { deep: true })
@@ -215,10 +225,11 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
       style="width: 100%; flex: 1"
       :row-key="row => row.id"
       :empty-text="hasSearched ? 'No matching cells' : 'Select Cell Type, PDK, and Library to search'"
+      :row-class-name="rowClassName"
       @cell-mouse-enter="onCellMouseEnter"
       @selection-change="onSelectionChange"
     >
-      <el-table-column type="selection" width="38" :reserve-selection="true" align="center" />
+      <el-table-column type="selection" width="38" :reserve-selection="true" align="center" :selectable="isSelectable" />
       <el-table-column
         v-for="col in store.searchTableColumns"
         :key="col.key"
@@ -368,5 +379,9 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 }
 .checked-count strong {
   color: #303133;
+}
+
+.cell-search-table :deep(.row-already-selected) td {
+  opacity: 0.45;
 }
 </style>

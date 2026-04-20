@@ -472,12 +472,12 @@ export const useBuilderStore = defineStore('builder', () => {
     })
   })
 
-  const CHAR_WIDTH = 8
-  const HEADER_PADDING = 32
   const CELL_PADDING = 24
   const MIN_COL_WIDTH = 50
+  const CHAR_WIDTH_SEARCH = 8
+  const CHAR_WIDTH_SELECTED = 7
 
-  function calcAutoWidth(key, cells) {
+  function calcAutoWidth(key, cells, charWidth) {
     let maxContent = 0
     const len = Math.min(cells.length, 200)
     for (let i = 0; i < len; i++) {
@@ -487,7 +487,7 @@ export const useBuilderStore = defineStore('builder', () => {
         if (w > maxContent) maxContent = w
       }
     }
-    return maxContent * CHAR_WIDTH + CELL_PADDING || MIN_COL_WIDTH
+    return maxContent * charWidth + CELL_PADDING || MIN_COL_WIDTH
   }
 
   const searchTableColumns = computed(() => {
@@ -496,7 +496,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!cells.length) return cols
     return cols.map(col => ({
       ...col,
-      autoWidth: Math.max(calcAutoWidth(col.key, cells), col.width || 0)
+      autoWidth: Math.max(calcAutoWidth(col.key, cells, CHAR_WIDTH_SEARCH), col.width || 0)
     }))
   })
 
@@ -506,7 +506,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!cells.length) return cols
     return cols.map(col => ({
       ...col,
-      autoWidth: Math.max(calcAutoWidth(col.prop, cells), col.width || 0)
+      autoWidth: Math.max(calcAutoWidth(col.prop, cells, CHAR_WIDTH_SELECTED), col.width || 0)
     }))
   })
 
