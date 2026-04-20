@@ -22,6 +22,7 @@ export function usePopupWindow() {
   let pollInterval = null
   let unloadHandler = null
   let closeCallback = null
+  let styleObserver = null
 
   function copyStyles(targetDoc) {
     document.querySelectorAll('link[rel="stylesheet"]').forEach(node => {
@@ -95,6 +96,21 @@ export function usePopupWindow() {
     for (const [k, v] of Object.entries(ElementPlusIcons)) popupApp.component(k, v)
     popupApp.mount(mountEl)
 
+    // Mirror any new <style> tags injected by Vite after mount
+    styleObserver = new MutationObserver((mutations) => {
+      if (!popup || popup.closed) return
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.tagName === 'STYLE') {
+            const clone = popup.document.createElement('style')
+            clone.textContent = node.textContent
+            popup.document.head.appendChild(clone)
+          }
+        })
+      })
+    })
+    styleObserver.observe(document.head, { childList: true })
+
     isOpen.value = true
     closeCallback = onClose
 
@@ -115,6 +131,7 @@ export function usePopupWindow() {
   }
 
   function cleanup() {
+    if (styleObserver) { styleObserver.disconnect(); styleObserver = null }
     if (popupApp) { try { popupApp.unmount() } catch {}; popupApp = null }
     if (pollInterval) { window.clearInterval(pollInterval); pollInterval = null }
     if (unloadHandler) { window.removeEventListener('beforeunload', unloadHandler); unloadHandler = null }
