@@ -195,13 +195,13 @@ const chartOption = computed(() => {
       right: 10,
       top: 55,
       bottom: 20,
-      width: 200,
+      width: 260,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 170 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 230 }
     },
     grid: {
       left: 60,
