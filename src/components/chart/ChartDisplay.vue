@@ -192,22 +192,22 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 30,
+      right: 10,
       top: 55,
       bottom: 20,
-      width: 240,
+      width: 200,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 200 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 170 }
     },
     grid: {
-      left: 80,
-      right: config.yAxisSecondary ? 300 : 240,
+      left: 60,
+      right: config.yAxisSecondary ? 260 : 220,
       top: 50,
-      bottom: 50
+      bottom: 40
     },
     toolbox: {
       show: true,
