@@ -15,6 +15,53 @@ import { getActivePinia } from 'pinia'
  * `popupBody` via inject so descendants can set `append-to="popupBody"` or
  * `teleported="false"` as needed.
  */
+function patchPopupScrollbars(popup) {
+  if (!popup || popup.closed) return
+  const doc = popup.document
+  doc.querySelectorAll('.el-scrollbar').forEach(scrollbar => {
+    const wrap = scrollbar.querySelector('.el-scrollbar__wrap')
+    if (!wrap) return
+
+    scrollbar.querySelectorAll('.el-scrollbar__bar').forEach(bar => {
+      const thumb = bar.querySelector('.el-scrollbar__thumb')
+      if (!thumb) return
+
+      const isHorizontal = bar.classList.contains('is-horizontal')
+
+      thumb.addEventListener('mousedown', (e) => {
+        e.stopPropagation()
+        e.preventDefault()
+
+        const barRect = bar.getBoundingClientRect()
+        const thumbRect = thumb.getBoundingClientRect()
+        const offset = isHorizontal
+          ? e.clientX - thumbRect.left
+          : e.clientY - thumbRect.top
+
+        function onMove(ev) {
+          if (isHorizontal) {
+            const pos = ev.clientX - barRect.left - offset
+            const ratio = pos / (barRect.width - thumbRect.width)
+            wrap.scrollLeft = ratio * (wrap.scrollWidth - wrap.clientWidth)
+          } else {
+            const pos = ev.clientY - barRect.top - offset
+            const ratio = pos / (barRect.height - thumbRect.height)
+            wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight)
+          }
+        }
+
+        function onUp() {
+          doc.removeEventListener('mousemove', onMove)
+          doc.removeEventListener('mouseup', onUp)
+        }
+
+        doc.addEventListener('mousemove', onMove)
+        doc.addEventListener('mouseup', onUp)
+      })
+    })
+  })
+}
+
 export function usePopupWindow() {
   const isOpen = ref(false)
   let popup = null
@@ -62,34 +109,10 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
-    // Force native scrollbar in popup — el-scrollbar thumb drag doesn't
-    // work across window boundaries. Inject directly into popup document
-    // to guarantee it applies regardless of style copying.
-    const scrollFix = popup.document.createElement('style')
-    scrollFix.textContent = `
-      .el-scrollbar { overflow: visible !important; }
-      .el-scrollbar__wrap {
-        overflow: auto !important;
-        margin: 0 !important;
-      }
-      .el-scrollbar__wrap::-webkit-scrollbar {
-        width: 8px !important;
-        height: 8px !important;
-        display: block !important;
-      }
-      .el-scrollbar__wrap::-webkit-scrollbar-thumb {
-        background: #c0c4cc;
-        border-radius: 4px;
-      }
-      .el-scrollbar__wrap::-webkit-scrollbar-track {
-        background: #f0f0f0;
-      }
-      .el-scrollbar__bar {
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-    `
-    popup.document.head.appendChild(scrollFix)
+    // Fix el-scrollbar thumb drag in popup — Element Plus binds
+    // mousemove/mouseup to main window's document. We re-bind them
+    // to the popup's document so thumb drag works.
+    setTimeout(() => patchPopupScrollbars(popup), 300)
 
     const mountEl = popup.document.getElementById('popup-root')
     const popupBody = popup.document.body
