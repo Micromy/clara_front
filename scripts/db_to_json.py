@@ -128,6 +128,9 @@ def main():
     parser.add_argument('--limit', type=int, default=0,
                         help='Max rows to fetch from arias_cell_meta (0 = all). '
                              'Only matching simulations are exported.')
+    parser.add_argument('--filter', type=str, nargs='+', default=[],
+                        help='CELL_NAME patterns (SQL LIKE). '
+                             'e.g. --filter "MHSDFF%%" "MFP%%SDFF%%" "MHICGP%%"')
     args = parser.parse_args()
 
     env = load_env_file(ENV_FILE)
@@ -146,17 +149,23 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    where_parts = []
+    if args.filter:
+        like_clauses = ' OR '.join(f"CELL_NAME LIKE '{p}'" for p in args.filter)
+        where_parts.append(f'({like_clauses})')
+
+    where_clause = (' WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
     limit_clause = f' FETCH FIRST {args.limit} ROWS ONLY' if args.limit else ''
 
     with oracledb.connect(user=user, password=password, dsn=dsn) as conn:
         with conn.cursor() as cur:
-            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID', suffix=limit_clause)
+            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID', suffix=where_clause + limit_clause)
             cell_ids = {c['id'] for c in cells}
             ff_rows  = fetch(cur, FF_TABLE,  {**FF_SIM_MAP,  'CELL_ID': 'cellId'})
             icg_rows = fetch(cur, ICG_TABLE, {**ICG_SIM_MAP, 'CELL_ID': 'cellId'})
 
     # Filter simulations to only include cells we fetched
-    if args.limit:
+    if args.limit or args.filter:
         ff_rows  = [r for r in ff_rows  if r.get('cellId') in cell_ids]
         icg_rows = [r for r in icg_rows if r.get('cellId') in cell_ids]
 
