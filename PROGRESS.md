@@ -295,13 +295,37 @@ export async function fetchSimulations() {
 
 ### 예상 REST 인터페이스
 
-| 메서드 | 경로 | 응답 |
-|---|---|---|
-| GET | `/api/cells` | 메타 배열 |
-| GET | `/api/cells/:id` | 단일 셀 메타 |
-| GET | `/api/simulations` | `{ cellId: {...} }` |
-| GET | `/api/simulations/:cellId` | 단일 셀 시뮬 |
-| GET | `/api/column-config` | 컬럼/차트 옵션 |
+> **chart** = Builder + Chart 탭 전체 상태 (선택 셀, 차트 설정 등)를 저장/불러오기
+> **chart_preset** = Chart Configuration (축, 그룹핑, 파생 지표 등) 설정만 저장/불러오기
+
+#### 페이지 초기 로드
+
+| # | 메서드 | 경로 | 설명 | 시점 |
+|---|---|---|---|---|
+| 1 | GET | `/api/pdks` | PDK 드롭다운 목록 | 페이지 접속 |
+| 2 | GET | `/api/libraries` | Library 드롭다운 목록 | 페이지 접속 |
+| 3 | GET | `/api/charts` | 저장된 chart 리스트 (load 팝업용) | 페이지 접속 |
+
+#### 셀 검색 (FF/ICG + PDK + Library 셋 다 선택 시)
+
+| # | 메서드 | 경로 | 설명 | 시점 |
+|---|---|---|---|---|
+| 6 | GET | `/api/cells?cellType=FF&pdk=...&libraries=...` | 검색 조건에 맞는 Cell 리스트 + 시뮬 데이터 | 필터 3개 선택 완료 |
+| 7 | GET | `/api/chart-presets?cellType=FF&pdk=...&libraries=...` | 해당 조건의 chart_preset 리스트 | 필터 3개 선택 완료 |
+
+#### Chart 저장/삭제
+
+| # | 메서드 | 경로 | 설명 | 시점 |
+|---|---|---|---|---|
+| 4 | POST | `/api/charts` | chart 저장 (빌더 상태 전체: 선택 셀, alias, 차트 설정, 파생 지표 등) | 상단 탭 Save |
+| 5 | DELETE | `/api/charts/:id` | chart 삭제 | load 팝업에서 삭제 |
+
+#### Chart Preset 저장/삭제
+
+| # | 메서드 | 경로 | 설명 | 시점 |
+|---|---|---|---|---|
+| 8 | POST | `/api/chart-presets` | chart_preset 저장 (Chart Configuration: 축, 그룹핑, 파생 지표 설정만) | preset save 팝업 |
+| 9 | DELETE | `/api/chart-presets/:id` | chart_preset 삭제 | preset load 팝업에서 삭제 |
 
 ---
 
