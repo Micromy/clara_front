@@ -45,8 +45,10 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
 })
 
+const OVERLAP = 12
+
 const splitLeft = computed(() => {
-  return tableSplitPx.value != null ? tableSplitPx.value : chartWidthPx.value
+  return tableSplitPx.value != null ? tableSplitPx.value : chartWidthPx.value - OVERLAP
 })
 
 function onSplitMouseDown(e) {
@@ -62,7 +64,7 @@ function onSplitMouseDown(e) {
     if (!rect) return
     const x = ev.clientX - rect.left
     const minX = chartWidthPx.value * 0.3
-    const maxX = chartWidthPx.value
+    const maxX = chartWidthPx.value - OVERLAP
     tableSplitPx.value = Math.max(minX, Math.min(maxX, x))
   }
   function onUp() {
@@ -76,7 +78,7 @@ function onSplitMouseDown(e) {
 
 function onSplitDblClick() {
   const minX = chartWidthPx.value * 0.3
-  const maxX = chartWidthPx.value
+  const maxX = chartWidthPx.value - OVERLAP
   const mid = (minX + maxX) / 2
   const current = tableSplitPx.value ?? maxX
   if (current > mid) {
@@ -137,7 +139,7 @@ function onRowClick(cellId) {
   top: 0;
   height: 100%;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 8px 0 0 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   z-index: 1;
@@ -184,10 +186,15 @@ function onRowClick(cellId) {
   top: 50%;
   left: 6px;
   transform: translateY(-50%);
-  width: 4px;
-  height: 24px;
-  border-left: 1px solid rgba(0,0,0,0.1);
-  border-right: 1px solid rgba(0,0,0,0.1);
+  width: 3px;
+  height: 48px;
+  border-left: 2px solid rgba(0,0,0,0.18);
+  border-right: 2px solid rgba(0,0,0,0.18);
+  transition: border-color 0.15s ease;
+}
+.chart-right-edge:hover::after {
+  border-left-color: rgba(64,120,192,0.5);
+  border-right-color: rgba(64,120,192,0.5);
 }
 
 .table-panel-body {

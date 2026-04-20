@@ -3,12 +3,16 @@ import CellSearchTable from '../components/builder/CellSearchTable.vue'
 import CellSearchPopupRoot from '../components/builder/CellSearchPopupRoot.vue'
 import SelectedCellsPanel from '../components/builder/SelectedCellsPanel.vue'
 import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
-import { ref, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
+
+const DEFAULT_HEIGHT = 500
+const EXPANDED_HEIGHT = 800
+const MIN_HEIGHT = 200
 
 const { isOpen, open, close } = usePopupWindow()
 const containerRef = ref(null)
-const topHeight = ref(500)
+const topHeight = ref(DEFAULT_HEIGHT)
 const dragging = ref(false)
 
 function openPopup() {
@@ -22,28 +26,34 @@ function openPopup() {
 
 function onMouseDown(e) {
   e.preventDefault()
-  dragging.value = true
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  const startY = e.clientY
+  let moved = false
+  function onMove(ev) {
+    if (!moved && Math.abs(ev.clientY - startY) < 4) return
+    moved = true
+    dragging.value = true
+    if (!containerRef.value) return
+    const rect = containerRef.value.getBoundingClientRect()
+    const newHeight = ev.clientY - rect.top
+    topHeight.value = Math.max(MIN_HEIGHT, newHeight)
+  }
+  function onUp() {
+    dragging.value = false
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
 }
 
-function onMouseMove(e) {
-  if (!dragging.value || !containerRef.value) return
-  const rect = containerRef.value.getBoundingClientRect()
-  const newHeight = e.clientY - rect.top
-  topHeight.value = Math.max(200, newHeight)
+function onDblClick() {
+  const mid = (DEFAULT_HEIGHT + EXPANDED_HEIGHT) / 2
+  if (topHeight.value < mid) {
+    topHeight.value = EXPANDED_HEIGHT
+  } else {
+    topHeight.value = DEFAULT_HEIGHT
+  }
 }
-
-function onMouseUp() {
-  dragging.value = false
-  document.removeEventListener('mousemove', onMouseMove)
-  document.removeEventListener('mouseup', onMouseUp)
-}
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousemove', onMouseMove)
-  document.removeEventListener('mouseup', onMouseUp)
-})
 </script>
 
 <template>
@@ -58,7 +68,7 @@ onBeforeUnmount(() => {
       <el-button size="small" type="primary" @click="close">Close popup</el-button>
     </div>
 
-    <div class="splitter" @mousedown="onMouseDown">
+    <div class="splitter" @mousedown="onMouseDown" @dblclick="onDblClick">
       <div class="splitter-handle"></div>
     </div>
 
@@ -85,10 +95,14 @@ onBeforeUnmount(() => {
   cursor: row-resize;
   user-select: none;
 }
+.builder-view.dragging .top-section {
+  transition: none;
+}
 
 .top-section {
   flex-shrink: 0;
   min-height: 200px;
+  transition: height 0.25s ease;
   background: #fff;
   border-radius: 8px;
   padding: 16px;
@@ -130,18 +144,27 @@ onBeforeUnmount(() => {
 }
 
 .splitter-handle {
-  width: 48px;
-  height: 4px;
-  border-radius: 2px;
-  background: #c0c4cc;
-  transition: background 0.15s, width 0.15s;
+  width: 72px;
+  height: 7px;
+  position: relative;
 }
-
-.splitter:hover .splitter-handle,
-.builder-view.dragging .splitter-handle {
-  background: var(--clara-primary);
-  width: 64px;
+.splitter-handle::before,
+.splitter-handle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(0,0,0,0.2);
+  transition: background 0.15s ease;
 }
+.splitter:hover .splitter-handle::before,
+.splitter:hover .splitter-handle::after {
+  background: rgba(64,120,192,0.5);
+}
+.splitter-handle::before { top: 0; }
+.splitter-handle::after { bottom: 0; }
 
 .action-bar {
   display: flex;
