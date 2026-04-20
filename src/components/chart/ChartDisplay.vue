@@ -192,28 +192,28 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 10,
-      top: 55,
+      right: 150,
+      top: 50,
       bottom: 20,
-      width: 260,
+      width: 350,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 230 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 320 }
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 300 : 240,
+      right: config.yAxisSecondary ? 390 : 370,
       top: 50,
       bottom: 40
     },
     toolbox: {
       show: true,
-      right: 230,
-      top: 6,
-      itemSize: 16,
+      right: 360,
+      top: 5,
+      itemSize: 18,
       itemGap: 12,
       showTitle: false,
       tooltip: {
@@ -264,7 +264,7 @@ const chartOption = computed(() => {
     dataZoom: [
       { type: 'inside', xAxisIndex: 0, yAxisIndex: 0, filterMode: 'none',
         zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false,
-        minSpan: 0, maxSpan: 100, startValue: null, endValue: null }
+        start: 0, end: 100, zoomLock: false, throttle: 50 }
     ],
     xAxis: isBar
       ? {
@@ -277,6 +277,7 @@ const chartOption = computed(() => {
       : {
           type: 'value',
           scale: true,
+          boundaryGap: ['5%', '5%'],
           name: getAxisLabel(config.xAxis),
           nameLocation: 'center',
           nameGap: 30
@@ -285,6 +286,7 @@ const chartOption = computed(() => {
       {
         type: 'value',
         scale: true,
+        boundaryGap: ['5%', '5%'],
         name: getAxisLabel(config.yAxisPrimary),
         nameLocation: 'center',
         nameGap: 40
@@ -297,6 +299,7 @@ const chartOption = computed(() => {
     option.yAxis.push({
       type: 'value',
       scale: true,
+      boundaryGap: ['5%', '5%'],
       name: getAxisLabel(config.yAxisSecondary),
       nameLocation: 'center',
       nameGap: 40,

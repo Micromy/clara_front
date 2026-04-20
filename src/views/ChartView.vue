@@ -13,12 +13,13 @@ const chartTab = computed(() => {
   return store.chartTabs.find(t => t.builderId === builderId)
 })
 
-const tableExpanded = ref(false)
 const chartDisplayRef = ref(null)
 const chartViewRef = ref(null)
 const chartWidthPx = ref(800)
+const tableSplitPx = ref(null)
+const draggingSplit = ref(false)
 
-const ASPECT_RATIO = 4 / 3
+const ASPECT_RATIO = 3 / 2
 
 let resizeObserver = null
 
@@ -28,7 +29,7 @@ function updateChartWidth() {
   const h = el.clientHeight
   const w = el.clientWidth
   const ideal = Math.round(h * ASPECT_RATIO)
-  const maxPx = Math.round(w * 0.7)
+  const maxPx = Math.round(w * 0.8)
   const minPx = Math.round(w * 0.3)
   chartWidthPx.value = Math.min(maxPx, Math.max(minPx, ideal))
   chartDisplayRef.value?.resize()
@@ -44,9 +45,45 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
 })
 
-function toggleSplit() {
-  tableExpanded.value = !tableExpanded.value
-  setTimeout(() => chartDisplayRef.value?.resize(), 260)
+const splitLeft = computed(() => {
+  return tableSplitPx.value != null ? tableSplitPx.value : chartWidthPx.value
+})
+
+function onSplitMouseDown(e) {
+  e.preventDefault()
+  const startX = e.clientX
+  let moved = false
+  const doc = e.target.ownerDocument || document
+  function onMove(ev) {
+    if (!moved && Math.abs(ev.clientX - startX) < 4) return
+    moved = true
+    draggingSplit.value = true
+    const rect = chartViewRef.value?.getBoundingClientRect()
+    if (!rect) return
+    const x = ev.clientX - rect.left
+    const minX = chartWidthPx.value * 0.3
+    const maxX = chartWidthPx.value
+    tableSplitPx.value = Math.max(minX, Math.min(maxX, x))
+  }
+  function onUp() {
+    draggingSplit.value = false
+    doc.removeEventListener('mousemove', onMove)
+    doc.removeEventListener('mouseup', onUp)
+  }
+  doc.addEventListener('mousemove', onMove)
+  doc.addEventListener('mouseup', onUp)
+}
+
+function onSplitDblClick() {
+  const minX = chartWidthPx.value * 0.3
+  const maxX = chartWidthPx.value
+  const mid = (minX + maxX) / 2
+  const current = tableSplitPx.value ?? maxX
+  if (current > mid) {
+    tableSplitPx.value = minX
+  } else {
+    tableSplitPx.value = null
+  }
 }
 
 function onRowHover(cellId) {
@@ -60,25 +97,16 @@ function onRowClick(cellId) {
 </script>
 
 <template>
-  <div ref="chartViewRef" class="chart-view" :class="{ expanded: tableExpanded }" v-if="chartTab">
+  <div ref="chartViewRef" class="chart-view" :class="{ 'is-dragging-split': draggingSplit }" v-if="chartTab">
 
     <!-- Chart panel -->
     <div class="chart-left" :style="{ width: chartWidthPx + 'px' }">
       <ChartDisplay ref="chartDisplayRef" :chart-data="chartTab" />
     </div>
 
-    <!-- Splitter -->
-    <div
-      class="chart-splitter"
-      :style="{ left: (tableExpanded ? '30%' : chartWidthPx + 'px') }"
-      :title="tableExpanded ? 'Collapse table' : 'Expand table'"
-      @click="toggleSplit"
-    >
-      <span class="splitter-handle">{{ tableExpanded ? '›' : '‹' }}</span>
-    </div>
-
-    <!-- Table panel -->
-    <div class="chart-right" :style="{ left: (tableExpanded ? '30%' : chartWidthPx + 'px'), right: 0 }">
+    <!-- Table panel (left edge is the drag handle) -->
+    <div class="chart-right" :style="{ left: splitLeft + 'px', right: 0 }">
+      <div class="chart-right-edge" @mousedown="onSplitMouseDown" @dblclick="onSplitDblClick"></div>
       <div class="table-panel-body">
         <SourceDataTable
           :chart-data="chartTab"
@@ -124,50 +152,53 @@ function onRowClick(cellId) {
   top: 0;
   height: 100%;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: -6px 0 14px rgba(0, 0, 0, 0.08);
+  border-radius: 10px 0 0 10px;
+  border-top: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
   z-index: 3;
-  transition: left 0.3s ease;
+  transition: left 0.25s ease;
+}
+.is-dragging-split .chart-right {
+  transition: none;
 }
 
+.chart-right-edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 5;
+  border-radius: 10px 0 0 10px;
+  background: linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 40%, transparent 100%);
+  transition: background 0.15s;
+}
+.chart-right-edge:hover {
+  background: linear-gradient(to right, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 40%, transparent 100%);
+}
+.chart-right-edge::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 24px;
+  border-left: 1px solid rgba(0,0,0,0.1);
+  border-right: 1px solid rgba(0,0,0,0.1);
+}
 
 .table-panel-body {
   flex: 1;
   overflow: auto;
-  padding: 10px 14px 14px;
+  padding: 10px 14px 14px 24px;
 }
 
-/* ── Splitter ────────────────────────────────────────────────────────────── */
-.chart-splitter {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: transparent;
-  transition: left 0.3s ease, background 0.15s;
+.chart-view.is-dragging-split {
+  cursor: col-resize;
   user-select: none;
-  z-index: 4;
-}
-
-
-.chart-splitter:hover {
-  background: rgba(144, 147, 153, 0.18);
-}
-
-.splitter-handle {
-  font-size: 16px;
-  color: #909399;
-  line-height: 1;
-  padding: 6px 2px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 /* ── Empty state ─────────────────────────────────────────────────────────── */
