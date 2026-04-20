@@ -1,7 +1,7 @@
 # ARIAS Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-04-17
-> 현재 브랜치: `main` (HEAD: `fb57fdc`)
+> 마지막 업데이트: 2026-04-20
+> 현재 브랜치: `main` (HEAD: `733edb4`)
 > 리포: `Micromy/clara_front`
 
 ---
@@ -36,18 +36,21 @@
 - **Library 드롭다운** — 다중 선택 (`multiple` + `collapse-tags`), PDK 변경 시 자동 초기화
 - **Cell Name 검색** — 디바운스 300ms, 입력 즉시 필터링 (Search 버튼 불필요)
 - Cell Type / PDK / Library 3개 필터 AND 조합으로 검색
+- **쉼표 구분 AND 검색** — Cell Name 및 컬럼 필터에서 `DFF, D2` 형태로 다중 조건 검색
 - 타입 변경 시 selected cells / 검색 결과 / chartConfig / derivedFormulas 일괄 초기화
 - el-table `reserve-selection` 누수 방지 가드 (`filteredCells`로 화이트리스트)
 - 다중 선택, 페이지 간 선택 유지, **드래그 선택** (`useDragSelect` composable)
-- 별도 팝업창으로 검색 분리 가능 (`usePopupWindow` — Pinia / Element Plus 공유)
+- **이미 선택된 셀 비활성화** — 현재 빌더의 selectedCellIds에 있는 셀은 체크박스 disabled + 행 반투명
+- **컬럼 auto-width** — 콘텐츠 길이 기반 자동 너비 계산 (상단 CHAR_WIDTH=8, 하단 CHAR_WIDTH=7)
+- 별도 팝업창으로 검색 분리 가능 (`usePopupWindow` — Pinia / Element Plus 공유, 다른 모니터 지원)
 - 상단 검색 테이블에서 `cellType` / `PDK` 컬럼 제거 (드롭다운으로 이미 필터링하므로 중복)
 
 ### 3-2. 셀 추가 & Aliasing
-- 상단 검색 테이블에서 체크 → **액션 바**의 화살표 클릭 → 하단 Selected Cells에 추가 + **alias 일괄 적용** (프롬프트 입력)
+- 상단 검색 테이블 **footer** 에서 Checked 카운트 + Alias 입력 + ↓ Add 버튼
 - 같은 alias를 부여하면 차트에서 "By Alias" 그룹핑으로 하나의 시리즈로 묶임
 
 ### 3-3. Selected Cells 패널
-- **체크박스 (좌측 고정)** + 체크 항목 **일괄 제거** (X 버튼 제거됨)
+- **체크박스 (좌측 고정)** + 체크 시 **Remove 버튼** 등장 (panel-controls 영역, hover 시 빨간색)
 - **Alias / Cell Name** 고정 2열 (Cell Name 280px)
 - **Metadata ↔ Simulation** 토글 (el-switch)
 - **Raw ↔ Diff** 비교 모드 + Reference 셀 선택
@@ -69,13 +72,14 @@
 ### 3-5. 차트 (ChartDisplay)
 - ECharts scatter / line / bar
 - Grouping 기준 시리즈 분할 (셀 1개 = 점 1개)
-- **인터랙티브 줌** — 마우스 휠, 드래그 팬, Box Zoom, Reset, Save Image (toolbox)
-- 기본 zoom: 양쪽 5% 크롭하여 데이터 영역 강조
-- **데이터 라벨 토글** — `showLabels` prop으로 점 위에 이름 고정 표시
+- **인터랙티브 줌** — 마우스 휠 X+Y 동시 줌 + 드래그 팬
+- **커스텀 toolbox** — T (라벨 토글), ↺ (리셋), ↓ (PNG 저장) 커스텀 SVG 아이콘
+- **데이터 라벨 토글** — T 아이콘 클릭으로 on/off, 네모 테두리 + 연결선 + shiftY 겹침 방지
 - **emphasis / blur** — 시리즈 호버 시 다른 시리즈 blur (opacity 0.3)
 - **테이블 행 선택 → 차트 하이라이트** 연동
-- **범례 우측 세로 배치** (기존 하단 → 오른쪽)
-- PNG 내보내기 (Export PNG 버튼)
+- **범례 우측 세로 배치** (width 240px, 텍스트 truncate)
+- **차트 4:3 비율** — ResizeObserver로 높이 기반 너비 계산 (px 단위, 리사이즈 시 테이블 공간 확장)
+- 타이틀 좌상단, 앱 폰트와 통일
 
 ### 3-6. 차트 페이지
 - ChartView 좌/우 분할 (차트 70% / Source Data 30%)
@@ -85,8 +89,11 @@
 
 ### 3-7. 빌더 / 탭 관리
 - 다중 Builder 탭 + Builder 별 Chart 탭 자동 생성
-- **더블클릭으로 탭 이름 인라인 편집** (Builder / Chart 모두, `@keydown.stop` 으로 backspace 누수 차단)
-- 새 Builder 추가, 닫기
+- **탭 컨텍스트 메뉴** (`⋯` 아이콘 또는 우클릭) — Rename (Builder만) / Close
+- **Builder 닫기 확인 다이얼로그** — 선택된 셀 수 경고
+- **탭 드래그 순서 변경** — Builder/Chart 자유 혼합, 드롭 위치 파란 라인 표시
+- **탭 이름 인라인 편집** — ✏️ 클릭 → 입력 + ✓ 확인 (Builder만)
+- 새 Builder 추가 시 빈 검색 상태로 시작
 
 ### 3-8. 레이아웃
 - 상단 / 하단 **드래그 splitter** — 상단 높이만 조절, 하단은 자체 크기 유지
@@ -94,7 +101,8 @@
 - 우측 ChartConfigPanel 360px 고정
 
 ### 3-9. 영속성
-- localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name), `cellAliases`, `activeBuilderIndex`
+- localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name / **search**), `cellAliases`, `activeBuilderIndex`
+- **빌더별 검색 상태 독립** — 빌더 전환 시 search 조건 save/restore (PDK→Library cascade 방지 플래그)
 - 첫 렌더 전 동기 복원
 - `nextBuilderId` / `nextDerivedId` 충돌 방지
 
@@ -308,7 +316,7 @@ export async function fetchSimulations() {
 - [x] 필터 변경 시 **Search 버튼 누르지 않고 즉시** 목록 업데이트
 - [x] 팝업 검색창에서 **페이지당 표시 개수 선택** 옵션 (이미 메인은 있음, 팝업도 동일하게)
 - [x] 컬럼 헤더의 **필터 / 정렬 아이콘 위치 변경** + 컬럼 우측에 고정
-- [ ] 컬럼 너비 **auto** (각 컬럼 max 너비만 지정, 콘텐츠에 맞춰 자동 축소) — fixed width 유지 중
+- [x] 컬럼 너비 **auto** — 콘텐츠 기반 자동 계산 (calcAutoWidth), 상하단 별도 CHAR_WIDTH
 - [x] Diff / Ratio **백분율 표시**, 자릿수 정렬
 
 ### 10-2. Cell 선택 & Aliasing
