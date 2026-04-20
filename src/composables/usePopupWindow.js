@@ -62,7 +62,20 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
-    // Copy all CSS custom properties from main window to popup
+    const mountEl = popup.document.getElementById('popup-root')
+    const popupBody = popup.document.body
+
+    popupApp = createApp({
+      render: () => h(component, props)
+    })
+    popupApp.provide('popupBody', popupBody)
+    const pinia = getActivePinia()
+    if (pinia) popupApp.use(pinia)
+    popupApp.use(ElementPlus)
+    for (const [k, v] of Object.entries(ElementPlusIcons)) popupApp.component(k, v)
+    popupApp.mount(mountEl)
+
+    // Sync CSS custom properties AFTER mount so they override Element Plus defaults
     const mainStyles = getComputedStyle(document.documentElement)
     const varsToSync = []
     for (const sheet of document.styleSheets) {
@@ -82,19 +95,6 @@ export function usePopupWindow() {
       const val = mainStyles.getPropertyValue(v)
       if (val) popup.document.documentElement.style.setProperty(v, val.trim())
     })
-
-    const mountEl = popup.document.getElementById('popup-root')
-    const popupBody = popup.document.body
-
-    popupApp = createApp({
-      render: () => h(component, props)
-    })
-    popupApp.provide('popupBody', popupBody)
-    const pinia = getActivePinia()
-    if (pinia) popupApp.use(pinia)
-    popupApp.use(ElementPlus)
-    for (const [k, v] of Object.entries(ElementPlusIcons)) popupApp.component(k, v)
-    popupApp.mount(mountEl)
 
     // Mirror any new <style> tags injected by Vite after mount
     styleObserver = new MutationObserver((mutations) => {
