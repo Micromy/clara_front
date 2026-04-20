@@ -62,6 +62,35 @@ export function usePopupWindow() {
     popup.document.body.style.background = '#f5f7fa'
     popup.document.body.style.fontFamily = 'inherit'
 
+    // Force native scrollbar in popup — el-scrollbar thumb drag doesn't
+    // work across window boundaries. Inject directly into popup document
+    // to guarantee it applies regardless of style copying.
+    const scrollFix = popup.document.createElement('style')
+    scrollFix.textContent = `
+      .el-scrollbar { overflow: visible !important; }
+      .el-scrollbar__wrap {
+        overflow: auto !important;
+        margin: 0 !important;
+      }
+      .el-scrollbar__wrap::-webkit-scrollbar {
+        width: 8px !important;
+        height: 8px !important;
+        display: block !important;
+      }
+      .el-scrollbar__wrap::-webkit-scrollbar-thumb {
+        background: #c0c4cc;
+        border-radius: 4px;
+      }
+      .el-scrollbar__wrap::-webkit-scrollbar-track {
+        background: #f0f0f0;
+      }
+      .el-scrollbar__bar {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+    `
+    popup.document.head.appendChild(scrollFix)
+
     const mountEl = popup.document.getElementById('popup-root')
     const popupBody = popup.document.body
 
