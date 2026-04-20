@@ -1,194 +1,159 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { useBuilderStore } from '../stores/builderStore.js'
 
 const router = useRouter()
 const route = useRoute()
 const store = useBuilderStore()
 
+// ── Active state ──
+const activeSetId = computed(() => {
+  const id = route.name === 'Chart'
+    ? Number(route.params.builderId)
+    : Number(route.params.id || store.activeBuilder?.id || 1)
+  return id
+})
+
+const activeSubTab = computed(() => {
+  return route.name === 'Chart' ? 'chart' : 'builder'
+})
+
+function hasChart(builderId) {
+  return store.chartTabs.some(c => c.builderId === builderId)
+}
+
+function selectSet(builder) {
+  const idx = store.builders.findIndex(b => b.id === builder.id)
+  if (idx !== -1) store.activeBuilderIndex = idx
+  if (activeSubTab.value === 'chart' && hasChart(builder.id)) {
+    router.push(`/chart/${builder.id}`)
+  } else {
+    router.push(`/builder/${builder.id}`)
+  }
+}
+
+function switchSubTab(val) {
+  const id = activeSetId.value
+  if (val === 'chart') {
+    router.push(`/chart/${id}`)
+  } else {
+    router.push(`/builder/${id}`)
+  }
+}
+
+// ── Tab editing ──
 const editingTab = ref(null)
 const editingValue = ref('')
 const editInput = ref(null)
 
-function startEdit(tabName, currentLabel) {
-  editingTab.value = tabName
-  editingValue.value = currentLabel
+function startEdit(builderId, currentName) {
+  editingTab.value = builderId
+  editingValue.value = currentName
   nextTick(() => {
     editInput.value?.focus()
     editInput.value?.select()
   })
 }
 
-function commitEdit(tabName) {
+function commitEdit(builderId) {
   const val = editingValue.value.trim()
   if (!val) { editingTab.value = null; return }
-  if (tabName.startsWith('builder-')) {
-    const id = Number(tabName.replace('builder-', ''))
-    const b = store.builders.find(b => b.id === id)
-    if (b) b.name = val
-  } else if (tabName.startsWith('chart-')) {
-    const builderId = Number(tabName.replace('chart-', ''))
-    const c = store.chartTabs.find(t => t.builderId === builderId)
-    if (c) c.builderName = val
-  }
+  const b = store.builders.find(b => b.id === builderId)
+  if (b) b.name = val
   editingTab.value = null
 }
 
-const activeTab = computed(() => {
-  if (route.name === 'Chart') return `chart-${route.params.builderId}`
-  return `builder-${route.params.id || 1}`
-})
-
-function handleTabClick(tab) {
-  const name = tab.paneName || tab.props?.name
-  if (!name) return
-  if (name.startsWith('builder-')) {
-    const id = name.split('-')[1]
-    const idx = store.builders.findIndex(b => b.id === Number(id))
-    if (idx !== -1) store.activeBuilderIndex = idx
-    router.push(`/builder/${id}`)
-  } else if (name.startsWith('chart-')) {
-    const builderId = name.split('-')[1]
-    router.push(`/chart/${builderId}`)
-  }
-}
-
-// ── Unified tab order (builders + charts mixed freely) ──
-const tabOrder = ref([])
-
-const allTabs = computed(() => {
-  const bTabs = store.builders.map(b => ({ key: `builder-${b.id}`, type: 'builder', data: b }))
-  const cTabs = store.chartTabs.map(c => ({ key: `chart-${c.builderId}`, type: 'chart', data: c }))
-  const all = [...bTabs, ...cTabs]
-
-  if (tabOrder.value.length) {
-    const map = new Map(all.map(t => [t.key, t]))
-    const ordered = tabOrder.value.filter(k => map.has(k)).map(k => map.get(k))
-    all.forEach(t => { if (!tabOrder.value.includes(t.key)) ordered.push(t) })
-    return ordered
-  }
-  return all
-})
-
-function syncTabOrder() {
-  tabOrder.value = allTabs.value.map(t => t.key)
-}
-
 // ── Tab drag reorder ──
-const dragTabName = ref(null)
+const dragId = ref(null)
 const dropTarget = ref(null)
 const dropSide = ref(null)
 
-function onDragStart(e, tabName) {
-  dragTabName.value = tabName
+function onDragStart(e, builderId) {
+  dragId.value = builderId
   e.dataTransfer.effectAllowed = 'move'
-  syncTabOrder()
 }
 
-function onDragOver(e, tabName) {
+function onDragOver(e, builderId) {
   e.preventDefault()
   e.dataTransfer.dropEffect = 'move'
-  if (tabName === dragTabName.value) {
-    dropTarget.value = null
-    dropSide.value = null
-    return
-  }
-  dropTarget.value = tabName
+  if (builderId === dragId.value) { dropTarget.value = null; dropSide.value = null; return }
+  dropTarget.value = builderId
   const rect = e.currentTarget.getBoundingClientRect()
   dropSide.value = (e.clientX - rect.left) < rect.width / 2 ? 'left' : 'right'
 }
 
-function onDrop(e, targetName) {
+function onDrop(e, targetId) {
   e.preventDefault()
-  const src = dragTabName.value
-  if (!src || src === targetName) { clearDrag(); return }
-
-  const order = [...tabOrder.value]
-  const srcIdx = order.indexOf(src)
-  if (srcIdx === -1) { clearDrag(); return }
-  order.splice(srcIdx, 1)
-
-  let tgtIdx = order.indexOf(targetName)
-  if (tgtIdx === -1) { clearDrag(); return }
-  if (dropSide.value === 'right') tgtIdx++
-  order.splice(tgtIdx, 0, src)
-  tabOrder.value = order
+  if (!dragId.value || dragId.value === targetId) { clearDrag(); return }
+  const arr = store.builders
+  const srcIdx = arr.findIndex(b => b.id === dragId.value)
+  const tgtIdx = arr.findIndex(b => b.id === targetId)
+  if (srcIdx === -1 || tgtIdx === -1) { clearDrag(); return }
+  const [item] = arr.splice(srcIdx, 1)
+  const insertIdx = dropSide.value === 'right' ? tgtIdx + (srcIdx < tgtIdx ? 0 : 1) : tgtIdx + (srcIdx < tgtIdx ? -1 : 0)
+  arr.splice(Math.max(0, insertIdx), 0, item)
   clearDrag()
 }
 
 function clearDrag() {
-  dragTabName.value = null
+  dragId.value = null
   dropTarget.value = null
   dropSide.value = null
 }
 
+// ── Add / Remove ──
 function addNewBuilder() {
   store.addBuilder()
   const newBuilder = store.builders[store.builders.length - 1]
   router.push(`/builder/${newBuilder.id}`)
 }
 
-function removeBuilderTab(id) {
-  const idx = store.builders.findIndex(b => b.id === Number(id))
-  if (idx !== -1) {
-    store.removeBuilder(idx)
-    router.push(`/builder/${store.activeBuilder.id}`)
-  }
-}
-
-function removeChartTab(builderId) {
-  store.removeChartTab(Number(builderId))
+async function closeSet(builder) {
+  const count = builder.selectedCellIds?.length || 0
+  if (store.builders.length <= 1) return
+  try {
+    await ElMessageBox.confirm(
+      count > 0
+        ? `"${builder.name}" has ${count} selected cell${count > 1 ? 's' : ''}. Close?`
+        : `Close "${builder.name}"?`,
+      'Close',
+      { confirmButtonText: 'Close', cancelButtonText: 'Cancel', type: 'warning' }
+    )
+  } catch { return }
+  const idx = store.builders.findIndex(b => b.id === builder.id)
+  store.removeChartTab(builder.id)
+  store.removeBuilder(idx)
   router.push(`/builder/${store.activeBuilder.id}`)
 }
 
-async function handleTabRemove(name) {
-  const isBuilder = name.startsWith('builder-')
-  if (isBuilder) {
-    const id = Number(name.replace('builder-', ''))
-    const b = store.builders.find(b => b.id === id)
-    const count = b?.selectedCellIds?.length || 0
-    try {
-      await ElMessageBox.confirm(
-        count > 0
-          ? `"${b.name}" has ${count} selected cell${count > 1 ? 's' : ''}. Close this builder?`
-          : `Close "${b.name}"?`,
-        'Close Builder',
-        { confirmButtonText: 'Close', cancelButtonText: 'Cancel', type: 'warning' }
-      )
-    } catch { return }
-    removeBuilderTab(name.replace('builder-', ''))
-  } else {
-    removeChartTab(name.replace('chart-', ''))
-  }
-}
-
 // ── Context menu ──
-const ctxMenu = ref({ visible: false, x: 0, y: 0, tabKey: null, tabType: null })
+const ctxMenu = ref({ visible: false, x: 0, y: 0, builder: null })
 
-function showCtxMenu(e, tabKey, tabType) {
+function showCtxMenu(e, builder) {
   e.preventDefault()
   e.stopPropagation()
-  ctxMenu.value = { visible: true, x: e.clientX, y: e.clientY, tabKey, tabType }
+  ctxMenu.value = { visible: true, x: e.clientX, y: e.clientY, builder }
   document.addEventListener('click', hideCtxMenu, { once: true })
 }
 
-function hideCtxMenu() {
-  ctxMenu.value.visible = false
-}
+function hideCtxMenu() { ctxMenu.value.visible = false }
 
 function ctxRename() {
-  const { tabKey, tabType } = ctxMenu.value
-  if (tabType !== 'builder') return
-  const id = Number(tabKey.replace('builder-', ''))
-  const b = store.builders.find(b => b.id === id)
-  if (b) startEdit(tabKey, b.name)
+  const b = ctxMenu.value.builder
+  if (b) startEdit(b.id, b.name)
+  hideCtxMenu()
+}
+
+function ctxSave() {
+  // TODO: implement chart save
+  ElMessage.info('Chart save coming soon.')
   hideCtxMenu()
 }
 
 function ctxClose() {
-  handleTabRemove(ctxMenu.value.tabKey)
+  closeSet(ctxMenu.value.builder)
   hideCtxMenu()
 }
 </script>
@@ -201,58 +166,61 @@ function ctxClose() {
       </div>
     </header>
 
-    <div class="tab-bar">
-      <el-tabs
-        :model-value="activeTab"
-        type="card"
-        @tab-click="handleTabClick"
-      >
-        <el-tab-pane
-          v-for="tab in allTabs"
-          :key="tab.key"
-          :name="tab.key"
+    <!-- Top row: chart set tabs -->
+    <div class="tab-bar-top">
+      <div class="set-tabs">
+        <div
+          v-for="builder in store.builders"
+          :key="builder.id"
+          class="set-tab"
+          :class="{
+            active: activeSetId === builder.id,
+            'drop-left': dropTarget === builder.id && dropSide === 'left',
+            'drop-right': dropTarget === builder.id && dropSide === 'right',
+            'is-dragging': dragId === builder.id
+          }"
+          draggable="true"
+          @click="selectSet(builder)"
+          @dragstart="onDragStart($event, builder.id)"
+          @dragover="onDragOver($event, builder.id)"
+          @drop="onDrop($event, builder.id)"
+          @dragend="clearDrag"
+          @contextmenu="showCtxMenu($event, builder)"
         >
-          <template #label>
-            <!-- Builder editing -->
-            <span v-if="tab.type === 'builder' && editingTab === tab.key" class="tab-custom" @click.stop>
-              <input
-                ref="editInput"
-                v-model="editingValue"
-                class="tab-edit-input"
-                @keyup.enter="commitEdit(tab.key)"
-                @keydown.stop
-              />
-              <el-icon class="tab-btn tab-btn-confirm" @click="commitEdit(tab.key)"><Check /></el-icon>
-            </span>
-            <!-- Normal state -->
-            <span
-              v-else
-              class="tab-custom"
-              :class="{
-                'drop-left': dropTarget === tab.key && dropSide === 'left',
-                'drop-right': dropTarget === tab.key && dropSide === 'right',
-                'is-dragging': dragTabName === tab.key
-              }"
-              draggable="true"
-              @dragstart="onDragStart($event, tab.key)"
-              @dragover="onDragOver($event, tab.key)"
-              @drop="onDrop($event, tab.key)"
-              @dragend="clearDrag"
-              @contextmenu="showCtxMenu($event, tab.key, tab.type)"
-            >
-              <span class="tab-text">{{ tab.type === 'chart' ? 'Chart: ' : '' }}{{ tab.type === 'builder' ? tab.data.name : tab.data.builderName }}</span>
-              <span class="tab-more" @click.stop="showCtxMenu($event, tab.key, tab.type)">⋯</span>
-            </span>
-          </template>
-        </el-tab-pane>
-      </el-tabs>
-      <el-button
-        class="add-builder-btn"
+          <!-- Editing -->
+          <span v-if="editingTab === builder.id" class="set-tab-edit" @click.stop>
+            <input
+              ref="editInput"
+              v-model="editingValue"
+              class="tab-edit-input"
+              @keyup.enter="commitEdit(builder.id)"
+              @keydown.stop
+            />
+            <el-icon class="tab-btn-confirm" @click="commitEdit(builder.id)"><Check /></el-icon>
+          </span>
+          <!-- Normal -->
+          <span v-else class="set-tab-label">
+            {{ builder.name }}
+            <span class="tab-more" @click.stop="showCtxMenu($event, builder)">⋯</span>
+          </span>
+        </div>
+      </div>
+      <div class="tab-bar-actions">
+        <el-button size="small" @click="addNewBuilder">+ New</el-button>
+      </div>
+    </div>
+
+    <!-- Bottom row: Builder | Chart sub-tab -->
+    <div class="tab-bar-sub">
+      <el-segmented
+        :model-value="activeSubTab"
+        :options="[
+          { label: 'Builder', value: 'builder' },
+          { label: 'Chart', value: 'chart', disabled: !hasChart(activeSetId) }
+        ]"
         size="small"
-        @click="addNewBuilder"
-      >
-        + New Builder
-      </el-button>
+        @change="switchSubTab"
+      />
     </div>
 
     <!-- Context menu -->
@@ -262,12 +230,9 @@ function ctxClose() {
         class="tab-ctx-menu"
         :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
       >
-        <div v-if="ctxMenu.tabType === 'builder'" class="ctx-item" @click="ctxRename">Rename</div>
-        <div
-          v-if="ctxMenu.tabType === 'chart' || store.builders.length > 1"
-          class="ctx-item ctx-item-danger"
-          @click="ctxClose"
-        >Close</div>
+        <div class="ctx-item" @click="ctxRename">Rename</div>
+        <div class="ctx-item" :class="{ 'ctx-item-disabled': !hasChart(ctxMenu.builder?.id) }" @click="hasChart(ctxMenu.builder?.id) && ctxSave()">Save</div>
+        <div v-if="store.builders.length > 1" class="ctx-item ctx-item-danger" @click="ctxClose">Close</div>
       </div>
     </Teleport>
 
@@ -306,31 +271,121 @@ function ctxClose() {
   letter-spacing: 2px;
 }
 
-.tab-bar {
+/* ── Top tab row: chart sets ────────────────────────────── */
+.tab-bar-top {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   background: #fafafa;
   border-bottom: 1px solid #e4e7ed;
   padding: 0 20px;
   flex-shrink: 0;
 }
 
-.tab-bar :deep(.el-tabs) {
+.set-tabs {
+  display: flex;
   flex: 1;
+  gap: 0;
 }
 
-.tab-bar :deep(.el-tabs__header) {
-  margin: 0;
+.set-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 32px 0 16px;
+  height: 38px;
+  font-size: 13.5px;
+  color: #909399;
+  cursor: pointer;
+  border-right: 1px solid #e4e7ed;
+  user-select: none;
+  transition: color 0.15s, background 0.15s;
 }
-.tab-bar :deep(.el-tabs__item) {
-  padding: 0 32px 0 16px !important;
-  height: 40px;
-  line-height: 40px;
+.set-tab:hover { color: #606266; background: #f0f0f0; }
+.set-tab.active {
+  color: #303133;
+  background: #fff;
+  font-weight: 500;
+  border-bottom: 2px solid var(--clara-primary);
+  margin-bottom: -1px;
+}
+.set-tab.is-dragging { opacity: 0.5; }
+
+.set-tab.drop-left::before,
+.set-tab.drop-right::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--clara-primary);
+  border-radius: 1px;
+}
+.set-tab.drop-left::before { left: 0; }
+.set-tab.drop-right::after { right: 0; }
+
+.set-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-tab-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-more {
+  position: absolute;
+  right: 10px;
   font-size: 14px;
+  color: #c0c4cc;
+  opacity: 0.9;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.set-tab:hover .tab-more { opacity: 1; color: #909399; }
+
+.tab-edit-input {
+  font: inherit;
+  font-size: 13px;
+  width: 100px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--clara-primary);
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+  color: #303133;
 }
 
-.add-builder-btn {
-  margin-left: 8px;
+.tab-btn-confirm {
+  position: absolute;
+  right: 10px;
+  font-size: 14px;
+  color: var(--clara-primary);
+  cursor: pointer;
+}
+.tab-btn-confirm:hover { background: var(--clara-primary); color: #fff; border-radius: 2px; }
+
+.tab-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+}
+
+/* ── Bottom sub-tab row ─────────────────────────────────── */
+.tab-bar-sub {
+  display: flex;
+  align-items: center;
+  padding: 6px 20px;
+  background: #fff;
+  border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
 }
 
@@ -340,85 +395,7 @@ function ctxClose() {
   padding: 16px;
 }
 
-/* ── Custom tab content ────────────────────────────────── */
-.tab-custom {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-}
-
-.tab-custom[draggable="true"] {
-  cursor: grab;
-}
-.tab-custom.is-dragging {
-  opacity: 0.5;
-  cursor: grabbing;
-}
-.tab-custom.drop-left::before,
-.tab-custom.drop-right::after {
-  content: '';
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
-  background: var(--clara-primary);
-  border-radius: 1px;
-  box-shadow: 0 0 6px rgba(64, 158, 255, 0.5);
-}
-.tab-custom.drop-left::before {
-  left: -16px;
-}
-.tab-custom.drop-right::after {
-  right: -32px;
-}
-
-.tab-text {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tab-more {
-  position: absolute;
-  right: -24px;
-  font-size: 14px;
-  color: #c0c4cc;
-  cursor: pointer;
-  padding: 0 2px;
-  border-radius: 2px;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-  user-select: none;
-  line-height: 1;
-  letter-spacing: 1px;
-}
-.tab-custom:hover .tab-more {
-  opacity: 1;
-}
-.tab-more:hover {
-  color: var(--clara-primary);
-  background: rgba(64, 158, 255, 0.1);
-}
-
-.tab-btn-confirm {
-  position: absolute;
-  right: -24px;
-  font-size: 15px;
-  color: var(--clara-primary);
-  cursor: pointer;
-  border-radius: 2px;
-  padding: 2px;
-  transition: color 0.15s, background 0.15s;
-}
-.tab-btn-confirm:hover {
-  color: #fff;
-  background: var(--clara-primary);
-}
-
-/* ── Context menu ──────────────────────────────────── */
+/* ── Context menu ──────────────────────────────────────── */
 .tab-ctx-menu {
   position: fixed;
   z-index: 9999;
@@ -436,26 +413,9 @@ function ctxClose() {
   cursor: pointer;
   user-select: none;
 }
-.ctx-item:hover {
-  background: #f5f7fa;
-}
-.ctx-item-danger {
-  color: #f56c6c;
-}
-.ctx-item-danger:hover {
-  background: rgba(245, 108, 108, 0.08);
-}
-
-.tab-edit-input {
-  font: inherit;
-  font-size: 13px;
-  width: 90px;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid var(--clara-primary);
-  border-radius: 3px;
-  outline: none;
-  background: #fff;
-  color: #303133;
-}
+.ctx-item:hover { background: #f5f7fa; }
+.ctx-item-danger { color: #f56c6c; }
+.ctx-item-danger:hover { background: rgba(245, 108, 108, 0.08); }
+.ctx-item-disabled { color: #c0c4cc; cursor: not-allowed; }
+.ctx-item-disabled:hover { background: transparent; }
 </style>
