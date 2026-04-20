@@ -121,7 +121,7 @@ def fetch(cursor, table, mapping, order_by=None, where='', suffix=''):
         sql += f' ORDER BY {order_by} ASC'
     if suffix:
         sql += suffix
-    print(f'[SQL] {sql[:200]}...' if len(sql) > 200 else f'[SQL] {sql}')
+    print(f'[SQL] {sql}')
     cursor.execute(sql)
     col_order = [mapping[c[0]] for c in cursor.description]
     return [dict(zip(col_order, (coerce(v) for v in row))) for row in cursor]
