@@ -215,6 +215,8 @@ const chartOption = computed(() => {
       top: 6,
       itemSize: 16,
       itemGap: 12,
+      showTitle: true,
+      tooltip: { show: true, position: 'bottom' },
       iconStyle: {
         borderColor: 'transparent',
         borderWidth: 0
@@ -411,6 +413,7 @@ defineExpose({
 <style scoped>
 .chart-display {
   height: 100%;
+  overflow: hidden;
 }
 
 .chart-container {

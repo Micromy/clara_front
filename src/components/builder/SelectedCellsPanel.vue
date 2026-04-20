@@ -202,7 +202,7 @@ function simCellInfo(row, col) {
       </el-table-column>
 
       <!-- Cell Name (fixed 2nd) -->
-      <el-table-column label="Cell Name" width="280" show-overflow-tooltip fixed>
+      <el-table-column label="Cell Name" width="320" :show-overflow-tooltip="{ showAfter: 500 }" fixed>
         <template #default="{ row }">
           <el-tag v-if="isRefRow(row)" size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
           <span>{{ row.cellName }}</span>

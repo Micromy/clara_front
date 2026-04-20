@@ -34,7 +34,8 @@ const pendingCellType = computed({
         await ElMessageBox.confirm(
           `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`,
           'Switch Cell Type',
-          { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning' }
+          { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning',
+            appendTo: popupBody || document.body }
         )
       } catch {
         store.setPendingCellType(prev)
@@ -110,6 +111,11 @@ function addToSelection() {
     store.batchSetAlias(store.activeBuilder.id, ids, aliasInput.value.trim())
   }
   aliasInput.value = ''
+  clearChecks()
+}
+
+function clearAllFilters() {
+  store.resetSearch()
   clearChecks()
 }
 
@@ -201,6 +207,12 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           prefix-icon="Search"
           style="width: 320px"
         />
+        <el-button
+          size="small"
+          text
+          :disabled="!pendingCellType && !pendingPdk && pendingLibraries.length === 0 && !pendingQuery"
+          @click="clearAllFilters"
+        >Clear All</el-button>
       </div>
 
       <div class="right-controls">
