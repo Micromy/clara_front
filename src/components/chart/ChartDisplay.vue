@@ -215,6 +215,7 @@ const chartOption = computed(() => {
       top: 6,
       itemSize: 16,
       itemGap: 12,
+      showTitle: true,
       iconStyle: {
         borderColor: 'transparent',
         borderWidth: 0
@@ -233,13 +234,26 @@ const chartOption = computed(() => {
             labelsOn.value = !labelsOn.value
           }
         },
-        restore: {
-          title: 'Reset',
-          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>')
+        myReset: {
+          show: true,
+          title: 'Reset view',
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>'),
+          onclick: function() {
+            if (chartInstance) chartInstance.dispatchAction({ type: 'restore' })
+          }
         },
-        saveAsImage: {
-          title: 'Save PNG',
-          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>')
+        mySave: {
+          show: true,
+          title: 'Save as image',
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'),
+          onclick: function() {
+            if (!chartInstance) return
+            const url = chartInstance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'chart.png'
+            a.click()
+          }
         }
       }
     },

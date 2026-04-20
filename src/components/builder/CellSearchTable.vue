@@ -20,7 +20,7 @@ const popupBody = inject('popupBody', null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const tableRef = ref(null)
-const { onCellMouseEnter } = useDragSelect(tableRef)
+const { onCellMouseEnter } = props.inPopup ? { onCellMouseEnter: () => {} } : useDragSelect(tableRef)
 
 const pendingCellType = computed({
   get: () => store.pendingSearch.cellType,
