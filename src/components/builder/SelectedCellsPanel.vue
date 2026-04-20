@@ -143,6 +143,7 @@ function simCellInfo(row, col) {
           v-if="checkedCellIds.length > 0"
           size="small"
           class="remove-btn"
+          style="padding: 2px 8px; font-size: 11px;"
           @click="removeChecked"
         >Remove {{ checkedCellIds.length }}</el-button>
       </div>
