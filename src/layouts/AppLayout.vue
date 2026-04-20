@@ -210,17 +210,18 @@ function ctxClose() {
       </div>
     </div>
 
-    <!-- Bottom row: Builder | Chart sub-tab -->
-    <div class="tab-bar-sub">
-      <el-segmented
-        :model-value="activeSubTab"
-        :options="[
-          { label: 'Builder', value: 'builder' },
-          { label: 'Chart', value: 'chart', disabled: !hasChart(activeSetId) }
-        ]"
-        size="small"
-        @change="switchSubTab"
-      />
+    <!-- Bottom row: Builder | Chart sub-tab (only when chart exists) -->
+    <div v-if="hasChart(activeSetId)" class="tab-bar-sub">
+      <div
+        class="sub-tab"
+        :class="{ active: activeSubTab === 'builder' }"
+        @click="switchSubTab('builder')"
+      >Builder</div>
+      <div
+        class="sub-tab"
+        :class="{ active: activeSubTab === 'chart' }"
+        @click="switchSubTab('chart')"
+      >Chart</div>
     </div>
 
     <!-- Context menu -->
@@ -275,8 +276,8 @@ function ctxClose() {
 .tab-bar-top {
   display: flex;
   align-items: stretch;
-  background: #fafafa;
-  border-bottom: 1px solid #e4e7ed;
+  background: #fff;
+  border-bottom: 1px solid #ebeef5;
   padding: 0 20px;
   flex-shrink: 0;
 }
@@ -291,22 +292,21 @@ function ctxClose() {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 32px 0 16px;
-  height: 38px;
-  font-size: 13.5px;
+  padding: 0 32px 0 14px;
+  height: 32px;
+  font-size: 13px;
   color: #909399;
   cursor: pointer;
-  border-right: 1px solid #e4e7ed;
+  border-right: 1px solid #ebeef5;
   user-select: none;
   transition: color 0.15s, background 0.15s;
 }
-.set-tab:hover { color: #606266; background: #f0f0f0; }
+.set-tab:hover { color: #606266; background: #f5f7fa; }
 .set-tab.active {
   color: #303133;
   background: #fff;
   font-weight: 500;
-  border-bottom: 2px solid var(--clara-primary);
-  margin-bottom: -1px;
+  box-shadow: inset 0 -2px 0 var(--clara-primary);
 }
 .set-tab.is-dragging { opacity: 0.5; }
 
@@ -382,11 +382,28 @@ function ctxClose() {
 /* ── Bottom sub-tab row ─────────────────────────────────── */
 .tab-bar-sub {
   display: flex;
-  align-items: center;
-  padding: 6px 20px;
+  align-items: stretch;
+  padding: 0 20px;
   background: #fff;
   border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
+}
+.sub-tab {
+  padding: 0 14px;
+  height: 30px;
+  line-height: 30px;
+  font-size: 12.5px;
+  color: #909399;
+  cursor: pointer;
+  border-right: 1px solid #ebeef5;
+  user-select: none;
+  transition: color 0.15s;
+}
+.sub-tab:hover { color: #606266; }
+.sub-tab.active {
+  color: #303133;
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--clara-primary);
 }
 
 .app-main {
