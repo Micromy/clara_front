@@ -201,14 +201,14 @@ function cellInfo(row, col) {
       @cell-mouse-leave="() => emit('row-hover', null)"
     >
       <!-- Alias (fixed, 1st) -->
-      <el-table-column label="Alias" prop="alias" fixed width="140" sortable show-overflow-tooltip>
+      <el-table-column label="Alias" prop="alias" fixed width="140" sortable :show-overflow-tooltip="{ showAfter: 500 }">
         <template #default="{ row }">
           <span class="cell-alias">{{ row.alias && row.alias !== row.cellName ? row.alias : row.cellName }}</span>
         </template>
       </el-table-column>
 
       <!-- Cell Name (fixed, 2nd) -->
-      <el-table-column label="Cell Name" prop="cellName" fixed width="280" sortable show-overflow-tooltip>
+      <el-table-column label="Cell Name" prop="cellName" fixed width="280" sortable :show-overflow-tooltip="{ showAfter: 500 }">
         <template #default="{ row }">
           <span class="cell-id">
             <el-tag v-if="isRefRow(row)" size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
@@ -224,7 +224,7 @@ function cellInfo(row, col) {
         :prop="col.key"
         min-width="120"
         sortable
-        show-overflow-tooltip
+        :show-overflow-tooltip="{ showAfter: 500 }"
       >
         <template #header>
           <div class="col-header">
