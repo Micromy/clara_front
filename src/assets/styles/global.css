@@ -28,6 +28,10 @@ html, body, #app {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.el-popper.is-dark {
+  opacity: 0.9;
+}
+
 .el-table .cell {
   font-size: 13px;
   font-variant-numeric: tabular-nums;

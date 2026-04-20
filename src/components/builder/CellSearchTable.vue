@@ -30,16 +30,14 @@ const pendingCellType = computed({
     const selectedCount = store.activeBuilder?.selectedCellIds.length || 0
 
     if (prev && prev !== v && selectedCount > 0) {
-      try {
-        await ElMessageBox.confirm(
-          `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`,
-          'Switch Cell Type',
-          { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning',
-            appendTo: popupBody || document.body }
-        )
-      } catch {
-        store.setPendingCellType(prev)
-        return
+      const msg = `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`
+      if (props.inPopup) {
+        if (!confirm(msg)) { store.setPendingCellType(prev); return }
+      } else {
+        try {
+          await ElMessageBox.confirm(msg, 'Switch Cell Type',
+            { confirmButtonText: 'Continue', cancelButtonText: 'Cancel', type: 'warning' })
+        } catch { store.setPendingCellType(prev); return }
       }
     }
 
@@ -115,8 +113,9 @@ function addToSelection() {
 }
 
 function clearAllFilters() {
-  store.resetSearch()
-  clearChecks()
+  const keys = Object.keys(store.pendingSearch.columnFilters || {})
+  keys.forEach(k => store.clearPendingColumnFilter(k))
+  store.applySearch()
 }
 
 function isSelectable(row) {
@@ -210,7 +209,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         <el-button
           size="small"
           text
-          :disabled="!pendingCellType && !pendingPdk && pendingLibraries.length === 0 && !pendingQuery"
+          :disabled="Object.keys(store.pendingSearch.columnFilters || {}).length === 0"
           @click="clearAllFilters"
         >Clear All</el-button>
       </div>

@@ -204,10 +204,10 @@ const chartOption = computed(() => {
       textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 200 }
     },
     grid: {
-      left: 60,
+      left: 80,
       right: config.yAxisSecondary ? 300 : 240,
       top: 50,
-      bottom: 40
+      bottom: 50
     },
     toolbox: {
       show: true,
@@ -215,8 +215,8 @@ const chartOption = computed(() => {
       top: 6,
       itemSize: 16,
       itemGap: 12,
-      showTitle: true,
-      tooltip: { show: true, position: 'bottom' },
+      showTitle: false,
+      tooltip: { show: true },
       iconStyle: {
         borderColor: 'transparent',
         borderWidth: 0
