@@ -156,7 +156,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         <el-select
           v-model="pendingCellType"
           placeholder="Cell Type *"
-          style="width: 130px"
+          style="width: 90px"
           :teleported="!inPopup"
         >
           <el-option
@@ -212,7 +212,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           text
           :disabled="Object.keys(store.pendingSearch.columnFilters || {}).length === 0"
           @click="clearAllFilters"
-        >Clear All</el-button>
+        >Clear Filters</el-button>
       </div>
 
       <div class="right-controls">

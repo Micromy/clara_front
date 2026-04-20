@@ -185,7 +185,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const builders = ref(
     (_saved?.builders ?? [
-      { id: 1, name: 'Builder 1', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
+      { id: 1, name: 'Untitled', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
     ]).map(ensureBuilderSearch)
   )
   const activeBuilderIndex = ref(
@@ -600,12 +600,19 @@ export const useBuilderStore = defineStore('builder', () => {
     activeBuilder.value.derivedFormulas = []
   }
 
+  function nextUntitledName() {
+    const names = builders.value.map(b => b.name)
+    let i = 1
+    while (names.includes(i === 1 ? 'Untitled' : `Untitled (${i})`)) i++
+    return i === 1 ? 'Untitled' : `Untitled (${i})`
+  }
+
   function addBuilder() {
     saveSearchToBuilder()
     const id = nextBuilderId++
     builders.value.push({
       id,
-      name: `Builder ${id}`,
+      name: nextUntitledName(),
       selectedCellIds: [],
       chartConfig: createDefaultChartConfig(),
       derivedFormulas: [],
@@ -749,6 +756,115 @@ export const useBuilderStore = defineStore('builder', () => {
     savePresetsToStorage()
   }
 
+  // ── Saved Charts (localStorage until backend) ──────────────────────────
+  const CHARTS_KEY = 'arias-saved-charts'
+
+  function loadSavedCharts() {
+    try {
+      return JSON.parse(localStorage.getItem(CHARTS_KEY)) || []
+    } catch { return [] }
+  }
+
+  const savedCharts = ref(loadSavedCharts())
+
+  function saveChartsToStorage() {
+    localStorage.setItem(CHARTS_KEY, JSON.stringify(savedCharts.value))
+  }
+
+  function saveChart(name) {
+    if (!activeBuilder.value) return
+    const b = activeBuilder.value
+    const cfg = b.chartConfig
+    const builderId = b.id
+
+    // Collect selected cell IDs + aliases
+    const items = b.selectedCellIds.map(cellId => ({
+      cellId,
+      cellAlias: getCellAlias(builderId, cellId) || ''
+    }))
+
+    // Save chart config as a hidden preset
+    const presetId = Date.now()
+    chartPresets.value.push({
+      id: presetId,
+      name: `${name}__auto`,
+      cellType: activeCellType.value,
+      chartType: cfg.chartType,
+      xAxis: cfg.xAxis,
+      yAxisPrimary: cfg.yAxisPrimary,
+      y1Aggregation: null,
+      yAxisSecondary: cfg.yAxisSecondary,
+      y2Aggregation: null,
+      grouping: cfg.grouping,
+      isVisible: 'N',
+      createdBy: '',
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    })
+    savePresetsToStorage()
+
+    // Save chart
+    savedCharts.value.push({
+      id: Date.now() + 1,
+      name,
+      presetId,
+      cellType: activeCellType.value,
+      items,
+      createdBy: '',
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    })
+    saveChartsToStorage()
+  }
+
+  function restoreChart(chartId) {
+    const chart = savedCharts.value.find(c => c.id === chartId)
+    if (!chart) return
+
+    const preset = chartPresets.value.find(p => p.id === chart.presetId)
+
+    // Create new builder
+    saveSearchToBuilder()
+    const id = nextBuilderId++
+    const newBuilder = {
+      id,
+      name: chart.name,
+      selectedCellIds: chart.items.map(i => i.cellId),
+      chartConfig: preset ? {
+        chartType: preset.chartType,
+        chartTypeSecondary: null,
+        xAxis: preset.xAxis,
+        yAxisPrimary: preset.yAxisPrimary,
+        yAxisSecondary: preset.yAxisSecondary,
+        grouping: preset.grouping
+      } : createDefaultChartConfig(chart.cellType),
+      derivedFormulas: [],
+      search: { pending: createEmptySearch(), applied: createEmptySearch() }
+    }
+    builders.value.push(newBuilder)
+    activeBuilderIndex.value = builders.value.length - 1
+
+    // Restore aliases
+    chart.items.forEach(item => {
+      if (item.cellAlias) {
+        cellAliases.value[`${id}-${item.cellId}`] = item.cellAlias
+      }
+    })
+
+    // Generate chart
+    const chartTab = generateChart()
+    return chartTab
+  }
+
+  function deleteSavedChart(chartId) {
+    const chart = savedCharts.value.find(c => c.id === chartId)
+    if (chart) {
+      // Also delete hidden preset
+      chartPresets.value = chartPresets.value.filter(p => p.id !== chart.presetId)
+      savePresetsToStorage()
+    }
+    savedCharts.value = savedCharts.value.filter(c => c.id !== chartId)
+    saveChartsToStorage()
+  }
+
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
@@ -766,6 +882,8 @@ export const useBuilderStore = defineStore('builder', () => {
     setPendingPdk, setPendingLibraries, pdkOptions, libraryOptions, batchSetAlias,
     applySearch, resetSearch, columnFilterOptions,
     // presets
-    chartPresets, presetsForCellType, savePreset, loadPreset, deletePreset
+    chartPresets, presetsForCellType, savePreset, loadPreset, deletePreset,
+    // saved charts
+    savedCharts, saveChart, restoreChart, deleteSavedChart
   }
 })

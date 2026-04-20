@@ -14,8 +14,8 @@ const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg 
 const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="4" fill="#4078C0"/><line x1="7" y1="6" x2="17" y2="6" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="6" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>')
 
 const COLORS = [
-  '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
-  '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#4dc9f6'
+  '#2563EB', '#E63946', '#2D9F46', '#E88C1E', '#8B5CF6',
+  '#0891B2', '#DC2626', '#16A34A', '#CA8A04', '#7C3AED'
 ]
 
 function getAxisLabel(key) {
@@ -205,7 +205,7 @@ const chartOption = computed(() => {
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 260 : 220,
+      right: config.yAxisSecondary ? 300 : 240,
       top: 50,
       bottom: 40
     },

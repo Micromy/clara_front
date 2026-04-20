@@ -146,10 +146,56 @@ function ctxRename() {
   hideCtxMenu()
 }
 
-function ctxSave() {
-  // TODO: implement chart save
-  ElMessage.info('Chart save coming soon.')
+const loadChartDialogVisible = ref(false)
+
+async function ctxSave() {
+  const builder = ctxMenu.value.builder
   hideCtxMenu()
+  if (!builder) return
+
+  let name = builder.name
+
+  // Check duplicates and append suffix
+  const existing = store.savedCharts.map(c => c.name)
+  if (existing.includes(name)) {
+    let i = 2
+    while (existing.includes(`${name} (${i})`)) i++
+    name = `${name} (${i})`
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `Save as "${name}"?`,
+      'Save Chart',
+      { confirmButtonText: 'Save', cancelButtonText: 'Cancel', type: 'info' }
+    )
+  } catch { return }
+
+  store.saveChart(name)
+  ElMessage.success(`Chart "${name}" saved.`)
+}
+
+function onLoadChart(chartId) {
+  const chartTab = store.restoreChart(chartId)
+  loadChartDialogVisible.value = false
+  if (chartTab) {
+    router.push(`/chart/${chartTab.builderId}`)
+  } else {
+    router.push(`/builder/${store.activeBuilder.id}`)
+  }
+  ElMessage.success('Chart loaded.')
+}
+
+async function onDeleteChart(chart) {
+  try {
+    await ElMessageBox.confirm(
+      `Delete saved chart "${chart.name}"?`,
+      'Delete',
+      { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
+    )
+    store.deleteSavedChart(chart.id)
+    ElMessage.info('Chart deleted.')
+  } catch {}
 }
 
 function ctxClose() {
@@ -166,13 +212,13 @@ function ctxClose() {
       </div>
     </header>
 
-    <!-- Top row: chart set tabs -->
-    <div class="tab-bar-top">
+    <!-- Tab bar: two-level -->
+    <div class="tab-bar">
       <div class="set-tabs">
         <div
           v-for="builder in store.builders"
           :key="builder.id"
-          class="set-tab"
+          class="set-group"
           :class="{
             active: activeSetId === builder.id,
             'drop-left': dropTarget === builder.id && dropSide === 'left',
@@ -180,49 +226,65 @@ function ctxClose() {
             'is-dragging': dragId === builder.id
           }"
           draggable="true"
-          @click="selectSet(builder)"
           @dragstart="onDragStart($event, builder.id)"
           @dragover="onDragOver($event, builder.id)"
           @drop="onDrop($event, builder.id)"
           @dragend="clearDrag"
-          @contextmenu="showCtxMenu($event, builder)"
         >
-          <!-- Editing -->
-          <span v-if="editingTab === builder.id" class="set-tab-edit" @click.stop>
-            <input
-              ref="editInput"
-              v-model="editingValue"
-              class="tab-edit-input"
-              @keyup.enter="commitEdit(builder.id)"
-              @keydown.stop
-            />
-            <el-icon class="tab-btn-confirm" @click="commitEdit(builder.id)"><Check /></el-icon>
-          </span>
-          <!-- Normal -->
-          <span v-else class="set-tab-label">
-            {{ builder.name }}
-            <span class="tab-more" @click.stop="showCtxMenu($event, builder)">⋯</span>
-          </span>
+          <!-- Top: name -->
+          <div class="set-name" @click="selectSet(builder)" @contextmenu="showCtxMenu($event, builder)">
+            <span v-if="editingTab === builder.id" class="set-tab-edit" @click.stop>
+              <input
+                ref="editInput"
+                v-model="editingValue"
+                class="tab-edit-input"
+                @keyup.enter="commitEdit(builder.id)"
+                @keydown.stop
+              />
+              <el-icon class="tab-btn-confirm" @click="commitEdit(builder.id)"><Check /></el-icon>
+            </span>
+            <span v-else class="set-tab-label">
+              {{ builder.name }}
+              <span class="tab-more" @click.stop="showCtxMenu($event, builder)">⋯</span>
+            </span>
+          </div>
+          <!-- Bottom: sub-tabs -->
+          <div class="set-sub" v-if="activeSetId === builder.id">
+            <div
+              class="sub-tab"
+              :class="{ active: activeSubTab === 'builder' }"
+              @click="switchSubTab('builder')"
+            >Builder</div>
+            <div
+              class="sub-tab"
+              :class="{ active: activeSubTab === 'chart', disabled: !hasChart(builder.id) }"
+              @click="hasChart(builder.id) && switchSubTab('chart')"
+            >Chart</div>
+          </div>
         </div>
       </div>
       <div class="tab-bar-actions">
+        <el-button size="small" @click="loadChartDialogVisible = true">Load</el-button>
         <el-button size="small" @click="addNewBuilder">+ New</el-button>
       </div>
     </div>
 
-    <!-- Bottom row: Builder | Chart sub-tab (only when chart exists) -->
-    <div v-if="hasChart(activeSetId)" class="tab-bar-sub">
-      <div
-        class="sub-tab"
-        :class="{ active: activeSubTab === 'builder' }"
-        @click="switchSubTab('builder')"
-      >Builder</div>
-      <div
-        class="sub-tab"
-        :class="{ active: activeSubTab === 'chart' }"
-        @click="switchSubTab('chart')"
-      >Chart</div>
-    </div>
+    <!-- Load Chart Dialog -->
+    <el-dialog v-model="loadChartDialogVisible" title="Load Chart" width="600px" :close-on-click-modal="true">
+      <el-table :data="store.savedCharts" size="small" border stripe max-height="400" empty-text="No saved charts.">
+        <el-table-column prop="name" label="Name" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="createdAt" label="Created" width="140" />
+        <el-table-column prop="createdBy" label="By" width="100">
+          <template #default="{ row }">{{ row.createdBy || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="" width="130" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" link @click="onLoadChart(row.id)">Load</el-button>
+            <el-button size="small" type="danger" link @click="onDeleteChart(row)">Delete</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
 
     <!-- Context menu -->
     <Teleport to="body">
@@ -272,8 +334,8 @@ function ctxClose() {
   letter-spacing: 2px;
 }
 
-/* ── Top tab row: chart sets ────────────────────────────── */
-.tab-bar-top {
+/* ── Tab bar: two-level ──────────────────────────────────── */
+.tab-bar {
   display: flex;
   align-items: stretch;
   background: #fff;
@@ -286,32 +348,25 @@ function ctxClose() {
   display: flex;
   flex: 1;
   gap: 0;
+  margin-left: 1px;
 }
 
-.set-tab {
+.set-group {
   position: relative;
   display: flex;
-  align-items: center;
-  padding: 0 32px 0 14px;
-  height: 32px;
-  font-size: 13px;
-  color: #909399;
-  cursor: pointer;
+  flex-direction: column;
   border-right: 1px solid #ebeef5;
+  border-left: 1px solid #ebeef5;
+  margin-left: -1px;
   user-select: none;
-  transition: color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
-.set-tab:hover { color: #606266; background: #f5f7fa; }
-.set-tab.active {
-  color: #303133;
-  background: #fff;
-  font-weight: 500;
-  box-shadow: inset 0 -2px 0 var(--clara-primary);
-}
-.set-tab.is-dragging { opacity: 0.5; }
+.set-group:hover { background: #f9f9f9; }
+.set-group.active { background: #fff; }
+.set-group.is-dragging { opacity: 0.5; }
 
-.set-tab.drop-left::before,
-.set-tab.drop-right::after {
+.set-group.drop-left::before,
+.set-group.drop-right::after {
   content: '';
   position: absolute;
   top: 4px;
@@ -319,9 +374,26 @@ function ctxClose() {
   width: 2px;
   background: var(--clara-primary);
   border-radius: 1px;
+  z-index: 1;
 }
-.set-tab.drop-left::before { left: 0; }
-.set-tab.drop-right::after { right: 0; }
+.set-group.drop-left::before { left: 0; }
+.set-group.drop-right::after { right: 0; }
+
+.set-name {
+  display: flex;
+  align-items: center;
+  padding: 0 32px 0 14px;
+  height: 26px;
+  font-size: 13px;
+  color: #909399;
+  cursor: pointer;
+  border-bottom: 1px solid #ebeef5;
+}
+.set-group.active .set-name { color: #303133; font-weight: 500; }
+
+.set-sub {
+  display: flex;
+}
 
 .set-tab-label {
   display: flex;
@@ -379,23 +451,13 @@ function ctxClose() {
   padding-left: 12px;
 }
 
-/* ── Bottom sub-tab row ─────────────────────────────────── */
-.tab-bar-sub {
-  display: flex;
-  align-items: stretch;
-  padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
-  flex-shrink: 0;
-}
 .sub-tab {
   padding: 0 14px;
-  height: 30px;
-  line-height: 30px;
-  font-size: 12.5px;
+  height: 24px;
+  line-height: 24px;
+  font-size: 11.5px;
   color: #909399;
   cursor: pointer;
-  border-right: 1px solid #ebeef5;
   user-select: none;
   transition: color 0.15s;
 }
@@ -404,6 +466,10 @@ function ctxClose() {
   color: #303133;
   font-weight: 500;
   box-shadow: inset 0 -2px 0 var(--clara-primary);
+}
+.sub-tab.disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
 }
 
 .app-main {

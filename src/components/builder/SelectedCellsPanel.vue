@@ -34,8 +34,11 @@ function removeCell(cellId)         { store.toggleCellSelection(cellId) }
 
 // Reset column overrides when global mode changes
 watch(comparisonMode, () => { columnModes.value = {} })
+const tableFade = ref(false)
 watch(displayMode, (mode) => {
   if (mode !== 'simulation') comparisonMode.value = 'off'
+  tableFade.value = true
+  setTimeout(() => { tableFade.value = false }, 150)
 })
 
 // Auto-pick reference
@@ -181,6 +184,7 @@ function simCellInfo(row, col) {
       ref="selectedTableRef"
       :data="tableRows"
       :row-class-name="rowClassName"
+      :class="{ 'table-fade': tableFade }"
       border stripe size="small" max-height="580"
       :show-overflow-tooltip="{ showAfter: 500 }"
       empty-text="No cells selected. Select cells from the table above."
@@ -256,6 +260,9 @@ function simCellInfo(row, col) {
 .panel-title-group { display: flex; align-items: center; gap: 10px; }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .panel-controls { display: flex; gap: 12px; align-items: center; }
+
+.selected-cells-panel :deep(.el-table) { transition: opacity 0.12s ease; }
+.selected-cells-panel :deep(.el-table.table-fade) { opacity: 0.4; }
 .remove-btn:hover {
   color: #f56c6c !important;
   border-color: #f56c6c !important;
