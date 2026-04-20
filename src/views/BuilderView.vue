@@ -47,8 +47,8 @@ function onMouseDown(e) {
 }
 
 function onDblClick() {
-  const mid = (DEFAULT_HEIGHT + EXPANDED_HEIGHT) / 2
-  if (topHeight.value < mid) {
+  const nearDefault = Math.abs(topHeight.value - DEFAULT_HEIGHT) < 80
+  if (nearDefault) {
     topHeight.value = EXPANDED_HEIGHT
   } else {
     topHeight.value = DEFAULT_HEIGHT

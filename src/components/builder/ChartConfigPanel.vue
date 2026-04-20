@@ -131,8 +131,8 @@ function onGenerate() {
     <div class="panel-header">
       <h3 class="panel-title">Chart Configuration</h3>
       <div class="preset-btns">
-        <el-button size="small" text @click="onSavePreset">Save</el-button>
-        <el-button size="small" text @click="loadDialogVisible = true">Load</el-button>
+        <button class="preset-action-btn" @click="onSavePreset">Save</button>
+        <button class="preset-action-btn" @click="loadDialogVisible = true">Load</button>
       </div>
     </div>
 
@@ -347,13 +347,21 @@ function onGenerate() {
 }
 .preset-btns {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
-.preset-btns .el-button {
-  border: 1px solid #dcdfe6;
-  border-radius: 12px;
-  padding: 4px 12px;
+.preset-action-btn {
+  border: none;
+  background: none;
   font-size: 12px;
+  color: #909399;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.preset-action-btn:hover {
+  background: rgba(0,0,0,0.04);
+  color: #606266;
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .action-row { display: flex; gap: 4px; width: 100%; }

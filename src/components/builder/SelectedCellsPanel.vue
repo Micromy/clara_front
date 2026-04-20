@@ -142,13 +142,13 @@ function simCellInfo(row, col) {
     <div class="panel-header">
       <div class="panel-title-group">
         <h3 class="panel-title">Selected Cells</h3>
-        <el-button
-          v-if="checkedCellIds.length > 0"
-          size="small"
-          class="remove-btn"
-          style="padding: 2px 8px; font-size: 11px;"
-          @click="removeChecked"
-        >Remove {{ checkedCellIds.length }}</el-button>
+        <Transition name="fade">
+          <button
+            v-if="checkedCellIds.length > 0"
+            class="remove-btn"
+            @click="removeChecked"
+          >Remove {{ checkedCellIds.length }}</button>
+        </Transition>
       </div>
       <div class="panel-controls">
         <el-switch
@@ -263,11 +263,22 @@ function simCellInfo(row, col) {
 
 .selected-cells-panel :deep(.el-table) { transition: opacity 0.12s ease; }
 .selected-cells-panel :deep(.el-table.table-fade) { opacity: 0.4; }
-.remove-btn:hover {
-  color: #f56c6c !important;
-  border-color: #f56c6c !important;
-  background: rgba(245, 108, 108, 0.06) !important;
+.remove-btn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: #909399;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
+.remove-btn:hover {
+  color: #f56c6c;
+  background: rgba(245, 108, 108, 0.06);
+}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 .panel-controls :deep(.el-switch .el-switch__inner .is-text) {
   font-size: 12.5px;

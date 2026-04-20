@@ -43,6 +43,16 @@ function switchSubTab(val) {
   }
 }
 
+function activateSet(builderId, tab) {
+  const idx = store.builders.findIndex(b => b.id === builderId)
+  if (idx !== -1) store.activeBuilderIndex = idx
+  if (tab === 'chart') {
+    router.push(`/chart/${builderId}`)
+  } else {
+    router.push(`/builder/${builderId}`)
+  }
+}
+
 // ── Tab editing ──
 const editingTab = ref(null)
 const editingValue = ref('')
@@ -249,23 +259,23 @@ function ctxClose() {
             </span>
           </div>
           <!-- Bottom: sub-tabs -->
-          <div class="set-sub" v-if="activeSetId === builder.id">
+          <div class="set-sub" :class="{ 'set-sub-hidden': activeSetId !== builder.id }">
             <div
               class="sub-tab"
-              :class="{ active: activeSubTab === 'builder' }"
-              @click="switchSubTab('builder')"
+              :class="{ active: activeSetId === builder.id && activeSubTab === 'builder' }"
+              @click="activateSet(builder.id, 'builder')"
             >Builder</div>
             <div
               class="sub-tab"
-              :class="{ active: activeSubTab === 'chart', disabled: !hasChart(builder.id) }"
-              @click="hasChart(builder.id) && switchSubTab('chart')"
+              :class="{ active: activeSetId === builder.id && activeSubTab === 'chart', disabled: !hasChart(builder.id) }"
+              @click="hasChart(builder.id) && activateSet(builder.id, 'chart')"
             >Chart</div>
           </div>
         </div>
       </div>
       <div class="tab-bar-actions">
-        <el-button size="small" @click="loadChartDialogVisible = true">Load</el-button>
-        <el-button size="small" @click="addNewBuilder">+ New</el-button>
+        <button class="tab-action-btn" @click="loadChartDialogVisible = true">Load</button>
+        <button class="tab-action-btn tab-action-primary" @click="addNewBuilder">+ New</button>
       </div>
     </div>
 
@@ -383,16 +393,26 @@ function ctxClose() {
   display: flex;
   align-items: center;
   padding: 0 32px 0 14px;
-  height: 26px;
+  height: 30px;
   font-size: 13px;
   color: #909399;
   cursor: pointer;
   border-bottom: 1px solid #ebeef5;
 }
-.set-group.active .set-name { color: #303133; font-weight: 500; }
+.set-group.active .set-name {
+  color: #303133;
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--clara-primary);
+}
 
 .set-sub {
   display: flex;
+}
+.set-sub-hidden .sub-tab {
+  color: #c0c4cc;
+}
+.set-sub-hidden .sub-tab:hover {
+  color: #909399;
 }
 
 .set-tab-label {
@@ -447,14 +467,37 @@ function ctxClose() {
 .tab-bar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding-left: 12px;
+}
+
+.tab-action-btn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: #909399;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tab-action-btn:hover {
+  background: rgba(0,0,0,0.04);
+  color: #606266;
+}
+.tab-action-primary {
+  color: var(--clara-primary, #4078C0);
+  font-weight: 600;
+}
+.tab-action-primary:hover {
+  background: rgba(64,120,192,0.08);
+  color: var(--clara-primary, #4078C0);
 }
 
 .sub-tab {
   padding: 0 14px;
-  height: 24px;
-  line-height: 24px;
+  height: 26px;
+  line-height: 26px;
   font-size: 11.5px;
   color: #909399;
   cursor: pointer;
