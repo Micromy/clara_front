@@ -113,11 +113,15 @@ def coerce(v):
         return str(v)
 
 
-def fetch(cursor, table, mapping, order_by=None, suffix=''):
+def fetch(cursor, table, mapping, order_by=None, where='', suffix=''):
     sql = f'SELECT {", ".join(mapping.keys())} FROM {table}'
+    if where:
+        sql += where
     if order_by:
         sql += f' ORDER BY {order_by} ASC'
-    sql += suffix
+    if suffix:
+        sql += suffix
+    print(f'[SQL] {sql[:200]}...' if len(sql) > 200 else f'[SQL] {sql}')
     cursor.execute(sql)
     col_order = [mapping[c[0]] for c in cursor.description]
     return [dict(zip(col_order, (coerce(v) for v in row))) for row in cursor]
@@ -154,7 +158,7 @@ def main():
 
     with oracledb.connect(user=user, password=password, dsn=dsn) as conn:
         with conn.cursor() as cur:
-            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID', suffix=where_clause + limit_clause)
+            cells = fetch(cur, META_TABLE, META_MAP, order_by='ID', where=where_clause, suffix=limit_clause)
             cell_ids = {c['id'] for c in cells}
             ff_rows  = fetch(cur, FF_TABLE,  {**FF_SIM_MAP,  'CELL_ID': 'cellId'})
             icg_rows = fetch(cur, ICG_TABLE, {**ICG_SIM_MAP, 'CELL_ID': 'cellId'})
