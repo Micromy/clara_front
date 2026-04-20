@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import {
   useBuilderStore,
   DERIVED_OPS, FORMULA_TYPES, UNARY_FNS, GROUP_BY_OPTIONS,
@@ -9,6 +10,42 @@ import { useRouter } from 'vue-router'
 
 const store = useBuilderStore()
 const router = useRouter()
+const loadDialogVisible = ref(false)
+
+async function onSavePreset() {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      'Enter a name for this preset.',
+      'Save Preset',
+      {
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel',
+        inputPlaceholder: 'Preset name',
+        inputValidator: v => (v && v.trim()) ? true : 'Name is required'
+      }
+    )
+    store.savePreset(value.trim())
+    ElMessage.success(`Preset "${value.trim()}" saved.`)
+  } catch {}
+}
+
+function onLoadPreset(presetId) {
+  store.loadPreset(presetId)
+  loadDialogVisible.value = false
+  ElMessage.success('Preset loaded.')
+}
+
+async function onDeletePreset(preset) {
+  try {
+    await ElMessageBox.confirm(
+      `Delete preset "${preset.name}"?`,
+      'Delete Preset',
+      { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
+    )
+    store.deletePreset(preset.id)
+    ElMessage.info('Preset deleted.')
+  } catch {}
+}
 
 const derivedFields = computed(() => store.derivedFields)
 const defaultField = computed(() => derivedFields.value[0]?.value ?? 'pdpAvg')
@@ -93,7 +130,31 @@ function onGenerate() {
   <div class="chart-config-panel" v-if="store.activeBuilder">
     <div class="panel-header">
       <h3 class="panel-title">Chart Configuration</h3>
+      <div class="preset-btns">
+        <el-button size="small" text @click="onSavePreset">Save</el-button>
+        <el-button size="small" text @click="loadDialogVisible = true">Load</el-button>
+      </div>
     </div>
+
+    <!-- Load Preset Dialog -->
+    <el-dialog v-model="loadDialogVisible" title="Load Preset" width="680px" :close-on-click-modal="true">
+      <el-table :data="store.presetsForCellType" size="small" border stripe max-height="400" empty-text="No presets saved.">
+        <el-table-column prop="name" label="Name" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="chartType" label="Type" width="80" />
+        <el-table-column prop="xAxis" label="X" width="100" show-overflow-tooltip />
+        <el-table-column prop="yAxisPrimary" label="Y1" width="100" show-overflow-tooltip />
+        <el-table-column prop="yAxisSecondary" label="Y2" width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.yAxisSecondary || '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="Created" width="130" />
+        <el-table-column label="" width="130" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" link @click="onLoadPreset(row.id)">Apply</el-button>
+            <el-button size="small" type="danger" link @click="onDeletePreset(row)">Delete</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
 
     <el-form label-position="top" size="small">
       <el-form-item label="Chart Type">
@@ -184,7 +245,6 @@ function onGenerate() {
             :disabled="store.selectedCells.length === 0"
             @click="onGenerate"
           >Generate Chart</el-button>
-          <el-button size="default" class="action-btn-sub" disabled>Save</el-button>
         </div>
       </el-form-item>
     </el-form>
@@ -281,13 +341,17 @@ function onGenerate() {
 .panel-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   min-height: 32px;
   margin-bottom: 12px;
+}
+.preset-btns {
+  display: flex;
+  gap: 4px;
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .action-row { display: flex; gap: 4px; width: 100%; }
 .action-btn-main { flex: 1; }
-.action-btn-sub { flex-shrink: 0; min-width: 80px; }
 .chart-config-panel :deep(.el-form-item__content) { width: 100%; }
 
 .derived-list {

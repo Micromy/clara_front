@@ -692,6 +692,63 @@ export const useBuilderStore = defineStore('builder', () => {
     { deep: true }
   )
 
+  // ── Chart Presets (localStorage until backend) ─────────────────────────
+  const PRESETS_KEY = 'arias-chart-presets'
+
+  function loadPresets() {
+    try {
+      return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []
+    } catch { return [] }
+  }
+
+  const chartPresets = ref(loadPresets())
+
+  function savePresetsToStorage() {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(chartPresets.value))
+  }
+
+  const presetsForCellType = computed(() => {
+    const ct = activeCellType.value
+    return chartPresets.value.filter(p => p.cellType === ct)
+  })
+
+  function savePreset(name) {
+    if (!activeBuilder.value) return
+    const cfg = activeBuilder.value.chartConfig
+    chartPresets.value.push({
+      id: Date.now(),
+      name,
+      cellType: activeCellType.value,
+      chartType: cfg.chartType,
+      xAxis: cfg.xAxis,
+      yAxisPrimary: cfg.yAxisPrimary,
+      y1Aggregation: null,
+      yAxisSecondary: cfg.yAxisSecondary,
+      y2Aggregation: null,
+      grouping: cfg.grouping,
+      isVisible: true,
+      createdBy: '',
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    })
+    savePresetsToStorage()
+  }
+
+  function loadPreset(presetId) {
+    const preset = chartPresets.value.find(p => p.id === presetId)
+    if (!preset || !activeBuilder.value) return
+    const cfg = activeBuilder.value.chartConfig
+    cfg.chartType = preset.chartType
+    cfg.xAxis = preset.xAxis
+    cfg.yAxisPrimary = preset.yAxisPrimary
+    cfg.yAxisSecondary = preset.yAxisSecondary
+    cfg.grouping = preset.grouping
+  }
+
+  function deletePreset(presetId) {
+    chartPresets.value = chartPresets.value.filter(p => p.id !== presetId)
+    savePresetsToStorage()
+  }
+
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
@@ -707,6 +764,8 @@ export const useBuilderStore = defineStore('builder', () => {
     pendingSearch, appliedSearch, searchDirty, restoringSearch, canSearch, filteredCells,
     setPendingCellType, setPendingQuery, setPendingColumnFilter, clearPendingColumnFilter,
     setPendingPdk, setPendingLibraries, pdkOptions, libraryOptions, batchSetAlias,
-    applySearch, resetSearch, columnFilterOptions
+    applySearch, resetSearch, columnFilterOptions,
+    // presets
+    chartPresets, presetsForCellType, savePreset, loadPreset, deletePreset
   }
 })
