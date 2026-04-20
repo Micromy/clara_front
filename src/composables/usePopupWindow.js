@@ -18,48 +18,47 @@ import { getActivePinia } from 'pinia'
 function patchPopupScrollbars(popup) {
   if (!popup || popup.closed) return
   const doc = popup.document
-  doc.querySelectorAll('.el-scrollbar').forEach(scrollbar => {
-    const wrap = scrollbar.querySelector('.el-scrollbar__wrap')
-    if (!wrap) return
 
-    scrollbar.querySelectorAll('.el-scrollbar__bar').forEach(bar => {
-      const thumb = bar.querySelector('.el-scrollbar__thumb')
-      if (!thumb) return
+  // Capture phase — intercept before Element Plus handler
+  doc.addEventListener('mousedown', (e) => {
+    const thumb = e.target.closest('.el-scrollbar__thumb')
+    if (!thumb) return
 
-      const isHorizontal = bar.classList.contains('is-horizontal')
+    const bar = thumb.closest('.el-scrollbar__bar')
+    const scrollbar = thumb.closest('.el-scrollbar')
+    const wrap = scrollbar?.querySelector('.el-scrollbar__wrap')
+    if (!bar || !wrap) return
 
-      thumb.addEventListener('mousedown', (e) => {
-        e.stopPropagation()
-        e.preventDefault()
+    e.stopImmediatePropagation()
+    e.preventDefault()
 
-        const barRect = bar.getBoundingClientRect()
-        const thumbRect = thumb.getBoundingClientRect()
-        const offset = isHorizontal
-          ? e.clientX - thumbRect.left
-          : e.clientY - thumbRect.top
+    const isHorizontal = bar.classList.contains('is-horizontal')
+    const barRect = bar.getBoundingClientRect()
+    const thumbRect = thumb.getBoundingClientRect()
+    const offset = isHorizontal
+      ? e.clientX - thumbRect.left
+      : e.clientY - thumbRect.top
 
-        function onMove(ev) {
-          if (isHorizontal) {
-            const pos = ev.clientX - barRect.left - offset
-            const ratio = pos / (barRect.width - thumbRect.width)
-            wrap.scrollLeft = ratio * (wrap.scrollWidth - wrap.clientWidth)
-          } else {
-            const pos = ev.clientY - barRect.top - offset
-            const ratio = pos / (barRect.height - thumbRect.height)
-            wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight)
-          }
-        }
+    function onMove(ev) {
+      if (isHorizontal) {
+        const pos = ev.clientX - barRect.left - offset
+        const ratio = Math.max(0, Math.min(1, pos / (barRect.width - thumbRect.width)))
+        wrap.scrollLeft = ratio * (wrap.scrollWidth - wrap.clientWidth)
+      } else {
+        const pos = ev.clientY - barRect.top - offset
+        const ratio = Math.max(0, Math.min(1, pos / (barRect.height - thumbRect.height)))
+        wrap.scrollTop = ratio * (wrap.scrollHeight - wrap.clientHeight)
+      }
+    }
 
-        function onUp() {
-          doc.removeEventListener('mousemove', onMove)
-          doc.removeEventListener('mouseup', onUp)
-        }
+    function onUp() {
+      doc.removeEventListener('mousemove', onMove)
+      doc.removeEventListener('mouseup', onUp)
+    }
 
-        doc.addEventListener('mousemove', onMove)
-        doc.addEventListener('mouseup', onUp)
-      })
-    })
-  })
+    doc.addEventListener('mousemove', onMove)
+    doc.addEventListener('mouseup', onUp)
+  }, true)  // capture: true
 }
 
 export function usePopupWindow() {
