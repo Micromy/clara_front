@@ -83,6 +83,27 @@ const numericKeys = computed(() => {
 })
 
 // Columns ordered: xAxis, yAxisPrimary, yAxisSecondary, simulation columns, meta fields, derived
+const CHAR_WIDTH = 7
+const CELL_PADDING = 24
+const SORT_ICON_WIDTH = 24
+const MIN_COL_WIDTH = 80
+
+function calcAutoWidth(key, label) {
+  const cs = cells.value
+  let maxContent = 0
+  const len = Math.min(cs.length, 200)
+  for (let i = 0; i < len; i++) {
+    const v = cs[i][key]
+    if (v != null) {
+      const w = String(v).length
+      if (w > maxContent) maxContent = w
+    }
+  }
+  const contentWidth = maxContent * CHAR_WIDTH + CELL_PADDING
+  const headerWidth = label.length * CHAR_WIDTH + CELL_PADDING + SORT_ICON_WIDTH
+  return Math.max(contentWidth, headerWidth, MIN_COL_WIDTH)
+}
+
 const columns = computed(() => {
   const cfg = props.chartData.config || {}
   const axisOrder = [cfg.xAxis, cfg.yAxisPrimary, cfg.yAxisSecondary].filter(Boolean)
@@ -92,7 +113,8 @@ const columns = computed(() => {
   function add(key) {
     if (seen.has(key)) return
     seen.add(key)
-    out.push({ key, label: labelFor(key), digits: digitsFor(key) })
+    const label = labelFor(key)
+    out.push({ key, label, digits: digitsFor(key), autoWidth: calcAutoWidth(key, label) })
   }
 
   axisOrder.forEach(add)
@@ -222,7 +244,7 @@ function cellInfo(row, col) {
         v-for="col in columns"
         :key="col.key"
         :prop="col.key"
-        min-width="120"
+        :min-width="col.autoWidth"
         sortable
         :show-overflow-tooltip="{ showAfter: 500 }"
       >
@@ -307,10 +329,15 @@ function cellInfo(row, col) {
   display: flex;
   justify-content: center;
 }
+.source-data-table :deep(th .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .source-data-table :deep(th .caret-wrapper) {
   height: 20px;
 }
-.col-header { display: flex; align-items: center; gap: 4px; width: 100%; }
+.col-header { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .col-label { font-size: 12px; font-weight: 500; }
 .col-mode-tag { cursor: pointer; user-select: none; font-weight: 700; }
 .col-mode-tag:hover { opacity: 0.8; }

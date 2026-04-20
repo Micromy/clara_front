@@ -207,12 +207,11 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           prefix-icon="Search"
           style="width: 320px"
         />
-        <el-button
-          size="small"
-          text
+        <button
+          class="clear-filters-btn"
           :disabled="Object.keys(store.pendingSearch.columnFilters || {}).length === 0"
           @click="clearAllFilters"
-        >Clear Filters</el-button>
+        >Clear Filters</button>
       </div>
 
       <div class="right-controls">
@@ -395,5 +394,25 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
 .cell-search-table :deep(.row-already-selected) td {
   opacity: 0.45;
+}
+
+.clear-filters-btn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: #909399;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.clear-filters-btn:hover {
+  color: #f56c6c;
+  background: rgba(245, 108, 108, 0.06);
+}
+.clear-filters-btn:disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
+  background: none;
 }
 </style>

@@ -29,6 +29,8 @@ const chartOption = computed(() => {
   const { cells, config } = props.chartData
   if (!cells || cells.length === 0) return {}
 
+  const animationDuration = 300
+
   const isBar = config.chartType === 'bar'
   const isLine = config.chartType === 'line'
 
@@ -159,6 +161,8 @@ const chartOption = computed(() => {
   })
 
   const option = {
+    animationDuration,
+    animationDurationUpdate: animationDuration,
     title: {
       text: props.chartData.builderName,
       left: 0,
@@ -168,13 +172,14 @@ const chartOption = computed(() => {
     tooltip: {
       trigger: isBar ? 'axis' : 'item',
       formatter(params) {
+        const fmt = v => typeof v === 'number' && !Number.isInteger(v) ? v.toFixed(8) : v
         if (!Array.isArray(params)) params = [params]
         if (isBar) {
           const xVal = params[0]?.name
-          let html = `<strong>${getAxisLabel(config.xAxis)}: ${xVal}</strong><br/>`
+          let html = `<strong>${getAxisLabel(config.xAxis)}: ${fmt(xVal)}</strong><br/>`
           params.forEach(p => {
             if (p.value != null) {
-              html += `<span style="color:${p.color}">●</span> ${p.seriesName}: ${p.value}<br/>`
+              html += `<span style="color:${p.color}">●</span> ${p.seriesName}: ${fmt(p.value)}<br/>`
             }
           })
           return html
@@ -183,8 +188,8 @@ const chartOption = computed(() => {
         params.forEach(p => {
           const [x, y] = Array.isArray(p.data) ? p.data : [null, p.data]
           html += `<span style="color:${p.color}">●</span> <strong>${p.seriesName}</strong><br/>`
-          html += `&nbsp;&nbsp;${getAxisLabel(config.xAxis)}: ${x}<br/>`
-          html += `&nbsp;&nbsp;${getAxisLabel(p.yAxisIndex === 1 ? config.yAxisSecondary : config.yAxisPrimary)}: ${y}<br/>`
+          html += `&nbsp;&nbsp;${getAxisLabel(config.xAxis)}: ${fmt(x)}<br/>`
+          html += `&nbsp;&nbsp;${getAxisLabel(p.yAxisIndex === 1 ? config.yAxisSecondary : config.yAxisPrimary)}: ${fmt(y)}<br/>`
         })
         return html
       }
@@ -239,7 +244,6 @@ const chartOption = computed(() => {
           }
         },
         dataZoom: {
-          yAxisIndex: 'none',
           title: { zoom: 'Box zoom', back: 'Undo zoom' },
           icon: {
             zoom: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>'),
@@ -271,7 +275,7 @@ const chartOption = computed(() => {
       }
     },
     dataZoom: [
-      { type: 'inside', xAxisIndex: 0, yAxisIndex: 0, filterMode: 'none',
+      { type: 'inside', xAxisIndex: 0, filterMode: 'none',
         zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false,
         start: 0, end: 100, zoomLock: false, throttle: 50 }
     ],
@@ -354,9 +358,29 @@ function renderChart() {
 let resizeObserver = null
 const handleWindowResize = () => chartInstance?.resize()
 
+function onKeyDown(e) {
+  if (e.key === 'Shift' && chartInstance) {
+    chartInstance.dispatchAction({ type: 'takeGlobalCursor', key: 'dataZoomSelect', dataZoomSelectActive: true })
+  }
+}
+function onKeyUp(e) {
+  if (e.key === 'Shift' && chartInstance) {
+    chartInstance.dispatchAction({ type: 'takeGlobalCursor', key: 'dataZoomSelect', dataZoomSelectActive: false })
+  }
+}
+
+function onChartDblClick(e) {
+  if (e.shiftKey && chartInstance) {
+    chartInstance.dispatchAction({ type: 'dataZoom', start: 0, end: 100 })
+  }
+}
+
 onMounted(() => {
   renderChart()
   window.addEventListener('resize', handleWindowResize)
+  window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('keyup', onKeyUp)
+  chartContainer.value?.addEventListener('dblclick', onChartDblClick)
   if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
     resizeObserver = new ResizeObserver(() => chartInstance?.resize())
     resizeObserver.observe(chartContainer.value)
@@ -365,6 +389,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
+  window.removeEventListener('keydown', onKeyDown)
+  window.removeEventListener('keyup', onKeyUp)
+  chartContainer.value?.removeEventListener('dblclick', onChartDblClick)
   resizeObserver?.disconnect()
   chartInstance?.dispose()
   chartInstance = null
@@ -393,7 +420,7 @@ watch(labelsOn, (val) => {
         show: val,
         lineStyle: { color: '#ccc', width: 1 }
       },
-      labelLayout: val ? { moveOverlap: 'shiftY', hideOverlap: true } : undefined
+      labelLayout: val ? { moveOverlap: 'shiftY', hideOverlap: false } : undefined
     })),
     toolbox: {
       feature: {

@@ -6,7 +6,7 @@ import ChartConfigPanel from '../components/builder/ChartConfigPanel.vue'
 import { ref } from 'vue'
 import { usePopupWindow } from '../composables/usePopupWindow.js'
 
-const DEFAULT_HEIGHT = 500
+const DEFAULT_HEIGHT = 420
 const EXPANDED_HEIGHT = 800
 const MIN_HEIGHT = 200
 

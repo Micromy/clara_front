@@ -154,8 +154,9 @@ function onRowClick(cellId) {
   top: 0;
   height: 100%;
   background: #fff;
-  border-radius: 10px 0 0 10px;
-  border-top: 1px solid #ebeef5;
+  border-radius: 6px 0 0 6px;
+  border-left: 1px solid #e4e7ed;
+  box-shadow: -4px 0 8px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
   z-index: 3;
@@ -173,12 +174,8 @@ function onRowClick(cellId) {
   height: 100%;
   cursor: col-resize;
   z-index: 5;
-  border-radius: 10px 0 0 10px;
-  background: linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.03) 40%, transparent 100%);
-  transition: background 0.15s;
-}
-.chart-right-edge:hover {
-  background: linear-gradient(to right, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.04) 40%, transparent 100%);
+  border-radius: 6px 0 0 6px;
+  background: transparent;
 }
 .chart-right-edge::after {
   content: '';
