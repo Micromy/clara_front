@@ -215,8 +215,6 @@ const chartOption = computed(() => {
       top: 6,
       itemSize: 16,
       itemGap: 12,
-      showTitle: false,
-      tooltip: { show: true },
       iconStyle: {
         borderColor: 'transparent',
         borderWidth: 0

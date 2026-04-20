@@ -69,9 +69,8 @@ export function useDragSelect(tableRef) {
     // Only handle left-click
     if (event.button !== 0) return
 
-    // Ignore clicks on scrollbar or non-table areas
-    if (event.target.closest('.el-scrollbar__bar, .el-scrollbar__thumb, .el-table__footer-wrapper')) return
-    if (event.target.classList.contains('el-scrollbar__wrap')) return
+    // Only handle clicks inside a table cell (td) — ignore scrollbar, footer, etc.
+    if (!event.target.closest('td.el-table__cell')) return
 
     const row = getRowFromEvent(event)
     if (!row) return

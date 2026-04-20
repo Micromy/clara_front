@@ -31,8 +31,9 @@ const pendingCellType = computed({
 
     if (prev && prev !== v && selectedCount > 0) {
       const msg = `Changing cell type will clear ${selectedCount} selected cell${selectedCount > 1 ? 's' : ''}. Continue?`
-      if (props.inPopup) {
-        if (!confirm(msg)) { store.setPendingCellType(prev); return }
+      if (props.inPopup && popupBody) {
+        const popupWin = popupBody.ownerDocument.defaultView
+        if (!popupWin.confirm(msg)) { store.setPendingCellType(prev); return }
       } else {
         try {
           await ElMessageBox.confirm(msg, 'Switch Cell Type',
