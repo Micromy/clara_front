@@ -238,6 +238,14 @@ const chartOption = computed(() => {
             labelsOn.value = !labelsOn.value
           }
         },
+        dataZoom: {
+          yAxisIndex: 'none',
+          title: { zoom: 'Box zoom', back: 'Undo zoom' },
+          icon: {
+            zoom: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>'),
+            back: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>')
+          }
+        },
         myReset: {
           show: true,
           title: 'Reset view',
