@@ -18,13 +18,17 @@ import CellSearchTable from './CellSearchTable.vue'
   background: #fff;
 }
 /* Force native scrollbar in popup — Element Plus el-scrollbar thumb drag
-   doesn't work across window boundaries (document context mismatch). */
-.popup-shell :deep(.el-scrollbar__wrap) {
-  overflow: auto !important;
-  margin-bottom: 0 !important;
-  margin-right: 0 !important;
+   doesn't work across window boundaries because document.addEventListener
+   binds to the main window, not the popup. Override all three layers: */
+.popup-shell :deep(.el-table .el-scrollbar) {
+  overflow: visible !important;
 }
-.popup-shell :deep(.el-scrollbar__bar) {
-  display: none;
+.popup-shell :deep(.el-table .el-scrollbar__wrap) {
+  overflow: auto !important;
+  margin: 0 !important;
+}
+.popup-shell :deep(.el-table .el-scrollbar__bar) {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 </style>
