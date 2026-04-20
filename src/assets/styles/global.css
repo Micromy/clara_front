@@ -32,21 +32,6 @@ html, body, #app {
   opacity: 0.75;
 }
 
-/* ── Popup: force native scrollbar + sync primary color ─────────────────── */
-/* Element Plus el-scrollbar thumb drag doesn't work across window
-   boundaries. Override all three layers to expose native scrollbar. */
-.popup-shell .el-table .el-scrollbar {
-  overflow: visible !important;
-}
-.popup-shell .el-table .el-scrollbar__wrap {
-  overflow: auto !important;
-  margin: 0 !important;
-}
-.popup-shell .el-table .el-scrollbar__bar {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
 .el-table .cell {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
