@@ -709,7 +709,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   const presetsForCellType = computed(() => {
     const ct = activeCellType.value
-    return chartPresets.value.filter(p => p.cellType === ct)
+    return chartPresets.value.filter(p => p.cellType === ct && p.isVisible === 'Y')
   })
 
   function savePreset(name) {
@@ -726,7 +726,7 @@ export const useBuilderStore = defineStore('builder', () => {
       yAxisSecondary: cfg.yAxisSecondary,
       y2Aggregation: null,
       grouping: cfg.grouping,
-      isVisible: true,
+      isVisible: 'Y',
       createdBy: '',
       createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
     })

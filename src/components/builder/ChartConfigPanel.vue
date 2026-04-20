@@ -137,7 +137,7 @@ function onGenerate() {
     </div>
 
     <!-- Load Preset Dialog -->
-    <el-dialog v-model="loadDialogVisible" title="Load Preset" width="680px" :close-on-click-modal="true">
+    <el-dialog v-model="loadDialogVisible" title="Load Preset" width="850px" :close-on-click-modal="true">
       <el-table :data="store.presetsForCellType" size="small" border stripe max-height="400" empty-text="No presets saved.">
         <el-table-column prop="name" label="Name" min-width="120" show-overflow-tooltip />
         <el-table-column prop="chartType" label="Type" width="80" />
@@ -347,7 +347,13 @@ function onGenerate() {
 }
 .preset-btns {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+}
+.preset-btns .el-button {
+  border: 1px solid #dcdfe6;
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 12px;
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .action-row { display: flex; gap: 4px; width: 100%; }
