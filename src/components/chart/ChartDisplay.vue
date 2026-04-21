@@ -200,17 +200,17 @@ const chartOption = computed(() => {
       right: 10,
       top: 50,
       bottom: 20,
-      width: 200,
+      width: 350,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 170 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 320 }
     },
     grid: {
       left: 60,
-      right: 230,
+      right: config.yAxisSecondary ? 390 : 370,
       top: 50,
       bottom: 40
     },

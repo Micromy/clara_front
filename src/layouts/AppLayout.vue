@@ -398,10 +398,6 @@ function ctxClose() {
   color: #909399;
   cursor: pointer;
   border-bottom: 1px solid #ebeef5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
 }
 .set-group.active .set-name {
   color: #303133;
@@ -411,6 +407,10 @@ function ctxClose() {
 
 .set-sub {
   display: flex;
+}
+.set-sub .sub-tab {
+  flex: 1;
+  text-align: center;
 }
 .set-sub-hidden .sub-tab {
   color: #c0c4cc;
