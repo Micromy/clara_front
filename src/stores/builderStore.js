@@ -490,16 +490,17 @@ export const useBuilderStore = defineStore('builder', () => {
         if (w > maxContent) maxContent = w
       }
     }
-    return maxContent * charWidth + CELL_PADDING || MIN_COL_WIDTH
+    return Math.max(maxContent * charWidth + CELL_PADDING, MIN_COL_WIDTH)
   }
 
   const searchTableColumns = computed(() => {
     const cols = config.value?.searchTableColumns ?? []
     const cells = filteredCells.value
-    if (!cells.length) return cols
     return cols.map(col => ({
       ...col,
-      autoWidth: Math.max(calcAutoWidth(col.key, cells, CHAR_WIDTH_SEARCH), col.width || 0)
+      autoWidth: cells.length
+        ? Math.max(calcAutoWidth(col.key, cells, CHAR_WIDTH_SEARCH), col.width || 0)
+        : col.width || 0
     }))
   })
 
