@@ -254,9 +254,7 @@ export const useBuilderStore = defineStore('builder', () => {
       xAxis: xOpts[0]?.value || 'pdpAvg',
       yAxisPrimary: yOpts[0]?.value || 'pdpAvg',
       yAxisSecondary: null,
-      grouping: 'alias',
-      yMin: null,
-      yMax: null
+      grouping: 'alias'
     }
   }
 

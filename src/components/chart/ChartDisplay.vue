@@ -308,9 +308,7 @@ const chartOption = computed(() => {
         boundaryGap: ['5%', '5%'],
         name: getAxisLabel(config.yAxisPrimary),
         nameLocation: 'center',
-        nameGap: 40,
-        min: config.yMin ?? undefined,
-        max: config.yMax ?? undefined
+        nameGap: 40
       }
     ],
     series
