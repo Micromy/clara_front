@@ -708,7 +708,7 @@ export const useBuilderStore = defineStore('builder', () => {
       cellType: activeCellType.value,
       cells: selectedCells.value.map(c => ({
         ...c,
-        alias: getCellAlias(builderId, c.id) || ''
+        alias: getCellAlias(builderId, c.id) || c.cellName
       })),
       config: { ...cfg },
       derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])],
