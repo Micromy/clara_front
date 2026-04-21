@@ -291,9 +291,10 @@ export const useBuilderStore = defineStore('builder', () => {
     const formulas = activeBuilder.value.derivedFormulas || []
 
     // Pass 1: merge base + simulation data
-    const baseCells = allCells.value
-      .filter(c => ids.includes(c.id))
-      .map(c => ({ ...c, ...(simulations.value[c.id] || {}) }))
+    const cellMap = new Map(allCells.value.map(c => [c.id, c]))
+    const baseCells = ids
+      .filter(id => cellMap.has(id))
+      .map(id => ({ ...cellMap.get(id), ...(simulations.value[id] || {}) }))
 
     if (formulas.length === 0) return baseCells
 
