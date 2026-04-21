@@ -538,7 +538,10 @@ export const useBuilderStore = defineStore('builder', () => {
   const filteredGroupingOptions = computed(() => {
     const all = chartOptions.value.groupingOptions || []
     const xAxis = activeBuilder.value?.chartConfig?.xAxis
-    return all.filter(opt => opt.value !== xAxis)
+    const chartType = activeBuilder.value?.chartConfig?.chartType
+    const filtered = all.filter(opt => opt.value !== xAxis)
+    if (chartType === 'bar') return [{ value: '__none__', label: 'None' }, ...filtered]
+    return filtered
   })
   const yAxisOptions = computed(() => {
     const y = chartOptions.value.yAxisOptions
@@ -651,10 +654,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
     if (key === 'chartType') {
       const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
-      if (value === 'bar' && !catValues.has(cfg.xAxis)) {
-        cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
-      } else if (value !== 'bar' && catValues.has(cfg.xAxis)) {
-        cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
+      if (value === 'bar') {
+        if (!catValues.has(cfg.xAxis)) cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
+        cfg.grouping = '__none__'
+      } else {
+        if (catValues.has(cfg.xAxis)) cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
+        if (cfg.grouping === '__none__') cfg.grouping = 'alias'
       }
     }
 

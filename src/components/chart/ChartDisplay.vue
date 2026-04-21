@@ -48,12 +48,16 @@ const chartOption = computed(() => {
   // Fall back to cellName when the grouping value is null/undefined/empty string
   // (e.g. alias is '' before the user fills it in).
   const groups = new Map()
-  cells.forEach(cell => {
-    const raw = cell[config.grouping]
-    const key = (raw != null && String(raw).trim() !== '') ? String(raw) : cell.cellName
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key).push(cell)
-  })
+  if (config.grouping === '__none__') {
+    groups.set('All', cells)
+  } else {
+    cells.forEach(cell => {
+      const raw = cell[config.grouping]
+      const key = (raw != null && String(raw).trim() !== '') ? String(raw) : cell.cellName
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(cell)
+    })
+  }
 
   // For bar chart: collect unique X values as categories (sorted)
   let xCategories = null
