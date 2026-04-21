@@ -1,7 +1,7 @@
 # ARIAS Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-04-20
-> 현재 브랜치: `main` (HEAD: `733edb4`)
+> 마지막 업데이트: 2026-04-21
+> 현재 브랜치: `main` (HEAD: `a637d7f`)
 > 리포: `Micromy/clara_front`
 
 ---
@@ -42,6 +42,7 @@
 - 다중 선택, 페이지 간 선택 유지, **드래그 선택** (`useDragSelect` composable)
 - **이미 선택된 셀 비활성화** — 현재 빌더의 selectedCellIds에 있는 셀은 체크박스 disabled + 행 반투명
 - **컬럼 auto-width** — 콘텐츠 길이 기반 자동 너비 계산 (상단 CHAR_WIDTH=8, 하단 CHAR_WIDTH=7)
+- **Clear Filters 버튼** — borderless 스타일, hover 시 빨간 톤, disabled 상태 지원
 - 별도 팝업창으로 검색 분리 가능 (`usePopupWindow` — Pinia / Element Plus 공유, 다른 모니터 지원)
 - 상단 검색 테이블에서 `cellType` / `PDK` 컬럼 제거 (드롭다운으로 이미 필터링하므로 중복)
 
@@ -50,7 +51,7 @@
 - 같은 alias를 부여하면 차트에서 "By Alias" 그룹핑으로 하나의 시리즈로 묶임
 
 ### 3-3. Selected Cells 패널
-- **체크박스 (좌측 고정)** + 체크 시 **Remove 버튼** 등장 (panel-controls 영역, hover 시 빨간색)
+- **체크박스 (좌측 고정)** + 체크 시 **Remove 버튼** 등장 (fade-in, borderless 스타일, hover 시 빨간색)
 - **Alias / Cell Name** 고정 2열 (Cell Name 280px)
 - **Metadata ↔ Simulation** 토글 (el-switch)
 - **Raw ↔ Diff** 비교 모드 + Reference 셀 선택
@@ -68,41 +69,66 @@
 - Grouping (alias / cellType / driveStrength / library / feol)
 - **Derived Metrics 다이얼로그** — 6 + 2 종 (Binary, Math Function, Z-score, Relative to Mean, Delta from Mean, % of Max, Group Mean, Group Std)
 - cellType 변경 시 chartConfig 기본값(X/Y) + derivedFormulas 자동 리셋
+- **Save / Load Preset 버튼** — borderless text 스타일, localStorage 기반 (`arias-chart-presets`)
+- **Load Preset 다이얼로그** — preset 테이블 (이름, 타입, 축, 그룹핑 표시) + Apply / Delete
 
 ### 3-5. 차트 (ChartDisplay)
 - ECharts scatter / line / bar
 - Grouping 기준 시리즈 분할 (셀 1개 = 점 1개)
-- **인터랙티브 줌** — 마우스 휠 X+Y 동시 줌 + 드래그 팬
-- **커스텀 toolbox** — T (라벨 토글), ↺ (리셋), ↓ (PNG 저장) 커스텀 SVG 아이콘
-- **데이터 라벨 토글** — T 아이콘 클릭으로 on/off, 네모 테두리 + 연결선 + shiftY 겹침 방지
+- **Vivid 컬러 팔레트** — `#2563EB`, `#E63946`, `#2D9F46`, `#E88C1E`, `#8B5CF6` 등
+- **인터랙티브 줌** — 마우스 휠 X축 줌 + 드래그 팬
+- **Box Zoom** — 툴박스 돋보기 아이콘 또는 **Shift+드래그**로 X/Y 양축 영역 확대
+- **Shift+더블클릭** — zoom 리셋 (라벨 유지)
+- **커스텀 toolbox** — 태그 (라벨 토글), 돋보기+ (box zoom), ↺ (리셋), ↓ (PNG 저장) 커스텀 SVG 아이콘
+- **리셋 시 라벨 상태 동기화** — restore 시 labelsOn ref도 false로 리셋
+- **데이터 라벨 토글** — 태그 아이콘 클릭으로 on/off, 네모 테두리 + 연결선 + shiftY 겹침 방지 + 드래그 가능
+- **Tooltip 소수점 8자리** — 소수점 값은 toFixed(8), 정수는 그대로
+- **애니메이션 300ms** — 기본 1000ms에서 단축
 - **emphasis / blur** — 시리즈 호버 시 다른 시리즈 blur (opacity 0.3)
 - **테이블 행 선택 → 차트 하이라이트** 연동
-- **범례 우측 세로 배치** (width 240px, 텍스트 truncate)
-- **차트 4:3 비율** — ResizeObserver로 높이 기반 너비 계산 (px 단위, 리사이즈 시 테이블 공간 확장)
+- **범례 우측 세로 배치** (width 350px, 텍스트 width 320px, right 150, top 50)
+- **축 여백** — `boundaryGap: ['5%', '5%']`로 양쪽 끝 여유
+- **차트 3:2 비율** — ResizeObserver로 높이 기반 너비 계산 (px 단위, max 80%, min 30%)
 - 타이틀 좌상단, 앱 폰트와 통일
 
 ### 3-6. 차트 페이지
-- ChartView 좌/우 분할 (차트 70% / Source Data 30%)
-- Splitter 클릭 → 테이블이 차트 위로 **오버레이 슬라이드** (차트 크기 고정)
-- **SourceDataTable** — 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw / Diff 비교, 컬럼별 −/÷ 오버라이드
+- ChartView 좌/우 분할 (차트 + Source Data 오버레이)
+- **12px 오버랩** — 테이블 패널이 차트 위로 살짝 겹침
+- **세로 스플리터** — 매트한 border + box-shadow 스타일, 세로 grip 줄 (48px, 2px, 간격 3px)
+- **더블클릭 토글** — 테이블 최소/최대 전환 (중간값 기준)
+- **hover 시 grip 색상** — primary color 50% opacity 전환 (0.15s ease)
+- **SourceDataTable** — 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw / Diff 비교, 컬럼별 −/÷ 오버라이드 (헤더 세로 배치)
+- **auto column width** — 데이터 내용 + 헤더 라벨 + 정렬 아이콘 기반 자동 계산
+- **정렬 아이콘 우측 정렬** — 헤더 셀 space-between
 - 차트 PNG 내보내기 (테이블 Export PNG 제거)
 
 ### 3-7. 빌더 / 탭 관리
 - 다중 Builder 탭 + Builder 별 Chart 탭 자동 생성
-- **탭 컨텍스트 메뉴** (`⋯` 아이콘 또는 우클릭) — Rename (Builder만) / Close
+- **2단 탭 바** — 상단: 세트 이름 (30px), 하단: Builder/Chart 서브탭 (26px)
+- **비활성 탭 서브탭 표시** — 연한 색으로 Builder/Chart 보이고 직접 클릭 시 해당 세트+뷰로 이동
+- **active 탭 underline** — primary color 2px inset box-shadow
+- **탭 컨텍스트 메뉴** (`⋯` 아이콘) — Rename / Save / Close
 - **Builder 닫기 확인 다이얼로그** — 선택된 셀 수 경고
-- **탭 드래그 순서 변경** — Builder/Chart 자유 혼합, 드롭 위치 파란 라인 표시
-- **탭 이름 인라인 편집** — ✏️ 클릭 → 입력 + ✓ 확인 (Builder만)
-- 새 Builder 추가 시 빈 검색 상태로 시작
+- **탭 드래그 순서 변경** — builders 배열 직접 조작, 드롭 위치 파란 라인 표시
+- **탭 이름 인라인 편집** — 클릭 → 입력 + ✓ 확인
+- **Load / + New 버튼** — borderless text 스타일 (New는 primary color + bold)
+- **Chart Save** — `store.saveChart()` + 중복 이름 suffix
+- **Chart Load 다이얼로그** — 저장된 차트 테이블 + Load / Delete
+- 새 Builder 추가 시 빈 검색 상태로 시작, `nextUntitledName()` 자동 번호
 
 ### 3-8. 레이아웃
-- 상단 / 하단 **드래그 splitter** — 상단 높이만 조절, 하단은 자체 크기 유지
-- 컨텐츠가 뷰포트 넘으면 페이지 스크롤
+- 상단 / 하단 **드래그 splitter** — 가로 grip 줄 (72px, 2px, 간격 3px), 4px 드래그 dead zone
+- **더블클릭** — 기본값(420px) 근처면 확장(800px), 멀면 기본값 복귀 (±80px 임계값)
+- **드래그 중 transition 비활성화**, 더블클릭 시 0.25s ease 전환
+- **hover 시 grip 색상** — primary color 50% opacity 전환 (0.15s ease)
 - 우측 ChartConfigPanel 360px 고정
+- 컨텐츠가 뷰포트 넘으면 페이지 스크롤
 
 ### 3-9. 영속성
 - localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name / **search**), `cellAliases`, `activeBuilderIndex`
 - **빌더별 검색 상태 독립** — 빌더 전환 시 search 조건 save/restore (PDK→Library cascade 방지 플래그)
+- **Chart Preset CRUD** — localStorage (`arias-chart-presets`), cellType 기반 필터링
+- **Saved Charts CRUD** — localStorage (`arias-saved-charts`), hidden preset + chart + items
 - 첫 렌더 전 동기 복원
 - `nextBuilderId` / `nextDerivedId` 충돌 방지
 
@@ -229,22 +255,43 @@ src/
 
 ### 5-1. Builder 탭 (`/builder/:id`)
 - **CellSearchTable** — 셀 검색·선택 (상단)
-- **드래그 splitter** — 상단 높이 조절
+- **드래그 splitter** — 가로 grip 줄, 4px dead zone, 더블클릭 확장/복귀
 - **SelectedCellsPanel** — 선택된 셀 메타/시뮬 비교 (좌하)
 - **ChartConfigPanel** — 차트/축/그룹/Derived Metrics 설정 (우하, 360px 고정)
 
 ### 5-2. Chart 탭 (`/chart/:builderId`)
-- **ChartDisplay** — ECharts 차트 (좌, 인터랙티브 줌)
-- **SourceDataTable** — 차트 데이터 테이블 (우, 오버레이 슬라이드)
-- 차트 PNG / 테이블 PNG 내보내기
+- **ChartDisplay** — ECharts 차트 (좌, 3:2 비율, box zoom + Shift 단축키)
+- **SourceDataTable** — 차트 데이터 테이블 (우, 오버레이 + box-shadow, auto column width)
+- **세로 스플리터** — 매트한 border 스타일, 더블클릭 토글, grip hover accent
+- 차트 PNG 내보내기
 
 ### 5-3. 공통
-- **AppLayout** — 헤더 + 탭바 + `<router-view>`. 탭 더블클릭으로 이름 편집
+- **AppLayout** — 헤더 + 2단 탭바 (세트명 + Builder/Chart 서브탭) + `<router-view>`
 - **CellSearchPopupRoot** — 별도 윈도우에서 검색 (Pinia store 공유, Element Plus teleport 리다이렉트)
 
 ---
 
-## 6. 로컬 개발
+## 6. UI 디자인 언어
+
+### 6-1. 보조 버튼 (borderless text)
+앱 전체에서 보조 액션은 border-less text 버튼으로 통일:
+- 기본: `#909399`, hover: `rgba(0,0,0,0.04)` 배경 + `#606266`
+- Primary: `var(--clara-primary)` + `font-weight: 600`
+- 파괴적 액션 (Remove, Clear Filters): hover 시 `#f56c6c` + 빨간 배경
+
+### 6-2. 스플리터
+- **가로 (Builder)**: grip 줄 2개 (72px, 2px, 간격 3px), hover 시 primary 50%
+- **세로 (Chart)**: grip 줄 2개 (48px, 2px, 간격 3px), hover 시 primary 50%
+- 둘 다 `transition: 0.15s ease`, primary color(`#4078C0`) 공통 accent
+
+### 6-3. 컬럼 너비
+- 검색 테이블: 메타데이터 컬럼 65px 통일 (FEOL, BEOL, VDD, Temp, Drive Str 등)
+- Selected Cells: 메타 컬럼 70px 통일 + auto-width (데이터 기반 확장)
+- Source Data: auto-width (CHAR_WIDTH=7, 헤더+정렬 아이콘 고려)
+
+---
+
+## 7. 로컬 개발
 
 ```bash
 npm install
@@ -257,7 +304,7 @@ npm run preview     # 빌드 결과 확인
 
 ---
 
-## 7. 배포
+## 8. 배포
 
 - **URL**: https://micromy.github.io/clara_front/
 - **워크플로**: `.github/workflows/deploy.yml`
@@ -266,16 +313,15 @@ npm run preview     # 빌드 결과 확인
 
 ---
 
-## 8. 알려진 이슈 / 향후 개선
+## 9. 알려진 이슈 / 향후 개선
 
 - **ECharts 번들 사이즈** — `dist/assets/index-*.js` ≈ 1.17MB (gzip 377KB). tree-shakable import + 코드 스플리팅 필요
-- **Save Preset** — 버튼만 존재, 동작 미구현 (현재는 localStorage 자동 저장만)
 - **localStorage 마이그레이션** — `builders` 스키마 변경 시 충돌 가능. 버전 키 도입 필요
 - **반응형** — 모바일/태블릿 레이아웃 미검증
 
 ---
 
-## 9. 백엔드 전환 계획
+## 10. 백엔드 전환 계획
 
 `src/api/cells.js` 한 파일만 수정하면 됨 (스토어/컴포넌트 무변경).
 
@@ -329,11 +375,11 @@ export async function fetchSimulations() {
 
 ---
 
-## 10. 백로그
+## 11. 백로그
 
 > 2026-04-16 회의 결과 + 기존 기술 백로그를 영역별로 정리.
 
-### 10-1. 셀 검색 & 선택 (상단)
+### 11-1. 셀 검색 & 선택 (상단)
 - [x] Search 시 **AND 조합** 지원 (Cell Name 검색 + 컬럼 필터를 모두 만족하는 결과만)
 - [x] 상단에 **PDK / Library 드롭다운** 추가 — 선택된 값에 해당하는 데이터 전부 쿼리
 - [x] **Library 드롭다운은 다중 선택** 지원
@@ -343,23 +389,26 @@ export async function fetchSimulations() {
 - [x] 컬럼 너비 **auto** — 콘텐츠 기반 자동 계산 (calcAutoWidth), 상하단 별도 CHAR_WIDTH
 - [x] Diff / Ratio **백분율 표시**, 자릿수 정렬
 
-### 10-2. Cell 선택 & Aliasing
+### 11-2. Cell 선택 & Aliasing
 - [x] 상단에서 여러 셀 선택 후 **화살표 클릭으로 하단에 추가** + 선택 항목들에 **alias 일괄 적용** (같은 alias 부여 → "By Alias" 그룹핑으로 차트에서 묶임)
 
-### 10-3. Selected Cells (하단)
+### 11-3. Selected Cells (하단)
 - [x] **좌측 체크박스 추가** + **우측 X 버튼 제거**
 - [x] 체크된 항목 **일괄 제거** 액션
 
-### 10-4. 차트 탭
+### 11-4. 차트 탭
 - [x] 범례 별 색상을 **차트 우측**에 표시
 - [x] 우측 테이블 행 선택 시 좌측 차트의 해당 점 **highlight**
 - [x] 차트 데이터 점에 **이름/정보 라벨 고정 토글** (호버가 아닌 영구 표시)
 - [x] 범례 위치를 **차트 좌/우**로 이동 (현재 하단)
 - [x] 테이블 **Export PNG 제거**
+- [x] **Box Zoom** + Shift 단축키 + Shift+더블클릭 리셋
+- [x] **Tooltip 소수점 8자리**
+- [x] **SourceDataTable auto column width** + 정렬 아이콘 우측 정렬
+- [x] 컬럼 헤더 **−/÷ 태그 아래줄 배치** (세로 col-header)
 
-### 10-5. 기술적 개선
+### 11-5. 기술적 개선
 - [ ] 실제 백엔드 연동 — `src/api/cells.js` fetch URL 교체
 - [ ] ECharts tree-shaking + 코드 스플리팅으로 번들 다이어트
-- [ ] Save Preset 실동작 구현 (명명된 preset 라이브러리)
 - [ ] localStorage 스키마 버전 키 + 마이그레이션 정책
 - [ ] 반응형 (모바일/태블릿 레이아웃) 검토
