@@ -63,7 +63,7 @@ function onSplitMouseDown(e) {
     const rect = chartViewRef.value?.getBoundingClientRect()
     if (!rect) return
     const x = ev.clientX - rect.left
-    const minX = chartWidthPx.value * 0.3
+    const minX = 40
     const maxX = chartWidthPx.value - OVERLAP
     tableSplitPx.value = Math.max(minX, Math.min(maxX, x))
   }

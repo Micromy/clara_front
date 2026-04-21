@@ -197,20 +197,20 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 150,
+      right: 10,
       top: 50,
       bottom: 20,
-      width: 350,
+      width: 200,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
       pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 320 }
+      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 170 }
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 390 : 370,
+      right: 230,
       top: 50,
       bottom: 40
     },
@@ -358,13 +358,16 @@ function renderChart() {
 let resizeObserver = null
 const handleWindowResize = () => chartInstance?.resize()
 
+let shiftHeld = false
 function onKeyDown(e) {
-  if (e.key === 'Shift' && chartInstance) {
+  if (e.key === 'Shift' && chartInstance && !shiftHeld) {
+    shiftHeld = true
     chartInstance.dispatchAction({ type: 'takeGlobalCursor', key: 'dataZoomSelect', dataZoomSelectActive: true })
   }
 }
 function onKeyUp(e) {
   if (e.key === 'Shift' && chartInstance) {
+    shiftHeld = false
     chartInstance.dispatchAction({ type: 'takeGlobalCursor', key: 'dataZoomSelect', dataZoomSelectActive: false })
   }
 }
