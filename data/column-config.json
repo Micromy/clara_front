@@ -121,6 +121,17 @@
       { "value": "driveStrength", "label": "By Drive Strength" },
       { "value": "library", "label": "By Library" },
       { "value": "feol", "label": "By FEOL" }
+    ],
+    "categoricalXAxisOptions": [
+      { "value": "alias",         "label": "Alias" },
+      { "value": "cellName",      "label": "Cell Name" },
+      { "value": "driveStrength", "label": "Drive Strength" },
+      { "value": "library",       "label": "Library" },
+      { "value": "feol",          "label": "FEOL" },
+      { "value": "vth",           "label": "Vth" },
+      { "value": "vdd",           "label": "VDD" },
+      { "value": "cellHeight",    "label": "Cell Height" },
+      { "value": "nanosheet",     "label": "Nano Sheet" }
     ]
   }
 }
