@@ -141,7 +141,7 @@ function simCellInfo(row, col) {
   <div class="selected-cells-panel">
     <div class="panel-header">
       <div class="panel-title-group">
-        <h3 class="panel-title">Selected Cells</h3>
+        <h3 class="panel-title">Selected Cells <span class="cell-count">({{ store.selectedCells.length }})</span></h3>
         <Transition name="fade">
           <button
             v-if="checkedCellIds.length > 0"
@@ -259,6 +259,7 @@ function simCellInfo(row, col) {
 }
 .panel-title-group { display: flex; align-items: center; gap: 10px; }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
+.cell-count { font-size: 12px; font-weight: 400; color: #909399; }
 .panel-controls { display: flex; gap: 12px; align-items: center; }
 
 .selected-cells-panel :deep(.el-table) { transition: opacity 0.12s ease; }

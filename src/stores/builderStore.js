@@ -529,6 +529,17 @@ export const useBuilderStore = defineStore('builder', () => {
     const x = chartOptions.value.xAxisOptions
     return x?.[activeCellType.value] ?? []
   })
+  const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
+  const augmentedXAxisOptions = computed(() => {
+    const chartType = activeBuilder.value?.chartConfig?.chartType
+    if (chartType === 'bar') return categoricalXAxisOptions.value
+    return xAxisOptions.value
+  })
+  const filteredGroupingOptions = computed(() => {
+    const all = chartOptions.value.groupingOptions || []
+    const xAxis = activeBuilder.value?.chartConfig?.xAxis
+    return all.filter(opt => opt.value !== xAxis)
+  })
   const yAxisOptions = computed(() => {
     const y = chartOptions.value.yAxisOptions
     return y?.[activeCellType.value] ?? []
@@ -634,7 +645,23 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   function updateChartConfig(key, value) {
-    if (activeBuilder.value) activeBuilder.value.chartConfig[key] = value
+    if (!activeBuilder.value) return
+    const cfg = activeBuilder.value.chartConfig
+    cfg[key] = value
+
+    if (key === 'chartType') {
+      const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
+      if (value === 'bar' && !catValues.has(cfg.xAxis)) {
+        cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
+      } else if (value !== 'bar' && catValues.has(cfg.xAxis)) {
+        cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
+      }
+    }
+
+    if (key === 'xAxis' && cfg.grouping === value) {
+      const fallback = (chartOptions.value.groupingOptions || []).find(o => o.value !== value)
+      cfg.grouping = fallback?.value || 'alias'
+    }
   }
 
   // formulaConfig: { name, type, field?, field1?, op?, field2?, fn? }
@@ -665,6 +692,7 @@ export const useBuilderStore = defineStore('builder', () => {
     // without hardcoding them or depending on the store.
     const labelMap = {}
     ;(xAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
+    ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(yAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
     ;(selectedCellsMetadataColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
@@ -753,6 +781,13 @@ export const useBuilderStore = defineStore('builder', () => {
     cfg.yAxisPrimary = preset.yAxisPrimary
     cfg.yAxisSecondary = preset.yAxisSecondary
     cfg.grouping = preset.grouping
+
+    const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
+    if (cfg.chartType !== 'bar' && catValues.has(cfg.xAxis)) {
+      cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
+    } else if (cfg.chartType === 'bar' && !catValues.has(cfg.xAxis)) {
+      cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
+    }
   }
 
   function deletePreset(presetId) {
@@ -872,7 +907,7 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     allCells, simulations, config, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, xAxisOptions, yAxisOptions, derivedFields, activeCellType,
+    chartOptions, xAxisOptions, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,

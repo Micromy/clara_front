@@ -59,7 +59,11 @@ const chartOption = computed(() => {
   let xCategories = null
   if (isBar) {
     const xVals = new Set(cells.map(c => c[config.xAxis]))
-    xCategories = [...xVals].sort((a, b) => a - b).map(String)
+    xCategories = [...xVals].map(String).sort((a, b) => {
+      const numA = Number(a), numB = Number(b)
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+      return a.localeCompare(b)
+    })
   }
 
   const series = []
