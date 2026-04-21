@@ -432,8 +432,10 @@ export const useBuilderStore = defineStore('builder', () => {
   // Library dropdown options: unique library values, cascading on selected PDK
   const libraryOptions = computed(() => {
     const pdk = pendingSearch.value.pdk
+    const cellType = pendingSearch.value.cellType
     const set = new Set()
     for (const c of allCells.value) {
+      if (cellType && c.cellType !== cellType) continue
       if (pdk && c.pdk !== pdk) continue
       if (c.library != null && c.library !== '') set.add(c.library)
     }
@@ -449,7 +451,7 @@ export const useBuilderStore = defineStore('builder', () => {
   const preColumnFilteredCells = computed(() => {
     const s = appliedSearch.value
     if (!s.cellType || !s.pdk || s.libraries.length === 0) return []
-    const terms = (s.query || '').toLowerCase().split(',').map(t => t.trim()).filter(Boolean)
+    const terms = (s.query || '').toLowerCase().split(/[\s,]+/).filter(Boolean)
     return allCells.value.filter(cell => {
       if (!cellMatchesCategory(cell, s.cellType)) return false
       if (s.pdk && cell.pdk !== s.pdk) return false

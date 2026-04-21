@@ -202,7 +202,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
         <el-input
           v-model="pendingQuery"
-          placeholder="Search by Cell Name… (e.g. MDFF, D2)"
+          placeholder="Search by Cell Name… (e.g. MDFF D2)"
           clearable
           prefix-icon="Search"
           style="width: 320px"
