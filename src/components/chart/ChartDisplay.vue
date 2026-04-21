@@ -87,7 +87,7 @@ const chartOption = computed(() => {
       series.push({
         name: groupName, type: 'bar', data, itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
-        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
+        blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
         label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName }
       })
     } else {
@@ -105,7 +105,7 @@ const chartOption = computed(() => {
         lineStyle: { width: 2 },
         itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
-        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
+        blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
         label: {
           show: props.showLabels,
           position: 'top',
@@ -132,7 +132,7 @@ const chartOption = computed(() => {
           data,
           itemStyle: { color, opacity: 0.6 },
           emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
-        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
+        blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
           barGap: '30%',
           label: {
             show: props.showLabels,
@@ -156,7 +156,7 @@ const chartOption = computed(() => {
           lineStyle: { width: 1, type: 'dashed' },
           itemStyle: { color },
           emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
-        blur: { itemStyle: { opacity: 0.3 }, lineStyle: { opacity: 0.15 } },
+        blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
           label: {
             show: props.showLabels,
             position: 'top',

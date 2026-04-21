@@ -156,7 +156,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         <el-select
           v-model="pendingCellType"
           placeholder="Cell Type *"
-          style="width: 90px"
+          style="width: 110px"
           :teleported="!inPopup"
         >
           <el-option
