@@ -82,7 +82,7 @@ const chartOption = computed(() => {
         const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
         if (!matching.length) return null
         const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
-        return Math.round(avg * 100) / 100
+        return avg
       })
       series.push({
         name: groupName, type: 'bar', data, itemStyle: { color },
@@ -123,7 +123,7 @@ const chartOption = computed(() => {
           const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
           if (!matching.length) return null
           const avg = matching.reduce((s, c) => s + (c[config.yAxisSecondary] ?? 0), 0) / matching.length
-          return Math.round(avg * 100) / 100
+          return avg
         })
         series.push({
           name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
@@ -308,7 +308,9 @@ const chartOption = computed(() => {
         boundaryGap: ['5%', '5%'],
         name: getAxisLabel(config.yAxisPrimary),
         nameLocation: 'center',
-        nameGap: 40
+        nameGap: 40,
+        min: config.yMin ?? undefined,
+        max: config.yMax ?? undefined
       }
     ],
     series

@@ -187,6 +187,28 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
+      <el-form-item label="Y Range">
+        <div class="range-inputs">
+          <el-input-number
+            :model-value="store.activeBuilder.chartConfig.yMin"
+            @update:model-value="val => store.updateChartConfig('yMin', val)"
+            size="small"
+            placeholder="Min (auto)"
+            :controls="false"
+            style="flex: 1"
+          />
+          <span class="range-sep">~</span>
+          <el-input-number
+            :model-value="store.activeBuilder.chartConfig.yMax"
+            @update:model-value="val => store.updateChartConfig('yMax', val)"
+            size="small"
+            placeholder="Max (auto)"
+            :controls="false"
+            style="flex: 1"
+          />
+        </div>
+      </el-form-item>
+
       <el-form-item label="Y-Axis 2">
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisSecondary"
@@ -364,6 +386,8 @@ function onGenerate() {
   color: #606266;
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
+.range-inputs { display: flex; align-items: center; gap: 8px; width: 100%; }
+.range-sep { color: #909399; font-size: 12px; }
 .action-row { display: flex; gap: 4px; width: 100%; }
 .action-btn-main { flex: 1; }
 .chart-config-panel :deep(.el-form-item__content) { width: 100%; }
