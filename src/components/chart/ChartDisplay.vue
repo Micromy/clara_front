@@ -197,10 +197,8 @@ const chartOption = computed(() => {
     legend: {
       type: 'scroll',
       orient: 'vertical',
-      right: 10,
       top: 50,
       bottom: 20,
-      width: 350,
       itemGap: 8,
       itemWidth: 14,
       itemHeight: 10,
@@ -347,16 +345,25 @@ const chartOption = computed(() => {
   return option
 })
 
+function updateLegendPosition() {
+  if (!chartInstance || !chartContainer.value) return
+  const gridRight = chartOption.value.grid?.right || 370
+  const containerWidth = chartContainer.value.clientWidth
+  const legendLeft = containerWidth - gridRight + 15
+  chartInstance.setOption({ legend: { left: legendLeft, width: gridRight - 30 } }, false)
+}
+
 function renderChart() {
   if (!chartContainer.value) return
   if (!chartInstance) {
     chartInstance = echarts.init(chartContainer.value)
   }
   chartInstance.setOption(chartOption.value, true)
+  updateLegendPosition()
 }
 
 let resizeObserver = null
-const handleWindowResize = () => chartInstance?.resize()
+const handleWindowResize = () => { chartInstance?.resize(); updateLegendPosition() }
 
 let shiftHeld = false
 function onKeyDown(e) {
@@ -385,7 +392,7 @@ onMounted(() => {
   window.addEventListener('keyup', onKeyUp)
   chartContainer.value?.addEventListener('dblclick', onChartDblClick)
   if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
-    resizeObserver = new ResizeObserver(() => chartInstance?.resize())
+    resizeObserver = new ResizeObserver(() => { chartInstance?.resize(); updateLegendPosition() })
     resizeObserver.observe(chartContainer.value)
   }
 })
