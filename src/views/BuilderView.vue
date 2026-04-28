@@ -17,7 +17,7 @@ const dragging = ref(false)
 
 function openPopup() {
   open({
-    title: 'Cell Search — ARIAS',
+    title: 'Cell Search — CLARA',
     width: 1400,
     height: 900,
     component: CellSearchPopupRoot

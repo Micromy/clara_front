@@ -218,7 +218,7 @@ function ctxClose() {
   <div class="app-layout">
     <header class="app-header">
       <div class="header-logo">
-        <h1>ARIAS</h1>
+        <h1>CLARA</h1>
       </div>
     </header>
 

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
 import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
 
-const STORAGE_KEY = 'arias-builder-state'
+const STORAGE_KEY = 'clara-builder-state'
 
 function loadPersistedState() {
   try {
@@ -737,7 +737,7 @@ export const useBuilderStore = defineStore('builder', () => {
   )
 
   // ── Chart Presets (localStorage until backend) ─────────────────────────
-  const PRESETS_KEY = 'arias-chart-presets'
+  const PRESETS_KEY = 'clara-chart-presets'
 
   function loadPresets() {
     try {
@@ -801,7 +801,7 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   // ── Saved Charts (localStorage until backend) ──────────────────────────
-  const CHARTS_KEY = 'arias-saved-charts'
+  const CHARTS_KEY = 'clara-saved-charts'
 
   function loadSavedCharts() {
     try {

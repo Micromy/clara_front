@@ -1,4 +1,4 @@
-# ARIAS Front Mockup — 진행 상황
+# CLARA Front Mockup — 진행 상황
 
 > 마지막 업데이트: 2026-04-21
 > 현재 브랜치: `main` (HEAD: `a637d7f`)
@@ -8,7 +8,7 @@
 
 ## 1. 프로젝트 개요
 
-**ARIAS** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA.
+**CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA.
 
 ---
 
@@ -69,7 +69,7 @@
 - Grouping (alias / cellType / driveStrength / library / feol)
 - **Derived Metrics 다이얼로그** — 6 + 2 종 (Binary, Math Function, Z-score, Relative to Mean, Delta from Mean, % of Max, Group Mean, Group Std)
 - cellType 변경 시 chartConfig 기본값(X/Y) + derivedFormulas 자동 리셋
-- **Save / Load Preset 버튼** — borderless text 스타일, localStorage 기반 (`arias-chart-presets`)
+- **Save / Load Preset 버튼** — borderless text 스타일, localStorage 기반 (`clara-chart-presets`)
 - **Load Preset 다이얼로그** — preset 테이블 (이름, 타입, 축, 그룹핑 표시) + Apply / Delete
 
 ### 3-5. 차트 (ChartDisplay)
@@ -127,8 +127,8 @@
 ### 3-9. 영속성
 - localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name / **search**), `cellAliases`, `activeBuilderIndex`
 - **빌더별 검색 상태 독립** — 빌더 전환 시 search 조건 save/restore (PDK→Library cascade 방지 플래그)
-- **Chart Preset CRUD** — localStorage (`arias-chart-presets`), cellType 기반 필터링
-- **Saved Charts CRUD** — localStorage (`arias-saved-charts`), hidden preset + chart + items
+- **Chart Preset CRUD** — localStorage (`clara-chart-presets`), cellType 기반 필터링
+- **Saved Charts CRUD** — localStorage (`clara-saved-charts`), hidden preset + chart + items
 - 첫 렌더 전 동기 복원
 - `nextBuilderId` / `nextDerivedId` 충돌 방지
 

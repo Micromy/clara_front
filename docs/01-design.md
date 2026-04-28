@@ -1,4 +1,4 @@
-# ARIAS 요구사항서 (역작성)
+# CLARA 요구사항서 (역작성)
 
 > 작성일: 2026-04-13  
 > 작성 방법: 기존 코드베이스(`clara_front`) 분석을 통한 역작성
@@ -7,7 +7,7 @@
 
 ## 1. 프로젝트 개요
 
-**ARIAS** — 반도체 셀 라이브러리 분석 플랫폼
+**CLARA** — 반도체 셀 라이브러리 분석 플랫폼
 
 반도체 셀의 메타데이터와 V-I 시뮬레이션 데이터를 검색·선택하고 대시보드에서 시각화하는 Vue 3 기반 단일 페이지 애플리케이션(SPA).
 
@@ -16,7 +16,7 @@
 | Repository | `Micromy/clara_front` |
 | 배포 URL | `https://micromy.github.io/clara_front/` |
 | 배포 플랫폼 | GitHub Pages |
-| CI/CD | GitHub Actions (`main`, `claude/arias-rebrand-and-features` 브랜치) |
+| CI/CD | GitHub Actions (`main`, `claude/clara-rebrand-and-features` 브랜치) |
 | 현황 | Mock 데이터 기반 MVP 완성 |
 
 ---
