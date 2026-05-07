@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
-import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
+import { fetchCells, fetchColumnConfig, fetchSimulations, fetchChartPresets, saveChartPreset, deleteChartPreset } from '../api/cells.js'
 
 const STORAGE_KEY = 'clara-builder-state'
 
@@ -736,31 +736,30 @@ export const useBuilderStore = defineStore('builder', () => {
     { deep: true }
   )
 
-  // ── Chart Presets (localStorage until backend) ─────────────────────────
-  const PRESETS_KEY = 'clara-chart-presets'
+  // ── Chart Presets (backend-backed via REST API) ────────────────────────
+  // Server is the single source of truth. We hold only the current cellType's
+  // presets in memory and refetch on cellType change.
+  const chartPresets = ref([])
 
-  function loadPresets() {
+  watch(activeCellType, async (ct) => {
+    if (!ct) { chartPresets.value = []; return }
     try {
-      return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []
-    } catch { return [] }
-  }
-
-  const chartPresets = ref(loadPresets())
-
-  function savePresetsToStorage() {
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(chartPresets.value))
-  }
+      chartPresets.value = await fetchChartPresets(ct)
+    } catch (e) {
+      console.error(e)
+      chartPresets.value = []
+    }
+  }, { immediate: true })
 
   const presetsForCellType = computed(() => {
     const ct = activeCellType.value
     return chartPresets.value.filter(p => p.cellType === ct && p.isVisible === 'Y')
   })
 
-  function savePreset(name) {
+  async function savePreset(name) {
     if (!activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
-    chartPresets.value.push({
-      id: Date.now(),
+    const saved = await saveChartPreset({
       name,
       cellType: activeCellType.value,
       chartType: cfg.chartType,
@@ -771,10 +770,9 @@ export const useBuilderStore = defineStore('builder', () => {
       y2Aggregation: null,
       grouping: cfg.grouping,
       isVisible: 'Y',
-      createdBy: '',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+      createdBy: ''
     })
-    savePresetsToStorage()
+    chartPresets.value.push(saved)
   }
 
   function loadPreset(presetId) {
@@ -795,9 +793,9 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
-  function deletePreset(presetId) {
+  async function deletePreset(presetId) {
+    await deleteChartPreset(presetId)
     chartPresets.value = chartPresets.value.filter(p => p.id !== presetId)
-    savePresetsToStorage()
   }
 
   // ── Saved Charts (localStorage until backend) ──────────────────────────
@@ -815,7 +813,7 @@ export const useBuilderStore = defineStore('builder', () => {
     localStorage.setItem(CHARTS_KEY, JSON.stringify(savedCharts.value))
   }
 
-  function saveChart(name) {
+  async function saveChart(name) {
     if (!activeBuilder.value) return
     const b = activeBuilder.value
     const cfg = b.chartConfig
@@ -827,10 +825,8 @@ export const useBuilderStore = defineStore('builder', () => {
       cellAlias: getCellAlias(builderId, cellId) || ''
     }))
 
-    // Save chart config as a hidden preset
-    const presetId = Date.now()
-    chartPresets.value.push({
-      id: presetId,
+    // Save chart config as a hidden preset (backend)
+    const savedPreset = await saveChartPreset({
       name: `${name}__auto`,
       cellType: activeCellType.value,
       chartType: cfg.chartType,
@@ -841,16 +837,15 @@ export const useBuilderStore = defineStore('builder', () => {
       y2Aggregation: null,
       grouping: cfg.grouping,
       isVisible: 'N',
-      createdBy: '',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+      createdBy: ''
     })
-    savePresetsToStorage()
+    chartPresets.value.push(savedPreset)
 
-    // Save chart
+    // Save chart (still localStorage — out of scope for this step)
     savedCharts.value.push({
       id: Date.now() + 1,
       name,
-      presetId,
+      presetId: savedPreset.id,
       cellType: activeCellType.value,
       items,
       createdBy: '',
@@ -898,12 +893,16 @@ export const useBuilderStore = defineStore('builder', () => {
     return chartTab
   }
 
-  function deleteSavedChart(chartId) {
+  async function deleteSavedChart(chartId) {
     const chart = savedCharts.value.find(c => c.id === chartId)
     if (chart) {
-      // Also delete hidden preset
+      // Also delete hidden preset (backend)
+      try {
+        await deleteChartPreset(chart.presetId)
+      } catch (e) {
+        console.error(e)
+      }
       chartPresets.value = chartPresets.value.filter(p => p.id !== chart.presetId)
-      savePresetsToStorage()
     }
     savedCharts.value = savedCharts.value.filter(c => c.id !== chartId)
     saveChartsToStorage()

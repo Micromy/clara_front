@@ -181,8 +181,12 @@ async function ctxSave() {
     )
   } catch { return }
 
-  store.saveChart(name)
-  ElMessage.success(`Chart "${name}" saved.`)
+  try {
+    await store.saveChart(name)
+    ElMessage.success(`Chart "${name}" saved.`)
+  } catch (e) {
+    ElMessage.error(`Failed to save chart: ${e.message}`)
+  }
 }
 
 function onLoadChart(chartId) {
@@ -203,9 +207,13 @@ async function onDeleteChart(chart) {
       'Delete',
       { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
     )
-    store.deleteSavedChart(chart.id)
+  } catch { return }
+  try {
+    await store.deleteSavedChart(chart.id)
     ElMessage.info('Chart deleted.')
-  } catch {}
+  } catch (e) {
+    ElMessage.error(`Failed to delete chart: ${e.message}`)
+  }
 }
 
 function ctxClose() {

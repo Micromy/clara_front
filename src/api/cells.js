@@ -40,3 +40,27 @@ export async function fetchSimulation(cellId) {
   const all = await fetchSimulations()
   return all[cellId] ?? null
 }
+
+// ── Chart Presets ──────────────────────────────────────────────────────
+// REST endpoints per PROGRESS.md §10. Server is the single source of truth.
+
+export async function fetchChartPresets(cellType) {
+  const res = await fetch(`/api/chart-presets?cellType=${encodeURIComponent(cellType)}`)
+  if (!res.ok) throw new Error(`Failed to fetch presets (${res.status})`)
+  return res.json()
+}
+
+export async function saveChartPreset(preset) {
+  const res = await fetch('/api/chart-presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(preset)
+  })
+  if (!res.ok) throw new Error(`Failed to save preset (${res.status})`)
+  return res.json()
+}
+
+export async function deleteChartPreset(id) {
+  const res = await fetch(`/api/chart-presets/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Failed to delete preset (${res.status})`)
+}

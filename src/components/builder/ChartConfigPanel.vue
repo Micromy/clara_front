@@ -13,6 +13,7 @@ const router = useRouter()
 const loadDialogVisible = ref(false)
 
 async function onSavePreset() {
+  let name
   try {
     const { value } = await ElMessageBox.prompt(
       'Enter a name for this preset.',
@@ -24,9 +25,14 @@ async function onSavePreset() {
         inputValidator: v => (v && v.trim()) ? true : 'Name is required'
       }
     )
-    store.savePreset(value.trim())
-    ElMessage.success(`Preset "${value.trim()}" saved.`)
-  } catch {}
+    name = value.trim()
+  } catch { return }
+  try {
+    await store.savePreset(name)
+    ElMessage.success(`Preset "${name}" saved.`)
+  } catch (e) {
+    ElMessage.error(`Failed to save preset: ${e.message}`)
+  }
 }
 
 function onLoadPreset(presetId) {
@@ -42,9 +48,13 @@ async function onDeletePreset(preset) {
       'Delete Preset',
       { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
     )
-    store.deletePreset(preset.id)
+  } catch { return }
+  try {
+    await store.deletePreset(preset.id)
     ElMessage.info('Preset deleted.')
-  } catch {}
+  } catch (e) {
+    ElMessage.error(`Failed to delete preset: ${e.message}`)
+  }
 }
 
 const derivedFields = computed(() => store.derivedFields)
