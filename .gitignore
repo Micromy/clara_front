@@ -15,6 +15,9 @@ dist-ssr
 # Environment / secrets (scripts/db_to_json.py)
 .env
 
+# Local scratch/working area (not for VCS)
+_workspace/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
