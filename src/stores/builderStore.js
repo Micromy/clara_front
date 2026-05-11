@@ -567,7 +567,10 @@ export const useBuilderStore = defineStore('builder', () => {
       const bi = orderMap.get(b.field1) ?? 999
       return ai - bi
     })
-    return raw.map(m => ({ value: m.metricId, label: m.name }))
+    // Use display labels from selectedCellsSimulationColumns
+    const simCols = config.value?.selectedCellsSimulationColumns?.[ct] || []
+    const labelMap = new Map(simCols.map(c => [c.prop, c.label]))
+    return raw.map(m => ({ value: m.metricId, label: labelMap.get(m.field1) || m.name }))
   })
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
   const augmentedXAxisOptions = computed(() => {
