@@ -868,10 +868,13 @@ export const useBuilderStore = defineStore('builder', () => {
         y2Axis: cfg.yAxisSecondary,
         groupBy: cfg.grouping
       },
-      items: b.selectedCellIds.map(cellId => ({
-        cellId,
-        cellAlias: getCellAlias(builderId, cellId) || ''
-      }))
+      items: b.selectedCellIds.map(cellId => {
+        const meta = metaCells.value.find(c => c.id === cellId)
+        return {
+          cellId,
+          cellAlias: getCellAlias(builderId, cellId) || meta?.cellName || String(cellId)
+        }
+      })
     })
     savedCharts.value.push(chart)
   }
