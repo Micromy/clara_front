@@ -61,59 +61,9 @@
       { "value": "line", "label": "Line Chart" },
       { "value": "bar", "label": "Bar Chart" }
     ],
-    "xAxisOptions": {
-      "FF": [
-        { "value": "dqWst",             "label": "DQ_wst (ns)" },
-        { "value": "dqAvg",             "label": "DQ_avg (ns)" },
-        { "value": "cqDelayAvg",        "label": "CQ_delay_avg (ns)" },
-        { "value": "dsetup3sigmaAvg",   "label": "D_setup_3σ_avg (ns)" },
-        { "value": "dholdSohmAvg",      "label": "D_hold_sohm_avg (ns)" },
-        { "value": "area",              "label": "Area (cpp)" },
-        { "value": "ckCap",             "label": "CK_Cap (pF)" },
-        { "value": "pLeakage",          "label": "P_Leakage (μW)" },
-        { "value": "pdyn",              "label": "Pdyn (pJ)" },
-        { "value": "pdpAvg",            "label": "PDP_avg" }
-      ],
-      "ICG": [
-        { "value": "eeckWst",           "label": "EECK_wst (ns)" },
-        { "value": "eeckAvg",           "label": "EECK_avg (ns)" },
-        { "value": "cqDelayAvg",        "label": "CQ_delay_avg (ns)" },
-        { "value": "esetup3sigmaAvg",   "label": "E_setup_3σ_avg (ns)" },
-        { "value": "eholdSohmAvg",      "label": "E_hold_sohm_avg (ns)" },
-        { "value": "delayTranRfRatio",  "label": "Delay_Tran_rf_ratio" },
-        { "value": "area",              "label": "Area (cpp)" },
-        { "value": "ckCap",             "label": "CK_Cap (pF)" },
-        { "value": "pLeakage",          "label": "P_Leakage (μW)" },
-        { "value": "pdyn",              "label": "Pdyn (pJ)" },
-        { "value": "pdpAvg",            "label": "PDP_avg" }
-      ]
-    },
-    "yAxisOptions": {
-      "FF": [
-        { "value": "dqWst",             "label": "DQ_wst (ns)" },
-        { "value": "dqAvg",             "label": "DQ_avg (ns)" },
-        { "value": "cqDelayAvg",        "label": "CQ_delay_avg (ns)" },
-        { "value": "dsetup3sigmaAvg",   "label": "D_setup_3σ_avg (ns)" },
-        { "value": "dholdSohmAvg",      "label": "D_hold_sohm_avg (ns)" },
-        { "value": "area",              "label": "Area (cpp)" },
-        { "value": "ckCap",             "label": "CK_Cap (pF)" },
-        { "value": "pLeakage",          "label": "P_Leakage (μW)" },
-        { "value": "pdyn",              "label": "Pdyn (pJ)" },
-        { "value": "pdpAvg",            "label": "PDP_avg" }
-      ],
-      "ICG": [
-        { "value": "eeckWst",           "label": "EECK_wst (ns)" },
-        { "value": "eeckAvg",           "label": "EECK_avg (ns)" },
-        { "value": "cqDelayAvg",        "label": "CQ_delay_avg (ns)" },
-        { "value": "esetup3sigmaAvg",   "label": "E_setup_3σ_avg (ns)" },
-        { "value": "eholdSohmAvg",      "label": "E_hold_sohm_avg (ns)" },
-        { "value": "delayTranRfRatio",  "label": "Delay_Tran_rf_ratio" },
-        { "value": "area",              "label": "Area (cpp)" },
-        { "value": "ckCap",             "label": "CK_Cap (pF)" },
-        { "value": "pLeakage",          "label": "P_Leakage (μW)" },
-        { "value": "pdyn",              "label": "Pdyn (pJ)" },
-        { "value": "pdpAvg",            "label": "PDP_avg" }
-      ]
+    "metricOrder": {
+      "FF": ["dqWst", "dqAvg", "cqDelayAvg", "dsetup3sigmaAvg", "dholdSohmAvg", "area", "ckCap", "pLeakage", "pdyn", "pdpAvg"],
+      "ICG": ["eeckWst", "eeckAvg", "cqDelayAvg", "esetup3sigmaAvg", "eholdSohmAvg", "delayTranRfRatio", "area", "ckCap", "pLeakage", "pdyn", "pdpAvg"]
     },
     "groupingOptions": [
       { "value": "alias", "label": "By Alias" },
