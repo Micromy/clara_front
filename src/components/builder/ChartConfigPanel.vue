@@ -152,7 +152,9 @@ function onGenerate() {
         <el-table-column prop="yAxisSecondary" label="Y2" width="100" show-overflow-tooltip>
           <template #default="{ row }">{{ row.yAxisSecondary || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="Created" width="130" />
+        <el-table-column label="Created" width="170">
+          <template #default="{ row }">{{ row.createdAt ? row.createdAt.replace('T', ' ').slice(0, 19) : '—' }}</template>
+        </el-table-column>
         <el-table-column label="" width="130" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="onLoadPreset(row.id)">Apply</el-button>

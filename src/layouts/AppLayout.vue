@@ -166,7 +166,7 @@ async function ctxSave() {
   let name = builder.name
 
   // Check duplicates and append suffix
-  const existing = store.savedCharts.map(c => c.name)
+  const existing = store.savedCharts.map(c => c.chartName)
   if (existing.includes(name)) {
     let i = 2
     while (existing.includes(`${name} (${i})`)) i++
@@ -199,7 +199,7 @@ function onLoadChart(chartId) {
 async function onDeleteChart(chart) {
   try {
     await ElMessageBox.confirm(
-      `Delete saved chart "${chart.name}"?`,
+      `Delete saved chart "${chart.chartName}"?`,
       'Delete',
       { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
     )
@@ -282,14 +282,16 @@ function ctxClose() {
     <!-- Load Chart Dialog -->
     <el-dialog v-model="loadChartDialogVisible" title="Load Chart" width="600px" :close-on-click-modal="true">
       <el-table :data="store.savedCharts" size="small" border stripe max-height="400" empty-text="No saved charts.">
-        <el-table-column prop="name" label="Name" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="createdAt" label="Created" width="140" />
+        <el-table-column prop="chartName" label="Name" min-width="150" show-overflow-tooltip />
+        <el-table-column label="Created" width="170">
+          <template #default="{ row }">{{ row.createdAt ? row.createdAt.replace('T', ' ').slice(0, 19) : '—' }}</template>
+        </el-table-column>
         <el-table-column prop="createdBy" label="By" width="100">
           <template #default="{ row }">{{ row.createdBy || '—' }}</template>
         </el-table-column>
         <el-table-column label="" width="130" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="onLoadChart(row.id)">Load</el-button>
+            <el-button size="small" type="primary" link @click="onLoadChart(row.chartId)">Load</el-button>
             <el-button size="small" type="danger" link @click="onDeleteChart(row)">Delete</el-button>
           </template>
         </el-table-column>
