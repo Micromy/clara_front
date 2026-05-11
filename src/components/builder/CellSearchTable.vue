@@ -176,9 +176,9 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         >
           <el-option
             v-for="opt in store.pdkOptions"
-            :key="opt"
-            :label="opt"
-            :value="opt"
+            :key="opt.id"
+            :label="opt.label"
+            :value="opt.id"
           />
         </el-select>
 
@@ -194,9 +194,9 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         >
           <el-option
             v-for="opt in store.libraryOptions"
-            :key="opt"
-            :label="opt"
-            :value="opt"
+            :key="opt.id"
+            :label="opt.label"
+            :value="opt.id"
           />
         </el-select>
 
