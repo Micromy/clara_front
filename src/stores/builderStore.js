@@ -444,7 +444,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // Library dropdown options from API
   const libraryOptions = computed(() =>
-    libraries.value.map(l => ({ id: l.id, label: l.lib }))
+    libraries.value.map(l => ({ id: l.id, label: l.library || l.lib }))
   )
 
   function batchSetAlias(builderId, cellIds, alias) {
