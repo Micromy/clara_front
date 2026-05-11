@@ -52,7 +52,6 @@ const defaultField = computed(() => derivedFields.value[0]?.value ?? 'pdpAvg')
 
 // Derived metric dialog state
 const dialogVisible = ref(false)
-const dfName  = ref('')
 const dfType  = ref('binary')
 const dfField1 = ref('')
 const dfOp    = ref('/')
@@ -94,7 +93,6 @@ function openDerivedDialog() {
   const fields = derivedFields.value
   const first = fields[0]?.value ?? defaultField.value
   const second = fields[1]?.value ?? first
-  dfName.value = ''
   dfType.value = 'binary'
   dfField1.value = first
   dfOp.value = '/'
@@ -106,17 +104,25 @@ function openDerivedDialog() {
 }
 
 function addDerived() {
-  if (!dfName.value.trim()) return
-  const base = { name: dfName.value.trim(), type: dfType.value }
+  const type = dfType.value
+  let formula
   if (isBinary.value) {
-    store.addDerivedFormula({ ...base, field1: dfField1.value, op: dfOp.value, field2: dfField2.value })
+    formula = { type, field1: dfField1.value, op: dfOp.value, field2: dfField2.value }
   } else if (isUnary.value) {
-    store.addDerivedFormula({ ...base, field: dfField.value, fn: dfFn.value })
+    formula = { type, field: dfField.value, fn: dfFn.value }
   } else if (isGroup.value) {
-    store.addDerivedFormula({ ...base, field: dfField.value, groupBy: dfGroupBy.value })
+    formula = { type, field: dfField.value, groupBy: dfGroupBy.value }
   } else {
-    store.addDerivedFormula({ ...base, field: dfField.value })
+    formula = { type, field: dfField.value }
   }
+  // Auto-generate name from formula description
+  const fl = v => derivedFields.value.find(f => f.value === v)?.label ?? v
+  const ol = v => ({ '+': '+', '-': '−', '*': '×', '/': '÷' })[v] || v
+  let name
+  if (isBinary.value) name = `${fl(formula.field1)} ${ol(formula.op)} ${fl(formula.field2)}`
+  else if (isUnary.value) name = `${formula.fn}(${fl(formula.field)})`
+  else name = `${type}(${fl(formula.field)})`
+  store.addDerivedFormula({ ...formula, name })
   dialogVisible.value = false
 }
 
@@ -252,9 +258,6 @@ function onGenerate() {
     <!-- Derived Metric Dialog -->
     <el-dialog v-model="dialogVisible" title="Add Derived Metric" width="520px" :close-on-click-modal="false">
       <el-form label-position="top" size="small">
-        <el-form-item label="Name">
-          <el-input v-model="dfName" placeholder="e.g. Efficiency" style="width:100%" />
-        </el-form-item>
 
         <el-form-item label="Formula Type">
           <el-select v-model="dfType" style="width:100%">
@@ -327,7 +330,7 @@ function onGenerate() {
 
       <template #footer>
         <el-button @click="dialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :disabled="!dfName.trim()" @click="addDerived">Add</el-button>
+        <el-button type="primary" @click="addDerived">Add</el-button>
       </template>
     </el-dialog>
   </div>

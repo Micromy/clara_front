@@ -9,6 +9,9 @@ import {
 
 const STORAGE_KEY = 'clara-builder-state'
 
+// TODO: 로그인 시스템 도입 후 실제 사용자 ID로 교체
+const CURRENT_USER = 'anonymous'
+
 function loadPersistedState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -823,7 +826,8 @@ export const useBuilderStore = defineStore('builder', () => {
       y1Axis: cfg.yAxisPrimary,
       y2Axis: cfg.yAxisSecondary,
       groupBy: cfg.grouping,
-      isVisible: 'Y'
+      isVisible: 'Y',
+      createdBy: CURRENT_USER
     })
     chartPresets.value.push(preset)
   }
@@ -855,8 +859,9 @@ export const useBuilderStore = defineStore('builder', () => {
 
     const chart = await apiCreateChart({
       chartName: name,
+      createdBy: CURRENT_USER,
       preset: {
-        name,
+        name: `${name}_${CURRENT_USER}`,
         chartType: cfg.chartType,
         xAxis: cfg.xAxis,
         y1Axis: cfg.yAxisPrimary,
