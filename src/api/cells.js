@@ -16,7 +16,7 @@
  *   DELETE /clara/chart/:id/             Chart 삭제
  */
 
-const API_BASE = 'https://at-django--at-backend-django-dev.khdevpb01.apps.dks.samsungds.net'
+const API_BASE = 'http://at-django--at-backend-django-dev.khdevpb01.apps.dks.samsungds.net'
 
 // ── snake_case ↔ camelCase 변환 ──────────────────────────────────────────
 
