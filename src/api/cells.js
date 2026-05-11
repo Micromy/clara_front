@@ -127,11 +127,11 @@ export async function fetchMeta({ cellType, pdkId, libIds }) {
 // ── Simulation Data ──────────────────────────────────────────────────────
 
 export function fetchSimFF(cellIds) {
-  return get(`/clara/cell/ff/?cell_id=${cellIds.join(',')}`)
+  return get(`/clara/cell/ff?cell_id=${cellIds.join(',')}`)
 }
 
 export function fetchSimICG(cellIds) {
-  return get(`/clara/cell/icg/?cell_id=${cellIds.join(',')}`)
+  return get(`/clara/cell/icg?cell_id=${cellIds.join(',')}`)
 }
 
 // ── Presets ──────────────────────────────────────────────────────────────
