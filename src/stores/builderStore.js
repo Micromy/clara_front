@@ -557,11 +557,21 @@ export const useBuilderStore = defineStore('builder', () => {
   const chartOptions = computed(() => config.value?.chartOptions ?? {
     chartTypes: [], xAxisOptions: [], yAxisOptions: {}, groupingOptions: []
   })
-  const metricOptionsForType = computed(() =>
-    metrics.value
-      .filter(m => m.cellType === activeCellType.value)
-      .map(m => ({ value: m.metricId, label: m.name }))
-  )
+  const metricOptionsForType = computed(() => {
+    const ct = activeCellType.value
+    const order = config.value?.chartOptions?.metricOrder?.[ct] || []
+    const filtered = metrics.value.filter(m => m.cellType === ct)
+    // raw metrics sorted by metricOrder, then derived metrics after
+    const raw = filtered.filter(m => m.formulaType === 'raw')
+    const derived = filtered.filter(m => m.formulaType !== 'raw')
+    const orderMap = new Map(order.map((f, i) => [f, i]))
+    raw.sort((a, b) => {
+      const ai = orderMap.get(a.field1) ?? 999
+      const bi = orderMap.get(b.field1) ?? 999
+      return ai - bi
+    })
+    return [...raw, ...derived].map(m => ({ value: m.metricId, label: m.name }))
+  })
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
