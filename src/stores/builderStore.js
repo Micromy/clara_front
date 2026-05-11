@@ -561,10 +561,10 @@ export const useBuilderStore = defineStore('builder', () => {
     const ct = activeCellType.value
     const order = config.value?.chartOptions?.metricOrder?.[ct] || []
     const raw = metrics.value.filter(m => m.cellType === ct && m.formulaType === 'raw')
-    const orderMap = new Map(order.map((f, i) => [f, i]))
+    const orderMap = new Map(order.map((name, i) => [name, i]))
     raw.sort((a, b) => {
-      const ai = orderMap.get(a.field1) ?? 999
-      const bi = orderMap.get(b.field1) ?? 999
+      const ai = orderMap.get(a.name) ?? 999
+      const bi = orderMap.get(b.name) ?? 999
       return ai - bi
     })
     return raw.map(m => ({ value: m.metricId, label: m.name }))
@@ -742,19 +742,34 @@ export const useBuilderStore = defineStore('builder', () => {
     if (cfg.yAxisSecondary === key) cfg.yAxisSecondary = null
   }
 
+  // Resolve metricId → field1 (actual data key). Categorical strings pass through.
+  function resolveMetricField(metricIdOrStr) {
+    if (metricIdOrStr == null) return null
+    if (typeof metricIdOrStr === 'string') return metricIdOrStr // categorical (alias, cellName, etc.)
+    const m = metrics.value.find(x => x.metricId === metricIdOrStr)
+    return m?.field1 || null
+  }
+
   function generateChart() {
     if (!activeBuilder.value || selectedCells.value.length === 0) return null
     const cfg = activeBuilder.value.chartConfig
     const builderId = activeBuilder.value.id
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
 
-    // Build a label map so chart/table components can render axis/column labels
-    // without hardcoding them or depending on the store.
+    // Build a label map: field name → display label
     const labelMap = {}
-    metrics.value.forEach(m => { labelMap[m.metricId] = m.name })
+    metrics.value.forEach(m => { labelMap[m.field1] = m.name; labelMap[m.metricId] = m.name })
     ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
     ;(selectedCellsMetadataColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
+
+    // Resolve metricIds to actual field names for chart rendering
+    const resolvedConfig = {
+      ...cfg,
+      xAxis: resolveMetricField(cfg.xAxis),
+      yAxisPrimary: resolveMetricField(cfg.yAxisPrimary),
+      yAxisSecondary: resolveMetricField(cfg.yAxisSecondary)
+    }
 
     const chartTab = {
       builderId,
@@ -764,7 +779,7 @@ export const useBuilderStore = defineStore('builder', () => {
         ...c,
         alias: getCellAlias(builderId, c.id) || c.cellName
       })),
-      config: { ...cfg },
+      config: resolvedConfig,
       derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])],
       labelMap,
       simulationColumns: [...(selectedCellsSimulationColumns.value || [])]

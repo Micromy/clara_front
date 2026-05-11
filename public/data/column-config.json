@@ -62,8 +62,8 @@
       { "value": "bar", "label": "Bar Chart" }
     ],
     "metricOrder": {
-      "FF": ["dqWst", "dqAvg", "cqDelayAvg", "dsetup3sigmaAvg", "dholdSohmAvg", "area", "ckCap", "pLeakage", "pdyn", "pdpAvg"],
-      "ICG": ["eeckWst", "eeckAvg", "cqDelayAvg", "esetup3sigmaAvg", "eholdSohmAvg", "delayTranRfRatio", "area", "ckCap", "pLeakage", "pdyn", "pdpAvg"]
+      "FF": ["DQ_wst (ns)", "DQ_avg (ns)", "CQ_delay_avg (ns)", "D_setup_3σ_avg (ns)", "D_hold_sohm_avg (ns)", "Area (cpp)", "CK_Cap (pF)", "P_Leakage (μW)", "Pdyn (pJ)", "PDP_avg"],
+      "ICG": ["EECK_wst (ns)", "EECK_avg (ns)", "CQ_delay_avg (ns)", "E_setup_3σ_avg (ns)", "E_hold_sohm_avg (ns)", "Delay_Tran_rf_ratio", "Area (cpp)", "CK_Cap (pF)", "P_Leakage (μW)", "Pdyn (pJ)", "PDP_avg"]
     },
     "groupingOptions": [
       { "value": "alias", "label": "By Alias" },
