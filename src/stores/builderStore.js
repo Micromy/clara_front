@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
-import { fetchCells, fetchColumnConfig, fetchSimulations } from '../api/cells.js'
+import {
+  fetchColumnConfig, fetchPdks, fetchLibraries, fetchMetrics,
+  fetchMeta, fetchSimFF, fetchSimICG,
+  fetchPresets as apiFetchPresets, createPreset as apiCreatePreset, deletePreset as apiDeletePreset,
+  fetchCharts as apiFetchCharts, createChart as apiCreateChart, deleteChart as apiDeleteChart
+} from '../api/cells.js'
 
 const STORAGE_KEY = 'clara-builder-state'
 
@@ -162,9 +167,12 @@ function createEmptySearch() {
 }
 
 export const useBuilderStore = defineStore('builder', () => {
-  const allCells = ref([])
-  const simulations = ref({})  // cellId -> { iPeak, iAvg, delay }
-  const config = ref(null)
+  const metaCells = ref([])          // 서버 검색 결과 (메타데이터만)
+  const simulations = ref({})        // cellId → 시뮬 데이터 (캐시)
+  const config = ref(null)           // column-config.json (UI 레이아웃)
+  const pdks = ref([])               // GET /clara/pdk/
+  const libraries = ref([])          // GET /clara/lib/
+  const metrics = ref([])            // GET /clara/metric/
   const loading = ref(false)
   const error = ref(null)
   let initPromise = null
@@ -246,13 +254,13 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function createDefaultChartConfig(cellType) {
     const ct = cellType || appliedSearch.value?.cellType || 'FF'
-    const xOpts = config.value?.chartOptions?.xAxisOptions?.[ct] || []
-    const yOpts = config.value?.chartOptions?.yAxisOptions?.[ct] || []
+    const metricOpts = metrics.value.filter(m => m.cellType === ct)
+    const firstRaw = metricOpts.find(m => m.formulaType === 'raw')
     return {
       chartType: 'scatter',
       chartTypeSecondary: null,
-      xAxis: xOpts[0]?.value || 'pdpAvg',
-      yAxisPrimary: yOpts[0]?.value || 'pdpAvg',
+      xAxis: firstRaw?.metricId || null,
+      yAxisPrimary: firstRaw?.metricId || null,
       yAxisSecondary: null,
       grouping: 'alias'
     }
@@ -263,14 +271,20 @@ export const useBuilderStore = defineStore('builder', () => {
     loading.value = true
     error.value = null
     initPromise = Promise.all([
-      fetchCells(),
       fetchColumnConfig(),
-      fetchSimulations()
+      fetchPdks(),
+      fetchLibraries(),
+      fetchMetrics(),
+      apiFetchPresets(),
+      apiFetchCharts()
     ])
-      .then(([cells, cfg, sims]) => {
-        allCells.value = cells
+      .then(([cfg, pdkList, libList, metricList, presetList, chartList]) => {
         config.value = cfg
-        simulations.value = sims
+        pdks.value = pdkList
+        libraries.value = libList
+        metrics.value = metricList
+        chartPresets.value = presetList
+        savedCharts.value = chartList
       })
       .catch((err) => {
         error.value = err
@@ -291,7 +305,7 @@ export const useBuilderStore = defineStore('builder', () => {
     const formulas = activeBuilder.value.derivedFormulas || []
 
     // Pass 1: merge base + simulation data
-    const cellMap = new Map(allCells.value.map(c => [c.id, c]))
+    const cellMap = new Map(metaCells.value.map(c => [c.id, c]))
     const baseCells = ids
       .filter(id => cellMap.has(id))
       .map(id => ({ ...cellMap.get(id), ...(simulations.value[id] || {}) }))
@@ -420,44 +434,58 @@ export const useBuilderStore = defineStore('builder', () => {
     })
   }
 
-  // PDK dropdown options: unique pdk values from allCells, sorted
-  const pdkOptions = computed(() => {
-    const set = new Set()
-    for (const c of allCells.value) {
-      if (c.pdk != null && c.pdk !== '') set.add(c.pdk)
-    }
-    return Array.from(set).sort()
-  })
+  // PDK dropdown options from API
+  const pdkOptions = computed(() =>
+    pdks.value.map(p => {
+      const label = `[${p.process}] HSPICE: ${p.hspice} / LVS: ${p.lvs} / PEX: ${p.pex}`
+      return { id: p.id, label }
+    })
+  )
 
-  // Library dropdown options: unique library values, cascading on selected PDK
-  const libraryOptions = computed(() => {
-    const pdk = pendingSearch.value.pdk
-    const cellType = pendingSearch.value.cellType
-    const set = new Set()
-    for (const c of allCells.value) {
-      if (cellType && c.cellType !== cellType) continue
-      if (pdk && c.pdk !== pdk) continue
-      if (c.library != null && c.library !== '') set.add(c.library)
-    }
-    return Array.from(set).sort()
-  })
+  // Library dropdown options from API
+  const libraryOptions = computed(() =>
+    libraries.value.map(l => ({ id: l.id, label: l.library }))
+  )
 
   function batchSetAlias(builderId, cellIds, alias) {
     cellIds.forEach(id => { cellAliases.value[`${builderId}-${id}`] = alias })
   }
 
-  // Pre-column-filter stage: type + pdk + libraries + query only (no columnFilters).
-  // Used as the source for columnFilterOptions to avoid circular dependency.
+  // Fetch metadata from API when search conditions change
+  let fetchMetaAbort = null
+  async function performMetaSearch() {
+    const s = appliedSearch.value
+    if (!s.cellType || !s.pdk || s.libraries.length === 0) {
+      metaCells.value = []
+      return
+    }
+    if (fetchMetaAbort) fetchMetaAbort.abort()
+    fetchMetaAbort = new AbortController()
+    try {
+      const data = await fetchMeta({
+        cellType: s.cellType,
+        pdkId: s.pdk,
+        libIds: s.libraries
+      })
+      metaCells.value = data
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('[builderStore] fetchMeta failed:', err)
+    }
+  }
+
+  // Watch appliedSearch to trigger API call
+  watch(appliedSearch, () => {
+    if (!restoringSearch.value) performMetaSearch()
+  }, { deep: true })
+
+  // Pre-column-filter stage: metaCells + query filter (client-side)
   const preColumnFilteredCells = computed(() => {
     const s = appliedSearch.value
     if (!s.cellType || !s.pdk || s.libraries.length === 0) return []
     const terms = (s.query || '').toLowerCase().split(/[\s,]+/).filter(Boolean)
-    return allCells.value.filter(cell => {
-      if (!cellMatchesCategory(cell, s.cellType)) return false
-      if (s.pdk && cell.pdk !== s.pdk) return false
-      if (s.libraries.length > 0 && !s.libraries.includes(cell.library)) return false
-      if (terms.length && !terms.every(t => cell.cellName.toLowerCase().includes(t))) return false
-      return true
+    if (!terms.length) return metaCells.value
+    return metaCells.value.filter(cell => {
+      return terms.every(t => cell.cellName.toLowerCase().includes(t))
     })
   })
 
@@ -525,15 +553,16 @@ export const useBuilderStore = defineStore('builder', () => {
   const chartOptions = computed(() => config.value?.chartOptions ?? {
     chartTypes: [], xAxisOptions: [], yAxisOptions: {}, groupingOptions: []
   })
-  const xAxisOptions = computed(() => {
-    const x = chartOptions.value.xAxisOptions
-    return x?.[activeCellType.value] ?? []
-  })
+  const metricOptionsForType = computed(() =>
+    metrics.value
+      .filter(m => m.cellType === activeCellType.value)
+      .map(m => ({ value: m.metricId, label: m.name }))
+  )
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
     if (chartType === 'bar') return categoricalXAxisOptions.value
-    return xAxisOptions.value
+    return metricOptionsForType.value
   })
   const filteredGroupingOptions = computed(() => {
     const all = chartOptions.value.groupingOptions || []
@@ -543,10 +572,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (chartType === 'bar') return [{ value: '__none__', label: 'None' }, ...filtered]
     return filtered
   })
-  const yAxisOptions = computed(() => {
-    const y = chartOptions.value.yAxisOptions
-    return y?.[activeCellType.value] ?? []
-  })
+  const yAxisOptions = computed(() => metricOptionsForType.value)
   const derivedFields = computed(() => buildDerivedFields(activeCellType.value, config.value))
   const numericSimFields = computed(() =>
     selectedCellsSimulationColumns.value.filter(c => c.numeric).map(c => c.prop)
@@ -589,16 +615,31 @@ export const useBuilderStore = defineStore('builder', () => {
     cellAliases.value[`${builderId}-${cellId}`] = alias
   }
 
-  function toggleCellSelection(cellId) {
-    const ids = activeBuilder.value.selectedCellIds
-    const idx = ids.indexOf(cellId)
-    if (idx === -1) ids.push(cellId)
-    else ids.splice(idx, 1)
+  async function fetchSimForCells(cellIds) {
+    const uncached = cellIds.filter(id => !simulations.value[id])
+    if (!uncached.length) return
+    const cellType = appliedSearch.value.cellType
+    const fn = cellType === 'ICG' ? fetchSimICG : fetchSimFF
+    const data = await fn(uncached)
+    data.forEach(row => { simulations.value[row.cellId] = row })
   }
 
-  function selectCells(cellIds) {
+  async function toggleCellSelection(cellId) {
     const ids = activeBuilder.value.selectedCellIds
-    cellIds.forEach(id => { if (!ids.includes(id)) ids.push(id) })
+    const idx = ids.indexOf(cellId)
+    if (idx === -1) {
+      ids.push(cellId)
+      await fetchSimForCells([cellId])
+    } else {
+      ids.splice(idx, 1)
+    }
+  }
+
+  async function selectCells(cellIds) {
+    const ids = activeBuilder.value.selectedCellIds
+    const newIds = cellIds.filter(id => !ids.includes(id))
+    newIds.forEach(id => ids.push(id))
+    if (newIds.length) await fetchSimForCells(newIds)
   }
 
   function deselectCells(cellIds) {
@@ -658,7 +699,10 @@ export const useBuilderStore = defineStore('builder', () => {
         if (!catValues.has(cfg.xAxis)) cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
         cfg.grouping = '__none__'
       } else {
-        if (catValues.has(cfg.xAxis)) cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
+        if (catValues.has(cfg.xAxis)) {
+          const firstMetric = metricOptionsForType.value[0]
+          cfg.xAxis = firstMetric?.value || null
+        }
         if (cfg.grouping === '__none__') cfg.grouping = 'alias'
       }
     }
@@ -696,9 +740,8 @@ export const useBuilderStore = defineStore('builder', () => {
     // Build a label map so chart/table components can render axis/column labels
     // without hardcoding them or depending on the store.
     const labelMap = {}
-    ;(xAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
+    metrics.value.forEach(m => { labelMap[m.metricId] = m.name })
     ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
-    ;(yAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
     ;(selectedCellsMetadataColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
 
@@ -736,150 +779,94 @@ export const useBuilderStore = defineStore('builder', () => {
     { deep: true }
   )
 
-  // ── Chart Presets (localStorage until backend) ─────────────────────────
-  const PRESETS_KEY = 'clara-chart-presets'
-
-  function loadPresets() {
-    try {
-      return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []
-    } catch { return [] }
-  }
-
-  const chartPresets = ref(loadPresets())
-
-  function savePresetsToStorage() {
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(chartPresets.value))
-  }
+  // ── Chart Presets (API) ─────────────────────────────────────────────────
+  const chartPresets = ref([])
 
   const presetsForCellType = computed(() => {
     const ct = activeCellType.value
-    return chartPresets.value.filter(p => p.cellType === ct && p.isVisible === 'Y')
+    return chartPresets.value.filter(p => p.isVisible === 'Y')
   })
 
-  function savePreset(name) {
+  async function savePreset(name) {
     if (!activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
-    chartPresets.value.push({
-      id: Date.now(),
+    const preset = await apiCreatePreset({
       name,
-      cellType: activeCellType.value,
       chartType: cfg.chartType,
       xAxis: cfg.xAxis,
-      yAxisPrimary: cfg.yAxisPrimary,
-      y1Aggregation: null,
-      yAxisSecondary: cfg.yAxisSecondary,
-      y2Aggregation: null,
-      grouping: cfg.grouping,
-      isVisible: 'Y',
-      createdBy: '',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+      y1Axis: cfg.yAxisPrimary,
+      y2Axis: cfg.yAxisSecondary,
+      groupBy: cfg.grouping,
+      isVisible: 'Y'
     })
-    savePresetsToStorage()
+    chartPresets.value.push(preset)
   }
 
   function loadPreset(presetId) {
-    const preset = chartPresets.value.find(p => p.id === presetId)
+    const preset = chartPresets.value.find(p => p.presetId === presetId)
     if (!preset || !activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
     cfg.chartType = preset.chartType
     cfg.xAxis = preset.xAxis
-    cfg.yAxisPrimary = preset.yAxisPrimary
-    cfg.yAxisSecondary = preset.yAxisSecondary
-    cfg.grouping = preset.grouping
-
-    const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
-    if (cfg.chartType !== 'bar' && catValues.has(cfg.xAxis)) {
-      cfg.xAxis = xAxisOptions.value[0]?.value || 'pdpAvg'
-    } else if (cfg.chartType === 'bar' && !catValues.has(cfg.xAxis)) {
-      cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
-    }
+    cfg.yAxisPrimary = preset.y1Axis
+    cfg.yAxisSecondary = preset.y2Axis
+    cfg.grouping = preset.groupBy
   }
 
-  function deletePreset(presetId) {
-    chartPresets.value = chartPresets.value.filter(p => p.id !== presetId)
-    savePresetsToStorage()
+  async function deletePreset(presetId) {
+    await apiDeletePreset(presetId)
+    chartPresets.value = chartPresets.value.filter(p => p.presetId !== presetId)
   }
 
-  // ── Saved Charts (localStorage until backend) ──────────────────────────
-  const CHARTS_KEY = 'clara-saved-charts'
+  // ── Saved Charts (API) ──────────────────────────────────────────────────
+  const savedCharts = ref([])
 
-  function loadSavedCharts() {
-    try {
-      return JSON.parse(localStorage.getItem(CHARTS_KEY)) || []
-    } catch { return [] }
-  }
-
-  const savedCharts = ref(loadSavedCharts())
-
-  function saveChartsToStorage() {
-    localStorage.setItem(CHARTS_KEY, JSON.stringify(savedCharts.value))
-  }
-
-  function saveChart(name) {
+  async function saveChart(name) {
     if (!activeBuilder.value) return
     const b = activeBuilder.value
     const cfg = b.chartConfig
     const builderId = b.id
 
-    // Collect selected cell IDs + aliases
-    const items = b.selectedCellIds.map(cellId => ({
-      cellId,
-      cellAlias: getCellAlias(builderId, cellId) || ''
-    }))
-
-    // Save chart config as a hidden preset
-    const presetId = Date.now()
-    chartPresets.value.push({
-      id: presetId,
-      name: `${name}__auto`,
-      cellType: activeCellType.value,
-      chartType: cfg.chartType,
-      xAxis: cfg.xAxis,
-      yAxisPrimary: cfg.yAxisPrimary,
-      y1Aggregation: null,
-      yAxisSecondary: cfg.yAxisSecondary,
-      y2Aggregation: null,
-      grouping: cfg.grouping,
-      isVisible: 'N',
-      createdBy: '',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    const chart = await apiCreateChart({
+      chartName: name,
+      preset: {
+        name,
+        chartType: cfg.chartType,
+        xAxis: cfg.xAxis,
+        y1Axis: cfg.yAxisPrimary,
+        y2Axis: cfg.yAxisSecondary,
+        groupBy: cfg.grouping
+      },
+      items: b.selectedCellIds.map(cellId => ({
+        cellId,
+        cellAlias: getCellAlias(builderId, cellId) || ''
+      }))
     })
-    savePresetsToStorage()
-
-    // Save chart
-    savedCharts.value.push({
-      id: Date.now() + 1,
-      name,
-      presetId,
-      cellType: activeCellType.value,
-      items,
-      createdBy: '',
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
-    })
-    saveChartsToStorage()
+    savedCharts.value.push(chart)
   }
 
-  function restoreChart(chartId) {
-    const chart = savedCharts.value.find(c => c.id === chartId)
+  async function restoreChart(chartId) {
+    const chart = savedCharts.value.find(c => c.chartId === chartId)
     if (!chart) return
 
-    const preset = chartPresets.value.find(p => p.id === chart.presetId)
+    const preset = chart.preset
 
     // Create new builder
     saveSearchToBuilder()
     const id = nextBuilderId++
+    const cellIds = chart.items.map(i => i.cellId)
     const newBuilder = {
       id,
-      name: chart.name,
-      selectedCellIds: chart.items.map(i => i.cellId),
+      name: chart.chartName,
+      selectedCellIds: cellIds,
       chartConfig: preset ? {
         chartType: preset.chartType,
         chartTypeSecondary: null,
         xAxis: preset.xAxis,
-        yAxisPrimary: preset.yAxisPrimary,
-        yAxisSecondary: preset.yAxisSecondary,
-        grouping: preset.grouping
-      } : createDefaultChartConfig(chart.cellType),
+        yAxisPrimary: preset.y1Axis,
+        yAxisSecondary: preset.y2Axis,
+        grouping: preset.groupBy
+      } : createDefaultChartConfig(),
       derivedFormulas: [],
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     }
@@ -893,26 +880,22 @@ export const useBuilderStore = defineStore('builder', () => {
       }
     })
 
+    // Fetch sim data for restored cells
+    if (cellIds.length) await fetchSimForCells(cellIds)
+
     // Generate chart
-    const chartTab = generateChart()
-    return chartTab
+    return generateChart()
   }
 
-  function deleteSavedChart(chartId) {
-    const chart = savedCharts.value.find(c => c.id === chartId)
-    if (chart) {
-      // Also delete hidden preset
-      chartPresets.value = chartPresets.value.filter(p => p.id !== chart.presetId)
-      savePresetsToStorage()
-    }
-    savedCharts.value = savedCharts.value.filter(c => c.id !== chartId)
-    saveChartsToStorage()
+  async function deleteSavedChart(chartId) {
+    await apiDeleteChart(chartId)
+    savedCharts.value = savedCharts.value.filter(c => c.chartId !== chartId)
   }
 
   return {
-    allCells, simulations, config, loading, error,
+    metaCells, simulations, config, metrics, pdks, libraries, loading, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, xAxisOptions, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
+    chartOptions, metricOptionsForType, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
