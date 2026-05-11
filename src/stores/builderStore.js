@@ -444,7 +444,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // Library dropdown options from API
   const libraryOptions = computed(() =>
-    libraries.value.map(l => ({ id: l.id, label: l.library }))
+    libraries.value.map(l => ({ id: l.id, label: l.lib }))
   )
 
   function batchSetAlias(builderId, cellIds, alias) {
@@ -452,6 +452,7 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   // Fetch metadata from API when search conditions change
+  const searching = ref(false)
   let fetchMetaAbort = null
   async function performMetaSearch() {
     const s = appliedSearch.value
@@ -461,6 +462,7 @@ export const useBuilderStore = defineStore('builder', () => {
     }
     if (fetchMetaAbort) fetchMetaAbort.abort()
     fetchMetaAbort = new AbortController()
+    searching.value = true
     try {
       const data = await fetchMeta({
         cellType: s.cellType,
@@ -470,6 +472,8 @@ export const useBuilderStore = defineStore('builder', () => {
       metaCells.value = data
     } catch (err) {
       if (err.name !== 'AbortError') console.error('[builderStore] fetchMeta failed:', err)
+    } finally {
+      searching.value = false
     }
   }
 
@@ -904,7 +908,7 @@ export const useBuilderStore = defineStore('builder', () => {
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,
     // search / filter
-    pendingSearch, appliedSearch, searchDirty, restoringSearch, canSearch, filteredCells,
+    pendingSearch, appliedSearch, searchDirty, restoringSearch, canSearch, searching, filteredCells,
     setPendingCellType, setPendingQuery, setPendingColumnFilter, clearPendingColumnFilter,
     setPendingPdk, setPendingLibraries, pdkOptions, libraryOptions, batchSetAlias,
     applySearch, resetSearch, columnFilterOptions,

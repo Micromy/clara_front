@@ -229,6 +229,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
     <el-table
       ref="tableRef"
       :data="pagedCells"
+      v-loading="store.searching"
       border
       stripe
       size="small"
