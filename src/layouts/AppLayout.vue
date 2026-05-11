@@ -163,14 +163,14 @@ async function ctxSave() {
   hideCtxMenu()
   if (!builder) return
 
-  let name = builder.name
-
-  // Check duplicates and append suffix
+  // Strip existing suffix like " (2)" before duplicate check
+  let baseName = builder.name.replace(/\s*\(\d+\)$/, '')
   const existing = store.savedCharts.map(c => c.chartName)
+  let name = baseName
   if (existing.includes(name)) {
     let i = 2
-    while (existing.includes(`${name} (${i})`)) i++
-    name = `${name} (${i})`
+    while (existing.includes(`${baseName} (${i})`)) i++
+    name = `${baseName} (${i})`
   }
 
   try {
