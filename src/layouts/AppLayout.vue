@@ -203,7 +203,7 @@ async function onDeleteChart(chart) {
       'Delete',
       { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
     )
-    store.deleteSavedChart(chart.id)
+    store.deleteSavedChart(chart.chartId)
     ElMessage.info('Chart deleted.')
   } catch {}
 }

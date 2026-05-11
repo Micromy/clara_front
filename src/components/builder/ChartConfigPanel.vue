@@ -42,7 +42,7 @@ async function onDeletePreset(preset) {
       'Delete Preset',
       { confirmButtonText: 'Delete', cancelButtonText: 'Cancel', type: 'warning' }
     )
-    store.deletePreset(preset.id)
+    store.deletePreset(preset.presetId)
     ElMessage.info('Preset deleted.')
   } catch {}
 }
@@ -157,7 +157,7 @@ function onGenerate() {
         </el-table-column>
         <el-table-column label="" width="130" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="onLoadPreset(row.id)">Apply</el-button>
+            <el-button size="small" type="primary" link @click="onLoadPreset(row.presetId)">Apply</el-button>
             <el-button size="small" type="danger" link @click="onDeletePreset(row)">Delete</el-button>
           </template>
         </el-table-column>
