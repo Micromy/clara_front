@@ -109,12 +109,19 @@ export async function fetchMetrics() {
 
 // ── Cell Metadata ────────────────────────────────────────────────────────
 
-export function fetchMeta({ cellType, pdkId, libIds }) {
+// Map API meta field names to frontend field names
+function mapMetaRow(row) {
+  const { lib, libId, ...rest } = row
+  return { ...rest, library: lib, libId }
+}
+
+export async function fetchMeta({ cellType, pdkId, libIds }) {
   const params = new URLSearchParams()
   if (cellType) params.set('cell_type', cellType)
   if (pdkId) params.set('pdk_id', pdkId)
   if (libIds && libIds.length) params.set('lib_id', libIds.join(','))
-  return get(`/clara/meta/?${params}`)
+  const data = await get(`/clara/meta/?${params}`)
+  return data.map(mapMetaRow)
 }
 
 // ── Simulation Data ──────────────────────────────────────────────────────
