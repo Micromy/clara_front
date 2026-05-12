@@ -205,7 +205,7 @@ export const useBuilderStore = defineStore('builder', () => {
       ? Math.min(_saved.activeBuilderIndex, (_saved.builders?.length ?? 1) - 1)
       : 0
   )
-  const activeSubTab = ref(_saved?.activeSubTab === 'chart' ? 'chart' : 'builder')
+  const activeSubTab = ref('builder')
   let nextBuilderId = _saved?.builders
     ? Math.max(..._saved.builders.map(b => b.id), 1) + 1
     : 2
@@ -790,6 +790,10 @@ export const useBuilderStore = defineStore('builder', () => {
       const fallback = (chartOptions.value.groupingOptions || []).find(o => o.value !== value)
       cfg.grouping = fallback?.value || 'alias'
     }
+
+    if (key === 'yAxisSecondary' && !value) {
+      cfg.chartTypeSecondary = null
+    }
   }
 
   // formulaConfig: { name, type, field?, field1?, op?, field2?, fn? }
@@ -864,12 +868,11 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // ── Persist builder state to localStorage on every change ──────────────────
   watch(
-    [builders, cellAliases, activeBuilderIndex, activeSubTab],
+    [builders, cellAliases, activeBuilderIndex],
     () => savePersistedState({
       builders: builders.value,
       cellAliases: cellAliases.value,
-      activeBuilderIndex: activeBuilderIndex.value,
-      activeSubTab: activeSubTab.value
+      activeBuilderIndex: activeBuilderIndex.value
     }),
     { deep: true }
   )

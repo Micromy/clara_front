@@ -255,11 +255,12 @@ function onGenerate() {
       <el-form-item label="Y-Axis 2">
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisSecondary"
-          @update:model-value="val => store.updateChartConfig('yAxisSecondary', val)"
+          @update:model-value="val => store.updateChartConfig('yAxisSecondary', val || null)"
           style="width: 100%"
           clearable
           placeholder="None"
         >
+          <el-option label="None" :value="null" />
           <el-option v-for="opt in store.augmentedYAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
       </el-form-item>

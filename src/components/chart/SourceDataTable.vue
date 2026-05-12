@@ -107,14 +107,18 @@ function calcAutoWidth(key, label) {
 const columns = computed(() => {
   const out = []
   const seen = new Set()
+  const cfg = props.chartData.config || {}
 
   function add(key) {
-    if (seen.has(key)) return
+    if (!key || seen.has(key)) return
     seen.add(key)
     const label = labelFor(key)
     out.push({ key, label, digits: digitsFor(key), autoWidth: calcAutoWidth(key, label) })
   }
 
+  add(cfg.xAxis)
+  add(cfg.yAxisPrimary)
+  add(cfg.yAxisSecondary)
   simColumns.value.forEach(c => add(c.prop))
   META_FIELDS.forEach(f => add(f.key))
   ;(props.chartData.derivedFormulas || []).forEach(d => add(`__df_${d.id}`))
