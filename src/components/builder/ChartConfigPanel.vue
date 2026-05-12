@@ -6,10 +6,7 @@ import {
   DERIVED_OPS, FORMULA_TYPES, UNARY_FNS, GROUP_BY_OPTIONS,
   formulaDesc
 } from '../../stores/builderStore.js'
-import { useRouter } from 'vue-router'
-
 const store = useBuilderStore()
-const router = useRouter()
 const loadDialogVisible = ref(false)
 const saveDialogVisible = ref(false)
 const presetNameInput = ref('')
@@ -163,7 +160,7 @@ function addDerived() {
 
 function onGenerate() {
   const chart = store.generateChart()
-  if (chart) router.push(`/chart/${chart.builderId}`)
+  if (chart) store.activeSubTab = 'chart'
 }
 </script>
 

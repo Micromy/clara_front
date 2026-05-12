@@ -1,24 +1,13 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useBuilderStore } from '../stores/builderStore.js'
 
-const router = useRouter()
-const route = useRoute()
 const store = useBuilderStore()
 
 // ── Active state ──
-const activeSetId = computed(() => {
-  const id = route.name === 'Chart'
-    ? Number(route.params.builderId)
-    : Number(route.params.id || store.activeBuilder?.id || 1)
-  return id
-})
-
-const activeSubTab = computed(() => {
-  return route.name === 'Chart' ? 'chart' : 'builder'
-})
+const activeSetId = computed(() => store.activeBuilder?.id)
+const activeSubTab = computed(() => store.activeSubTab)
 
 function hasChart(builderId) {
   return store.chartTabs.some(c => c.builderId === builderId)
@@ -27,30 +16,15 @@ function hasChart(builderId) {
 function selectSet(builder) {
   const idx = store.builders.findIndex(b => b.id === builder.id)
   if (idx !== -1) store.activeBuilderIndex = idx
-  if (activeSubTab.value === 'chart' && hasChart(builder.id)) {
-    router.push(`/chart/${builder.id}`)
-  } else {
-    router.push(`/builder/${builder.id}`)
-  }
-}
-
-function switchSubTab(val) {
-  const id = activeSetId.value
-  if (val === 'chart') {
-    router.push(`/chart/${id}`)
-  } else {
-    router.push(`/builder/${id}`)
+  if (store.activeSubTab === 'chart' && !hasChart(builder.id)) {
+    store.activeSubTab = 'builder'
   }
 }
 
 function activateSet(builderId, tab) {
   const idx = store.builders.findIndex(b => b.id === builderId)
   if (idx !== -1) store.activeBuilderIndex = idx
-  if (tab === 'chart') {
-    router.push(`/chart/${builderId}`)
-  } else {
-    router.push(`/builder/${builderId}`)
-  }
+  store.activeSubTab = tab === 'chart' ? 'chart' : 'builder'
 }
 
 // ── Tab editing ──
@@ -116,8 +90,7 @@ function clearDrag() {
 // ── Add / Remove ──
 function addNewBuilder() {
   store.addBuilder()
-  const newBuilder = store.builders[store.builders.length - 1]
-  router.push(`/builder/${newBuilder.id}`)
+  store.activeSubTab = 'builder'
 }
 
 async function closeSet(builder) {
@@ -135,11 +108,11 @@ async function closeSet(builder) {
   store.removeChartTab(builder.id)
   if (store.builders.length <= 1) {
     store.resetBuilder(idx)
-    router.push(`/builder/${builder.id}`)
+    store.activeSubTab = 'builder'
     return
   }
   store.removeBuilder(idx)
-  router.push(`/builder/${store.activeBuilder.id}`)
+  store.activeSubTab = 'builder'
 }
 
 // ── Context menu ──
@@ -196,11 +169,7 @@ async function onLoadChart(chartId) {
   try {
     const chartTab = await store.restoreChart(chartId)
     loadChartDialogVisible.value = false
-    if (chartTab) {
-      router.push(`/chart/${chartTab.builderId}`)
-    } else {
-      router.push(`/builder/${store.activeBuilder.id}`)
-    }
+    store.activeSubTab = chartTab ? 'chart' : 'builder'
     ElMessage.success('Chart loaded.')
   } catch {
     ElMessage.error('Failed to load chart.')

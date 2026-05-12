@@ -205,6 +205,7 @@ export const useBuilderStore = defineStore('builder', () => {
       ? Math.min(_saved.activeBuilderIndex, (_saved.builders?.length ?? 1) - 1)
       : 0
   )
+  const activeSubTab = ref(_saved?.activeSubTab === 'chart' ? 'chart' : 'builder')
   let nextBuilderId = _saved?.builders
     ? Math.max(..._saved.builders.map(b => b.id), 1) + 1
     : 2
@@ -863,11 +864,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // ── Persist builder state to localStorage on every change ──────────────────
   watch(
-    [builders, cellAliases, activeBuilderIndex],
+    [builders, cellAliases, activeBuilderIndex, activeSubTab],
     () => savePersistedState({
       builders: builders.value,
       cellAliases: cellAliases.value,
-      activeBuilderIndex: activeBuilderIndex.value
+      activeBuilderIndex: activeBuilderIndex.value,
+      activeSubTab: activeSubTab.value
     }),
     { deep: true }
   )
@@ -1008,7 +1010,7 @@ export const useBuilderStore = defineStore('builder', () => {
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
     chartOptions, metricOptionsForType, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
-    builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
+    builders, activeBuilderIndex, activeSubTab, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
     toggleCellSelection, selectCells, deselectCells, clearSelection,
     addBuilder, removeBuilder, resetBuilder, updateChartConfig,

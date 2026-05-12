@@ -1,15 +1,13 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
 import { useBuilderStore } from '../stores/builderStore.js'
 import ChartDisplay from '../components/chart/ChartDisplay.vue'
 import SourceDataTable from '../components/chart/SourceDataTable.vue'
 
-const route = useRoute()
 const store = useBuilderStore()
 
 const chartTab = computed(() => {
-  const builderId = Number(route.params.builderId)
+  const builderId = store.activeBuilder?.id
   return store.chartTabs.find(t => t.builderId === builderId)
 })
 

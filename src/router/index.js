@@ -3,17 +3,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    redirect: '/builder/1'
+    name: 'Home',
+    component: () => import('../views/AppView.vue')
   },
   {
-    path: '/builder/:id',
-    name: 'Builder',
-    component: () => import('../views/BuilderView.vue')
-  },
-  {
-    path: '/chart/:builderId',
-    name: 'Chart',
-    component: () => import('../views/ChartView.vue')
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 
