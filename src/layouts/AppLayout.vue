@@ -2,6 +2,7 @@
 import { ref, computed, nextTick } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useBuilderStore } from '../stores/builderStore.js'
+import AppView from '../views/AppView.vue'
 
 const store = useBuilderStore()
 
@@ -307,7 +308,7 @@ function ctxClose() {
     </Teleport>
 
     <main class="app-main">
-      <router-view />
+      <AppView />
     </main>
   </div>
 </template>
