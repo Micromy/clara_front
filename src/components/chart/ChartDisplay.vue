@@ -13,6 +13,7 @@ const labelOverlays = ref([])
 const labelOffsets = ref({})
 let labelDragState = null
 let overlayRaf = 0
+let measureCanvas = null
 
 const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
 const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" fill="#4078C0" stroke="#4078C0" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="#fff"/></svg>')
@@ -255,8 +256,8 @@ const chartOption = computed(() => {
           title: 'Save as image',
           icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'),
           onclick: function() {
-            if (!chartInstance) return
-            const url = chartInstance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+            const url = exportChartImage(2)
+            if (!url) return
             const a = document.createElement('a')
             a.href = url
             a.download = 'chart.png'
@@ -410,6 +411,107 @@ function scheduleLabelOverlayRebuild() {
   })
 }
 
+function measureLabelBox(text) {
+  if (!measureCanvas) measureCanvas = document.createElement('canvas')
+  const ctx = measureCanvas.getContext('2d')
+  ctx.font = '12px Segoe UI, system-ui, -apple-system, sans-serif'
+  const textWidth = Math.ceil(ctx.measureText(text).width)
+  return {
+    width: textWidth + 12,
+    height: 22,
+    textX: 6,
+    textY: 15
+  }
+}
+
+function buildExportGraphic() {
+  return labelOverlays.value.flatMap(label => {
+    const box = measureLabelBox(label.text)
+    return [
+      {
+        type: 'line',
+        shape: {
+          x1: label.anchorX,
+          y1: label.anchorY,
+          x2: label.x + 8,
+          y2: label.y + 13
+        },
+        style: {
+          stroke: '#c7cbd4',
+          lineWidth: 1
+        },
+        silent: true
+      },
+      {
+        type: 'rect',
+        shape: {
+          x: label.x,
+          y: label.y,
+          width: box.width,
+          height: box.height
+        },
+        style: {
+          fill: '#fff',
+          stroke: '#dcdfe6',
+          lineWidth: 1
+        },
+        silent: true
+      },
+      {
+        type: 'text',
+        style: {
+          x: label.x + box.textX,
+          y: label.y + box.textY,
+          text: label.text,
+          fill: '#303133',
+          font: '12px Segoe UI, system-ui, -apple-system, sans-serif'
+        },
+        silent: true
+      }
+    ]
+  })
+}
+
+function cloneExportOption() {
+  const current = chartInstance?.getOption?.()
+  if (!current) return null
+  const option = structuredClone(current)
+  option.animation = false
+  option.animationDuration = 0
+  option.animationDurationUpdate = 0
+  option.toolbox = { ...option.toolbox, show: false }
+  option.graphic = labelsOn.value ? buildExportGraphic() : []
+  return option
+}
+
+function exportChartImage(pixelRatio = 2) {
+  if (!chartInstance || !chartContainer.value) return null
+  if (!labelsOn.value) {
+    return chartInstance.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' })
+  }
+
+  const exportOption = cloneExportOption()
+  if (!exportOption) return null
+
+  const rect = chartContainer.value.getBoundingClientRect()
+  const temp = document.createElement('div')
+  temp.style.position = 'fixed'
+  temp.style.left = '-10000px'
+  temp.style.top = '0'
+  temp.style.width = `${Math.round(rect.width)}px`
+  temp.style.height = `${Math.round(rect.height)}px`
+  document.body.appendChild(temp)
+
+  const exportChart = echarts.init(temp)
+  try {
+    exportChart.setOption(exportOption, true)
+    return exportChart.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' })
+  } finally {
+    exportChart.dispose()
+    temp.remove()
+  }
+}
+
 function syncDraggedOverlay(key, dx, dy) {
   const target = labelOverlays.value.find(l => l.key === key)
   if (!target) return
@@ -526,7 +628,7 @@ watch(labelsOn, (val) => {
 
 defineExpose({
   getChartImage: (pixelRatio = 2) =>
-    chartInstance?.getDataURL({ type: 'png', pixelRatio, backgroundColor: '#fff' }) ?? null,
+    exportChartImage(pixelRatio),
   resize: () => chartInstance?.resize(),
   highlightCells(cellIds) {
     if (!chartInstance) return
