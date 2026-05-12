@@ -27,6 +27,11 @@ function openSavePresetDialog() {
   saveDialogVisible.value = true
 }
 
+function onPresetNameEnter() {
+  if (presetNameEmpty.value || presetNameDuplicate.value) return
+  confirmSavePreset()
+}
+
 async function confirmSavePreset() {
   const name = presetNameInput.value.trim()
   if (!name || presetNameDuplicate.value) return
@@ -179,7 +184,7 @@ function onGenerate() {
           <el-input
             v-model="presetNameInput"
             placeholder="Preset name"
-            @keyup.enter="confirmSavePreset"
+            @keydown.enter.prevent="onPresetNameEnter"
           />
         </el-form-item>
         <div v-if="presetNameEmpty" class="preset-hint">Name is required.</div>

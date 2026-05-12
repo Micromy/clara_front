@@ -161,6 +161,7 @@ function ctxRename() {
 }
 
 const loadChartDialogVisible = ref(false)
+const loadingChartId = ref(null)
 
 async function ctxSave() {
   const builder = ctxMenu.value.builder
@@ -189,15 +190,23 @@ async function ctxSave() {
   ElMessage.success(`Chart "${name}" saved.`)
 }
 
-function onLoadChart(chartId) {
-  const chartTab = store.restoreChart(chartId)
-  loadChartDialogVisible.value = false
-  if (chartTab) {
-    router.push(`/chart/${chartTab.builderId}`)
-  } else {
-    router.push(`/builder/${store.activeBuilder.id}`)
+async function onLoadChart(chartId) {
+  if (loadingChartId.value != null) return
+  loadingChartId.value = chartId
+  try {
+    const chartTab = await store.restoreChart(chartId)
+    loadChartDialogVisible.value = false
+    if (chartTab) {
+      router.push(`/chart/${chartTab.builderId}`)
+    } else {
+      router.push(`/builder/${store.activeBuilder.id}`)
+    }
+    ElMessage.success('Chart loaded.')
+  } catch {
+    ElMessage.error('Failed to load chart.')
+  } finally {
+    loadingChartId.value = null
   }
-  ElMessage.success('Chart loaded.')
 }
 
 async function onDeleteChart(chart) {
@@ -295,8 +304,21 @@ function ctxClose() {
         </el-table-column>
         <el-table-column label="" width="130" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="onLoadChart(row.chartId)">Load</el-button>
-            <el-button size="small" type="danger" link @click="onDeleteChart(row)">Delete</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              link
+              :loading="loadingChartId === row.chartId"
+              :disabled="loadingChartId != null"
+              @click="onLoadChart(row.chartId)"
+            >Load</el-button>
+            <el-button
+              size="small"
+              type="danger"
+              link
+              :disabled="loadingChartId != null"
+              @click="onDeleteChart(row)"
+            >Delete</el-button>
           </template>
         </el-table-column>
       </el-table>
