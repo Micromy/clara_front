@@ -177,6 +177,7 @@ export const useBuilderStore = defineStore('builder', () => {
   const libraries = ref([])          // GET /clara/lib/
   const metrics = ref([])            // GET /clara/metric/
   const loading = ref(false)
+  const restoringSessionState = ref(false)
   const error = ref(null)
   let initPromise = null
 
@@ -237,10 +238,23 @@ export const useBuilderStore = defineStore('builder', () => {
       appliedSearch.value = createEmptySearch()
     }
     searchDirty.value = false
-    if (b?.selectedCellIds?.length) {
-      ensureMetaForCells(b.selectedCellIds)
+    if (initPromise && b?.selectedCellIds?.length) {
+      hydrateBuilderSelections(b).catch(err => {
+        console.error('[builderStore] failed to restore builder selections:', err)
+      })
     }
     nextTick(() => { restoringSearch.value = false })
+  }
+
+  async function restoreVisibleSessionState() {
+    const b = builders.value[activeBuilderIndex.value]
+    if (!b?.selectedCellIds?.length) return
+    restoringSessionState.value = true
+    try {
+      await hydrateBuilderSelections(b)
+    } finally {
+      restoringSessionState.value = false
+    }
   }
 
   // Restore search state from the active builder on load
@@ -292,6 +306,7 @@ export const useBuilderStore = defineStore('builder', () => {
         chartPresets.value = presetList
         savedCharts.value = chartList
       })
+      .then(() => restoreVisibleSessionState())
       .catch((err) => {
         error.value = err
         console.error('[builderStore] init failed:', err)
@@ -320,6 +335,14 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!missing.length) return
     const rows = await fetchMeta({ cellIds: missing })
     mergeMetaCells(rows)
+  }
+
+  async function hydrateBuilderSelections(builder) {
+    const ids = builder?.selectedCellIds || []
+    if (!ids.length) return
+    const cellType = builder?.search?.applied?.cellType || builder?.search?.pending?.cellType || appliedSearch.value.cellType
+    await ensureMetaForCells(ids)
+    await fetchSimForCells(ids, cellType)
   }
 
   const selectedCells = computed(() => {
@@ -649,10 +672,10 @@ export const useBuilderStore = defineStore('builder', () => {
     cellAliases.value[`${builderId}-${cellId}`] = alias
   }
 
-  async function fetchSimForCells(cellIds) {
+  async function fetchSimForCells(cellIds, cellTypeOverride = appliedSearch.value.cellType) {
     const uncached = cellIds.filter(id => !simulations.value[id])
     if (!uncached.length) return
-    const cellType = appliedSearch.value.cellType
+    const cellType = cellTypeOverride
     const fn = cellType === 'ICG' ? fetchSimICG : fetchSimFF
     const data = await fn(uncached)
     data.forEach(row => { simulations.value[row.cellId] = row })
@@ -981,7 +1004,7 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   return {
-    metaCells, simulations, config, metrics, pdks, libraries, loading, error,
+    metaCells, simulations, config, metrics, pdks, libraries, loading, restoringSessionState, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
     chartOptions, metricOptionsForType, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,

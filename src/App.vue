@@ -24,7 +24,11 @@ onMounted(() => {
   </div>
   <div v-else-if="store.loading && !store.config" class="app-loading">
     <el-icon class="is-loading" size="32"><Loading /></el-icon>
-    <div>Loading…</div>
+    <div>Loading CLARA…</div>
+  </div>
+  <div v-else-if="store.restoringSessionState" class="app-loading">
+    <el-icon class="is-loading" size="32"><Loading /></el-icon>
+    <div>Restoring previous session…</div>
   </div>
   <AppLayout v-else />
 </template>
