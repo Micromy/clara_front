@@ -85,8 +85,6 @@ const matchedDerivedMetric = computed(() => {
   }) || null
 })
 
-const derivedMetricName = computed(() => matchedDerivedMetric.value?.name ?? '')
-
 const CHART_TYPES = [
   { value: 'scatter', label: 'Scatter' },
   { value: 'line',    label: 'Line' },
@@ -290,10 +288,6 @@ function onGenerate() {
           </el-select>
         </el-form-item>
 
-        <el-form-item label="Name">
-          <el-input :model-value="derivedMetricName" readonly placeholder="Matched metric name" />
-        </el-form-item>
-
         <!-- Binary: Field1 op Field2 -->
         <el-form-item v-if="isBinary" label="Formula">
           <div class="formula-row">
@@ -344,8 +338,8 @@ function onGenerate() {
           </el-select>
         </el-form-item>
 
-        <!-- Formula preview -->
-        <el-form-item label="Preview">
+        <!-- Formula description -->
+        <el-form-item label="Description">
           <div class="formula-preview">{{ formulaPreview }}</div>
         </el-form-item>
       </el-form>
