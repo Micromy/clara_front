@@ -323,6 +323,7 @@ function onGenerate() {
             <el-option
               v-for="t in FORMULA_TYPES"
               :key="t.value"
+              :label="t.label"
               :value="t.value"
             >
               <span>{{ t.label }}</span>
