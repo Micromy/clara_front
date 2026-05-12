@@ -524,9 +524,15 @@ function renderChart() {
   if (!chartContainer.value) return
   if (!chartInstance) {
     chartInstance = echarts.init(chartContainer.value)
-    chartInstance.on('finished', scheduleLabelOverlayRebuild)
+    chartInstance.on('finished', () => {
+      updateLegendPosition()
+      scheduleLabelOverlayRebuild()
+    })
     chartInstance.on('datazoom', scheduleLabelOverlayRebuild)
-    chartInstance.on('restore', scheduleLabelOverlayRebuild)
+    chartInstance.on('restore', () => {
+      updateLegendPosition()
+      scheduleLabelOverlayRebuild()
+    })
     chartInstance.on('georoam', scheduleLabelOverlayRebuild)
   }
   chartInstance.setOption(chartOption.value, true)
