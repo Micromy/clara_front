@@ -12,6 +12,7 @@ const labelsOn = ref(false)
 const labelOverlays = ref([])
 const labelOffsets = ref({})
 let labelDragState = null
+let overlayRaf = 0
 
 const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
 const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" fill="#4078C0" stroke="#4078C0" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="#fff"/></svg>')
@@ -400,6 +401,15 @@ function rebuildLabelOverlays() {
   labelOverlays.value = overlays
 }
 
+function scheduleLabelOverlayRebuild() {
+  if (!labelsOn.value) return
+  if (overlayRaf) cancelAnimationFrame(overlayRaf)
+  overlayRaf = requestAnimationFrame(() => {
+    overlayRaf = 0
+    rebuildLabelOverlays()
+  })
+}
+
 function syncDraggedOverlay(key, dx, dy) {
   const target = labelOverlays.value.find(l => l.key === key)
   if (!target) return
@@ -444,10 +454,14 @@ function renderChart() {
   if (!chartContainer.value) return
   if (!chartInstance) {
     chartInstance = echarts.init(chartContainer.value)
-    chartInstance.on('finished', rebuildLabelOverlays)
+    chartInstance.on('finished', scheduleLabelOverlayRebuild)
+    chartInstance.on('datazoom', scheduleLabelOverlayRebuild)
+    chartInstance.on('restore', scheduleLabelOverlayRebuild)
+    chartInstance.on('georoam', scheduleLabelOverlayRebuild)
   }
   chartInstance.setOption(chartOption.value, true)
   updateLegendPosition()
+  scheduleLabelOverlayRebuild()
 }
 
 let resizeObserver = null
@@ -480,7 +494,11 @@ onMounted(() => {
   window.addEventListener('keyup', onKeyUp)
   chartContainer.value?.addEventListener('dblclick', onChartDblClick)
   if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
-    resizeObserver = new ResizeObserver(() => { chartInstance?.resize(); updateLegendPosition() })
+    resizeObserver = new ResizeObserver(() => {
+      chartInstance?.resize()
+      updateLegendPosition()
+      scheduleLabelOverlayRebuild()
+    })
     resizeObserver.observe(chartContainer.value)
   }
 })
@@ -491,12 +509,20 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', onKeyUp)
   chartContainer.value?.removeEventListener('dblclick', onChartDblClick)
   stopLabelDrag()
+  if (overlayRaf) cancelAnimationFrame(overlayRaf)
   resizeObserver?.disconnect()
   chartInstance?.dispose()
   chartInstance = null
 })
 
 watch(chartOption, () => renderChart(), { deep: true })
+watch(labelsOn, (val) => {
+  if (!val) {
+    labelOverlays.value = []
+    return
+  }
+  scheduleLabelOverlayRebuild()
+})
 
 defineExpose({
   getChartImage: (pixelRatio = 2) =>
