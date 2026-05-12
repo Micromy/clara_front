@@ -115,11 +115,12 @@ function mapMetaRow(row) {
   return { ...rest, library: lib, libId }
 }
 
-export async function fetchMeta({ cellType, pdkId, libIds }) {
+export async function fetchMeta({ cellType, pdkId, libIds, cellIds }) {
   const params = new URLSearchParams()
   if (cellType) params.set('cell_type', cellType)
   if (pdkId) params.set('pdk_id', pdkId)
   if (libIds && libIds.length) params.set('lib_id', libIds.join(','))
+  if (cellIds && cellIds.length) params.set('id', cellIds.join(','))
   const data = await get(`/clara/meta/?${params}`)
   return data.map(mapMetaRow)
 }

@@ -24,9 +24,17 @@ async function onSavePreset() {
         inputValidator: v => (v && v.trim()) ? true : 'Name is required'
       }
     )
-    store.savePreset(value.trim())
+    await store.savePreset(value.trim())
     ElMessage.success(`Preset "${value.trim()}" saved.`)
-  } catch {}
+  } catch (err) {
+    if (!err || err === 'cancel' || err === 'close') return
+    const msg = String(err?.message || '')
+    if (err?.code === 'DUPLICATE_PRESET_NAME' || /409|400|already exists|duplicate/i.test(msg)) {
+      ElMessage.error('A preset with the same name already exists.')
+      return
+    }
+    ElMessage.error('Failed to save preset.')
+  }
 }
 
 function onLoadPreset(presetId) {

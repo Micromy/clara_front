@@ -237,6 +237,9 @@ export const useBuilderStore = defineStore('builder', () => {
       appliedSearch.value = createEmptySearch()
     }
     searchDirty.value = false
+    if (b?.selectedCellIds?.length) {
+      ensureMetaForCells(b.selectedCellIds)
+    }
     nextTick(() => { restoringSearch.value = false })
   }
 
@@ -301,6 +304,23 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   const activeBuilder = computed(() => builders.value[activeBuilderIndex.value])
+
+  function mergeMetaCells(rows) {
+    if (!rows?.length) return
+    const map = new Map(metaCells.value.map(c => [c.id, c]))
+    rows.forEach(row => {
+      map.set(row.id, { ...(map.get(row.id) || {}), ...row })
+    })
+    metaCells.value = Array.from(map.values())
+  }
+
+  async function ensureMetaForCells(cellIds) {
+    const existing = new Set(metaCells.value.map(c => c.id))
+    const missing = cellIds.filter(id => !existing.has(id))
+    if (!missing.length) return
+    const rows = await fetchMeta({ cellIds: missing })
+    mergeMetaCells(rows)
+  }
 
   const selectedCells = computed(() => {
     if (!activeBuilder.value) return []
@@ -832,6 +852,10 @@ export const useBuilderStore = defineStore('builder', () => {
   // ── Chart Presets (API) ─────────────────────────────────────────────────
   const chartPresets = ref([])
 
+  function normalizePresetName(name) {
+    return String(name ?? '').trim().toLowerCase()
+  }
+
   const presetsForCellType = computed(() => {
     const ct = activeCellType.value
     return chartPresets.value.filter(p => p.isVisible === 'Y')
@@ -839,6 +863,13 @@ export const useBuilderStore = defineStore('builder', () => {
 
   async function savePreset(name) {
     if (!activeBuilder.value) return
+    const normalized = normalizePresetName(name)
+    const duplicate = chartPresets.value.some(p => normalizePresetName(p.name) === normalized)
+    if (duplicate) {
+      const err = new Error('Preset name already exists')
+      err.code = 'DUPLICATE_PRESET_NAME'
+      throw err
+    }
     const cfg = activeBuilder.value.chartConfig
     const preset = await apiCreatePreset({
       name,
@@ -934,6 +965,8 @@ export const useBuilderStore = defineStore('builder', () => {
         cellAliases.value[`${id}-${item.cellId}`] = item.cellAlias
       }
     })
+
+    await ensureMetaForCells(cellIds)
 
     // Fetch sim data for restored cells
     if (cellIds.length) await fetchSimForCells(cellIds)

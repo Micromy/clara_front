@@ -472,10 +472,29 @@ function buildExportGraphic() {
   })
 }
 
+function cloneForExport(value) {
+  if (value == null) return value
+  if (typeof value === 'function') return undefined
+  if (Array.isArray(value)) {
+    return value
+      .map(cloneForExport)
+      .filter(v => v !== undefined)
+  }
+  if (typeof value === 'object') {
+    const out = {}
+    Object.entries(value).forEach(([k, v]) => {
+      const cloned = cloneForExport(v)
+      if (cloned !== undefined) out[k] = cloned
+    })
+    return out
+  }
+  return value
+}
+
 function cloneExportOption() {
   const current = chartInstance?.getOption?.()
   if (!current) return null
-  const option = structuredClone(current)
+  const option = cloneForExport(current)
   option.animation = false
   option.animationDuration = 0
   option.animationDurationUpdate = 0
