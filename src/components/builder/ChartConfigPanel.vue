@@ -11,23 +11,31 @@ import { useRouter } from 'vue-router'
 const store = useBuilderStore()
 const router = useRouter()
 const loadDialogVisible = ref(false)
+const saveDialogVisible = ref(false)
+const presetNameInput = ref('')
 
-async function onSavePreset() {
+const normalizedPresetName = computed(() => presetNameInput.value.trim().toLowerCase())
+const presetNameEmpty = computed(() => !presetNameInput.value.trim())
+const presetNameDuplicate = computed(() => {
+  const name = normalizedPresetName.value
+  if (!name) return false
+  return store.chartPresets.some(p => (p.name || '').trim().toLowerCase() === name)
+})
+
+function openSavePresetDialog() {
+  presetNameInput.value = ''
+  saveDialogVisible.value = true
+}
+
+async function confirmSavePreset() {
+  const name = presetNameInput.value.trim()
+  if (!name || presetNameDuplicate.value) return
   try {
-    const { value } = await ElMessageBox.prompt(
-      'Enter a name for this preset.',
-      'Save Preset',
-      {
-        confirmButtonText: 'Save',
-        cancelButtonText: 'Cancel',
-        inputPlaceholder: 'Preset name',
-        inputValidator: v => (v && v.trim()) ? true : 'Name is required'
-      }
-    )
-    await store.savePreset(value.trim())
-    ElMessage.success(`Preset "${value.trim()}" saved.`)
+    await store.savePreset(name)
+    saveDialogVisible.value = false
+    presetNameInput.value = ''
+    ElMessage.success(`Preset "${name}" saved.`)
   } catch (err) {
-    if (!err || err === 'cancel' || err === 'close') return
     const msg = String(err?.message || '')
     if (err?.code === 'DUPLICATE_PRESET_NAME' || /409|400|already exists|duplicate/i.test(msg)) {
       ElMessage.error('A preset with the same name already exists.')
@@ -159,10 +167,35 @@ function onGenerate() {
     <div class="panel-header">
       <h3 class="panel-title">Chart Configuration</h3>
       <div class="preset-btns">
-        <button class="preset-action-btn" @click="onSavePreset">Save</button>
+        <button class="preset-action-btn" @click="openSavePresetDialog">Save</button>
         <button class="preset-action-btn" @click="loadDialogVisible = true">Load</button>
       </div>
     </div>
+
+    <!-- Save Preset Dialog -->
+    <el-dialog v-model="saveDialogVisible" title="Save Preset" width="420px" :close-on-click-modal="false">
+      <el-form label-position="top" size="small">
+        <el-form-item label="Preset Name">
+          <el-input
+            v-model="presetNameInput"
+            placeholder="Preset name"
+            @keyup.enter="confirmSavePreset"
+          />
+        </el-form-item>
+        <div v-if="presetNameEmpty" class="preset-hint">Name is required.</div>
+        <div v-else-if="presetNameDuplicate" class="preset-hint preset-hint-error">
+          A preset with the same name already exists.
+        </div>
+        <div v-else class="preset-hint preset-hint-ok">Name is available.</div>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="saveDialogVisible = false">Cancel</el-button>
+        <el-button type="primary" :disabled="presetNameEmpty || presetNameDuplicate" @click="confirmSavePreset">
+          Save
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- Load Preset Dialog -->
     <el-dialog v-model="loadDialogVisible" title="Load Preset" width="850px" :close-on-click-modal="true">
@@ -389,6 +422,17 @@ function onGenerate() {
 .preset-action-btn:hover {
   background: rgba(0,0,0,0.04);
   color: #606266;
+}
+.preset-hint {
+  margin-top: -4px;
+  font-size: 12px;
+  color: #909399;
+}
+.preset-hint-error {
+  color: #f56c6c;
+}
+.preset-hint-ok {
+  color: #67c23a;
 }
 .panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
 .action-row { display: flex; gap: 4px; width: 100%; }

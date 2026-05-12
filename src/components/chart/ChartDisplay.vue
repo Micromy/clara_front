@@ -419,8 +419,7 @@ function measureLabelBox(text) {
   return {
     width: textWidth + 12,
     height: 22,
-    textX: 6,
-    textY: 15
+    textX: 6
   }
 }
 
@@ -461,10 +460,12 @@ function buildExportGraphic() {
         type: 'text',
         style: {
           x: label.x + box.textX,
-          y: label.y + box.textY,
+          y: label.y + (box.height / 2),
           text: label.text,
           fill: '#303133',
-          font: '12px Segoe UI, system-ui, -apple-system, sans-serif'
+          font: '12px Segoe UI, system-ui, -apple-system, sans-serif',
+          textAlign: 'left',
+          textVerticalAlign: 'middle'
         },
         silent: true
       }
