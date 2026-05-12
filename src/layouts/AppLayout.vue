@@ -122,7 +122,6 @@ function addNewBuilder() {
 
 async function closeSet(builder) {
   const count = builder.selectedCellIds?.length || 0
-  if (store.builders.length <= 1) return
   try {
     await ElMessageBox.confirm(
       count > 0
@@ -134,6 +133,11 @@ async function closeSet(builder) {
   } catch { return }
   const idx = store.builders.findIndex(b => b.id === builder.id)
   store.removeChartTab(builder.id)
+  if (store.builders.length <= 1) {
+    store.resetBuilder(idx)
+    router.push(`/builder/${builder.id}`)
+    return
+  }
   store.removeBuilder(idx)
   router.push(`/builder/${store.activeBuilder.id}`)
 }
@@ -307,7 +311,7 @@ function ctxClose() {
       >
         <div class="ctx-item" @click="ctxRename">Rename</div>
         <div class="ctx-item" :class="{ 'ctx-item-disabled': !hasChart(ctxMenu.builder?.id) }" @click="hasChart(ctxMenu.builder?.id) && ctxSave()">Save</div>
-        <div v-if="store.builders.length > 1" class="ctx-item ctx-item-danger" @click="ctxClose">Close</div>
+        <div class="ctx-item ctx-item-danger" @click="ctxClose">Close</div>
       </div>
     </Teleport>
 

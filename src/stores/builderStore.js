@@ -702,6 +702,27 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
+  function resetBuilder(index) {
+    const builder = builders.value[index]
+    if (!builder) return
+
+    Object.keys(cellAliases.value).forEach(key => {
+      if (key.startsWith(`${builder.id}-`)) delete cellAliases.value[key]
+    })
+
+    builder.name = 'Untitled'
+    builder.selectedCellIds = []
+    builder.chartConfig = createDefaultChartConfig()
+    builder.derivedFormulas = []
+    builder.search = { pending: createEmptySearch(), applied: createEmptySearch() }
+
+    if (activeBuilderIndex.value === index) {
+      pendingSearch.value = createEmptySearch()
+      appliedSearch.value = createEmptySearch()
+      searchDirty.value = false
+    }
+  }
+
   function updateChartConfig(key, value) {
     if (!activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
@@ -934,7 +955,7 @@ export const useBuilderStore = defineStore('builder', () => {
     builders, activeBuilderIndex, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
     toggleCellSelection, selectCells, deselectCells, clearSelection,
-    addBuilder, removeBuilder, updateChartConfig,
+    addBuilder, removeBuilder, resetBuilder, updateChartConfig,
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,
     // search / filter
