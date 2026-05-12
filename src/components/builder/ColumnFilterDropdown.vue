@@ -18,7 +18,7 @@ const searchText = ref('')
 
 const options = computed(() => store.columnFilterOptions(props.columnKey))
 const filteredOptions = computed(() => {
-  const terms = searchText.value.toLowerCase().split(',').map(t => t.trim()).filter(Boolean)
+  const terms = searchText.value.toLowerCase().trim().split(/\s+/).map(t => t.trim()).filter(Boolean)
   if (!terms.length) return options.value
   return options.value.filter(v => {
     const lower = v.toLowerCase()
@@ -145,7 +145,7 @@ function onTriggerClick(e) {
         <span class="filter-title">{{ label || columnKey }}</span>
         <el-input
           v-model="searchText"
-          :placeholder="columnKey === 'cellName' ? 'Search… (e.g. MDFF, D2)' : columnKey === 'version' ? 'Search… (e.g. 2026, 04)' : 'Search values…'"
+          :placeholder="columnKey === 'cellName' ? 'Search… (e.g. MDFF D2)' : columnKey === 'version' ? 'Search… (e.g. 2026 04)' : 'Search values…'"
           size="small"
           clearable
         />

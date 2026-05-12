@@ -65,6 +65,28 @@ const isUnary   = computed(() => dfType.value === 'unary')
 const isGroup   = computed(() => dfType.value === 'mean' || dfType.value === 'std')
 const isStat    = computed(() => !isBinary.value && !isUnary.value && !isGroup.value)
 
+const matchedDerivedMetric = computed(() => {
+  const cellType = store.activeCellType
+  return store.metrics.find(m => {
+    if (m.cellType !== cellType) return false
+    if (m.formulaType !== dfType.value) return false
+
+    if (isBinary.value) {
+      return m.field1 === dfField1.value && m.op === dfOp.value && m.field2 === dfField2.value
+    }
+    if (isUnary.value) {
+      return m.field1 === dfField.value && m.op === dfFn.value
+    }
+    if (isGroup.value) {
+      return m.field1 === dfField.value &&
+        (m.field2 === dfGroupBy.value || m.op === dfGroupBy.value)
+    }
+    return m.field1 === dfField.value
+  }) || null
+})
+
+const derivedMetricName = computed(() => matchedDerivedMetric.value?.name ?? '')
+
 const CHART_TYPES = [
   { value: 'scatter', label: 'Scatter' },
   { value: 'line',    label: 'Line' },
@@ -115,13 +137,7 @@ function addDerived() {
   } else {
     formula = { type, field: dfField.value }
   }
-  // Auto-generate name from formula description
-  const fl = v => derivedFields.value.find(f => f.value === v)?.label ?? v
-  const ol = v => ({ '+': '+', '-': '−', '*': '×', '/': '÷' })[v] || v
-  let name
-  if (isBinary.value) name = `${fl(formula.field1)} ${ol(formula.op)} ${fl(formula.field2)}`
-  else if (isUnary.value) name = `${formula.fn}(${fl(formula.field)})`
-  else name = `${type}(${fl(formula.field)})`
+  const name = matchedDerivedMetric.value?.name || formulaPreview.value
   store.addDerivedFormula({ ...formula, name })
   dialogVisible.value = false
 }
@@ -272,6 +288,10 @@ function onGenerate() {
               <span style="color:#909399;font-size:11px;margin-left:8px">{{ t.desc }}</span>
             </el-option>
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="Name">
+          <el-input :model-value="derivedMetricName" readonly placeholder="Matched metric name" />
         </el-form-item>
 
         <!-- Binary: Field1 op Field2 -->

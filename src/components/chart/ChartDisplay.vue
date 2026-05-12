@@ -9,6 +9,9 @@ const props = defineProps({
 const chartContainer = ref(null)
 let chartInstance = null
 const labelsOn = ref(false)
+const labelOverlays = ref([])
+const labelOffsets = ref({})
+let labelDragState = null
 
 const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
 const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" fill="#4078C0" stroke="#4078C0" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="#fff"/></svg>')
@@ -88,7 +91,6 @@ const chartOption = computed(() => {
         name: groupName, type: 'bar', data, itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
         blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
-        label: { show: props.showLabels, position: 'top', fontSize: 10, formatter: () => groupName }
       })
     } else {
       const sortedCells = isLine
@@ -106,12 +108,6 @@ const chartOption = computed(() => {
         itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
         blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
-        label: {
-          show: props.showLabels,
-          position: 'top',
-          fontSize: 10,
-          formatter: () => groupName
-        }
       })
     }
 
@@ -134,12 +130,6 @@ const chartOption = computed(() => {
           emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
         blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
           barGap: '30%',
-          label: {
-            show: props.showLabels,
-            position: 'top',
-            fontSize: 10,
-            formatter: () => groupName
-          }
         })
       } else {
         const sortedCells = isLineSec
@@ -157,12 +147,6 @@ const chartOption = computed(() => {
           itemStyle: { color },
           emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
         blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
-          label: {
-            show: props.showLabels,
-            position: 'top',
-            fontSize: 10,
-            formatter: () => groupName
-          }
         })
       }
     }
@@ -361,10 +345,106 @@ function updateLegendPosition() {
   chartInstance.setOption({ legend: { left: legendLeft, width: gridRight - 30 } }, false)
 }
 
+function rebuildLabelOverlays() {
+  if (!labelsOn.value || !chartInstance) {
+    labelOverlays.value = []
+    return
+  }
+
+  const option = chartOption.value
+  const overlays = []
+  const xCategories = Array.isArray(option.xAxis?.data) ? option.xAxis.data : []
+
+  option.series.forEach((series, seriesIndex) => {
+    const yAxisIndex = series.yAxisIndex || 0
+
+    if (series.type === 'bar') {
+      series.data.forEach((yVal, dataIndex) => {
+        if (yVal == null) return
+        const xVal = xCategories[dataIndex]
+        const pixel = chartInstance.convertToPixel({ xAxisIndex: 0, yAxisIndex }, [xVal, yVal])
+        if (!Array.isArray(pixel) || !Number.isFinite(pixel[0]) || !Number.isFinite(pixel[1])) return
+        const key = `${seriesIndex}:${dataIndex}`
+        const offset = labelOffsets.value[key] || { dx: 10, dy: -28 }
+        overlays.push({
+          key,
+          text: series.name,
+          anchorX: pixel[0],
+          anchorY: pixel[1],
+          x: pixel[0] + offset.dx,
+          y: pixel[1] + offset.dy
+        })
+      })
+      return
+    }
+
+    series.data.forEach((point, dataIndex) => {
+      if (!Array.isArray(point) || point.length < 2) return
+      const [xVal, yVal] = point
+      if (xVal == null || yVal == null) return
+      const pixel = chartInstance.convertToPixel({ xAxisIndex: 0, yAxisIndex }, [xVal, yVal])
+      if (!Array.isArray(pixel) || !Number.isFinite(pixel[0]) || !Number.isFinite(pixel[1])) return
+      const key = `${seriesIndex}:${dataIndex}`
+      const offset = labelOffsets.value[key] || { dx: 10, dy: -28 }
+      overlays.push({
+        key,
+        text: series.name,
+        anchorX: pixel[0],
+        anchorY: pixel[1],
+        x: pixel[0] + offset.dx,
+        y: pixel[1] + offset.dy
+      })
+    })
+  })
+
+  labelOverlays.value = overlays
+}
+
+function syncDraggedOverlay(key, dx, dy) {
+  const target = labelOverlays.value.find(l => l.key === key)
+  if (!target) return
+  target.x = target.anchorX + dx
+  target.y = target.anchorY + dy
+}
+
+function stopLabelDrag() {
+  labelDragState = null
+  document.removeEventListener('pointermove', onLabelPointerMove)
+  document.removeEventListener('pointerup', stopLabelDrag)
+}
+
+function onLabelPointerMove(e) {
+  if (!labelDragState) return
+  const dx = labelDragState.baseDx + (e.clientX - labelDragState.startX)
+  const dy = labelDragState.baseDy + (e.clientY - labelDragState.startY)
+  labelOffsets.value = {
+    ...labelOffsets.value,
+    [labelDragState.key]: { dx, dy }
+  }
+  syncDraggedOverlay(labelDragState.key, dx, dy)
+}
+
+function onLabelPointerDown(e, label) {
+  if (e.button !== 0) return
+  e.preventDefault()
+  e.stopPropagation()
+  const base = labelOffsets.value[label.key] || { dx: 10, dy: -28 }
+  labelDragState = {
+    key: label.key,
+    startX: e.clientX,
+    startY: e.clientY,
+    baseDx: base.dx,
+    baseDy: base.dy
+  }
+  document.addEventListener('pointermove', onLabelPointerMove)
+  document.addEventListener('pointerup', stopLabelDrag, { once: true })
+}
+
 function renderChart() {
   if (!chartContainer.value) return
   if (!chartInstance) {
     chartInstance = echarts.init(chartContainer.value)
+    chartInstance.on('finished', rebuildLabelOverlays)
   }
   chartInstance.setOption(chartOption.value, true)
   updateLegendPosition()
@@ -410,46 +490,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   chartContainer.value?.removeEventListener('dblclick', onChartDblClick)
+  stopLabelDrag()
   resizeObserver?.disconnect()
   chartInstance?.dispose()
   chartInstance = null
 })
 
 watch(chartOption, () => renderChart(), { deep: true })
-watch(labelsOn, (val) => {
-  if (!chartInstance) return
-  const opt = chartInstance.getOption()
-  chartInstance.setOption({
-    series: opt.series.map(s => ({
-      label: {
-        show: val,
-        position: 'top',
-        fontSize: 12,
-        color: '#303133',
-        backgroundColor: '#fff',
-        borderColor: '#dcdfe6',
-        borderWidth: 1,
-        padding: [3, 6],
-        distance: 12,
-        overflow: 'truncate',
-        formatter: (p) => p.seriesName
-      },
-      labelLine: {
-        show: val,
-        lineStyle: { color: '#ccc', width: 1 }
-      },
-      labelLayout: val ? { moveOverlap: 'shiftY', hideOverlap: false } : undefined
-    })),
-    toolbox: {
-      feature: {
-        myLabels: {
-          icon: val ? LABEL_ICON_ON : LABEL_ICON_OFF,
-          title: val ? 'Hide Labels' : 'Show Labels'
-        }
-      }
-    }
-  })
-})
 
 defineExpose({
   getChartImage: (pixelRatio = 2) =>
@@ -480,11 +527,33 @@ defineExpose({
 <template>
   <div class="chart-display">
     <div ref="chartContainer" class="chart-container" />
+    <div v-if="labelsOn" class="label-layer">
+      <svg class="label-lines" aria-hidden="true">
+        <line
+          v-for="label in labelOverlays"
+          :key="`${label.key}-line`"
+          :x1="label.anchorX"
+          :y1="label.anchorY"
+          :x2="label.x + 8"
+          :y2="label.y + 13"
+        />
+      </svg>
+      <div
+        v-for="label in labelOverlays"
+        :key="label.key"
+        class="label-chip"
+        :style="{ transform: `translate(${label.x}px, ${label.y}px)` }"
+        @pointerdown="onLabelPointerDown($event, label)"
+      >
+        {{ label.text }}
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .chart-display {
+  position: relative;
   height: 100%;
   overflow: hidden;
 }
@@ -493,5 +562,44 @@ defineExpose({
   width: 100%;
   height: 100%;
   min-height: 460px;
+}
+
+.label-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.label-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.label-lines line {
+  stroke: #c7cbd4;
+  stroke-width: 1;
+}
+
+.label-chip {
+  position: absolute;
+  pointer-events: auto;
+  user-select: none;
+  cursor: grab;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #303133;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  padding: 3px 6px;
+  line-height: 1.3;
+  transform-origin: top left;
+}
+
+.label-chip:active {
+  cursor: grabbing;
 }
 </style>

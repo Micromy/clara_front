@@ -12,7 +12,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
  * detect clicks on selection-column checkboxes, then toggles rows as the cursor
  * drags over them via the el-table cell-mouse-enter event.
  */
-export function useDragSelect(tableRef) {
+export function useDragSelect(tableRef, isRowSelectable = () => true) {
   const dragging = ref(false)
   let targetState = true // true = check, false = uncheck
 
@@ -74,6 +74,7 @@ export function useDragSelect(tableRef) {
 
     const row = getRowFromEvent(event)
     if (!row) return
+    if (!isRowSelectable(row)) return
 
     // Prevent default checkbox behavior — we handle it ourselves
     event.preventDefault()
@@ -93,6 +94,7 @@ export function useDragSelect(tableRef) {
   function onCellMouseEnter(row, column) {
     if (!dragging.value) return
     if (column.type !== 'selection') return
+    if (!isRowSelectable(row)) return
     tableRef.value?.toggleRowSelection(row, targetState)
   }
 
