@@ -267,7 +267,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
     "x_axis": 1,
     "y1_axis": 2,
     "y2_axis": null,
-    "group_by": "alias",
+    "group_by": "drive_str,__tag__",
     "is_visible": "Y",
     "created_at": "2026-04-20T15:30:00",
     "created_by": "sh0913.park"
@@ -279,11 +279,28 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `chart_type` | string | `scatter`, `line`, `bar` |
-| `x_axis` | int | metric_id (Chart Metric 참조) |
+| `x_axis` | int / string | scatter/line: metric_id, bar: `__label__` |
 | `y1_axis` | int | metric_id |
 | `y2_axis` | int / null | secondary y축, 없으면 null |
-| `group_by` | string | `alias`, `vth`, `vdd`, `temperature` 등 |
+| `group_by` | string | Group 템플릿 CSV — 아래 [Group 템플릿 인코딩](#group-템플릿-인코딩) 참조 |
 | `is_visible` | `'Y'` / `'N'` | preset list 노출 여부 |
+
+#### Group 템플릿 인코딩
+
+`group_by`는 사용자가 정의한 Group 템플릿 토큰을 콤마로 구분한 문자열.
+
+| 토큰 종류 | 인코딩 | 예시 |
+|-----------|--------|------|
+| 필드 참조 | 셀 메타 필드명 | `drive_str`, `library`, `vth` |
+| Per-cell tag | 센티넬 `__tag__` | `__tag__` |
+
+**예시:**
+- `""` (빈 문자열): 템플릿 없음 — 모든 셀이 한 그룹
+- `"drive_str"`: drive_strength로 그룹화
+- `"drive_str,nano_sheet"`: drive_str + nano_sheet 조합
+- `"drive_str,__tag__"`: drive_str + per-cell tag 조합 (예: `X1_fast`, `X2_slow`)
+
+**컬럼 권장 길이:** `VARCHAR2(255)` — 현실적 최대 토큰 조합(약 200자)에 여유.
 
 ### `GET /clara/preset/<id>/` (Retrieve)
 
@@ -299,7 +316,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
   "x_axis": 1,
   "y1_axis": 2,
   "y2_axis": null,
-  "group_by": "alias",
+  "group_by": "drive_str,__tag__",
   "created_by": "sh0913.park"
 }
 ```
@@ -309,11 +326,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 |------|------|------|
 | `preset_id` | ❌ | 자동 채번 |
 | `name` | ✅ 필수 | |
-| `chart_type` | ✅ 필수 | |
-| `x_axis` | ✅ 필수 | metric_id (DB에 존재해야 함) |
+| `chart_type` | ✅ 필수 | `scatter` / `line` / `bar` |
+| `x_axis` | ✅ 필수 | scatter/line: metric_id, bar: `__label__` |
 | `y1_axis` | ✅ 필수 | metric_id |
 | `y2_axis` | nullable | 미사용 시 null |
-| `group_by` | ✅ 필수 | |
+| `group_by` | nullable | Group 템플릿 CSV. 빈 문자열 또는 `null` 허용 |
 | `is_visible` | 선택 | 기본값 `'Y'` |
 | `created_by` | 선택 | 기본값 `''` |
 | `created_at` | ❌ | 자동 |
@@ -330,7 +347,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 
 ## 8. Chart
 
-저장된 차트(빌더 상태 전체). preset + 셀 alias 목록을 묶어서 저장.
+저장된 차트(빌더 상태 전체). preset + 셀 tag 목록을 묶어서 저장.
 
 > 📌 **자동 preset 생성/삭제.**
 > - **POST 시**: chart 전용 preset이 함께 생성되어 `is_visible='N'`으로 저장됨. (요청에서 `is_visible`을 보내도 무시됨)
@@ -351,12 +368,12 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
       "x_axis": 1,
       "y1_axis": 2,
       "y2_axis": null,
-      "group_by": "alias",
+      "group_by": "drive_str,__tag__",
       "is_visible": "N"
     },
     "items": [
-      { "item_id": 33, "cell_id": 101, "cell_alias": "FF_x1" },
-      { "item_id": 34, "cell_id": 102, "cell_alias": "FF_x2" }
+      { "item_id": 33, "cell_id": 101, "cell_tag": "fast" },
+      { "item_id": 34, "cell_id": 102, "cell_tag": "" }
     ],
     "created_at": "2026-05-01T11:30:00",
     "created_by": "sh0913.park"
@@ -381,11 +398,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
     "x_axis": 1,
     "y1_axis": 2,
     "y2_axis": null,
-    "group_by": "alias"
+    "group_by": "drive_str,__tag__"
   },
   "items": [
-    { "cell_id": 101, "cell_alias": "FF_x1" },
-    { "cell_id": 102, "cell_alias": "FF_x2" }
+    { "cell_id": 101, "cell_tag": "fast" },
+    { "cell_id": 102, "cell_tag": "" }
   ]
 }
 ```
@@ -410,7 +427,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | 필드 | 필수 | 비고 |
 |------|------|------|
 | `cell_id` | ✅ | 셀 ID |
-| `cell_alias` | ✅ | 차트에서 표시될 별명 |
+| `cell_tag` | nullable | per-cell tag 입력값. Group 템플릿의 `__tag__` 토큰이 참조. 빈 문자열 허용 |
 
 #### Response — 201
 저장된 chart + preset + items 전체 반환 (위 GET 응답과 동일 형식).
@@ -528,6 +545,7 @@ GET /clara/chart/<chart_id>/
 ```
 POST /clara/preset/
   body: { name, chart_type, x_axis, y1_axis, y2_axis, group_by }
+  group_by: Group 템플릿 CSV (예: "drive_str,__tag__")
 
 GET /clara/preset/
   → 저장된 preset 목록에서 사용자가 선택
@@ -535,4 +553,11 @@ GET /clara/preset/
 
 ---
 
-문서 최종 수정: 2026-05-08
+## 변경 이력
+
+- **2026-05-14** Group 템플릿 도입
+  - `chart_preset.group_by`: 단일 string (`"alias"` 등) → CSV 인코딩된 토큰 배열 (`"drive_str,__tag__"`). 빈 문자열 허용. 컬럼 `VARCHAR2(255)` 권장.
+  - `chart_preset.x_axis`: bar 차트에서 `__label__` 문자열 허용 (이전: metric_id만)
+  - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
+
+문서 최종 수정: 2026-05-14

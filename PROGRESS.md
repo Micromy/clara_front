@@ -1,14 +1,14 @@
 # CLARA Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-04-21
-> 현재 브랜치: `main` (HEAD: `a637d7f`)
+> 마지막 업데이트: 2026-05-14
+> 현재 브랜치: `main` (HEAD: `052a43b`)
 > 리포: `Micromy/clara_front`
 
 ---
 
 ## 1. 프로젝트 개요
 
-**CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA.
+**CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA. 백엔드(Django REST)와 연동하며, 사내 API 접근 불가 시 `public/data/*.json` fallback 사용.
 
 ---
 
@@ -17,120 +17,98 @@
 | 영역 | 선택 |
 |---|---|
 | 프레임워크 | Vue 3 (Composition API, `<script setup>`) |
-| 빌드 | Vite 4.5.5 (`@vitejs/plugin-vue` 4.6.2) |
+| 빌드 | Vite 4.5.5 |
 | UI 라이브러리 | Element Plus 2.13 + `@element-plus/icons-vue` |
 | 상태 관리 | Pinia 3 |
-| 라우팅 | Vue Router 4 (Hash history) |
+| 라우팅 | 없음 — 단일 경로 SPA (`<AppView>` 조건부 렌더) |
 | 차트 | ECharts 6 + vue-echarts |
 | 패키지 매니저 | npm (Node 20+) |
-| 배포 | GitHub Pages (GitHub Actions) |
+| 배포 | 사내 Docker (nginx) |
+| 백엔드 | Django REST (`/clara/*` 엔드포인트) |
 
 ---
 
 ## 3. 구현된 기능
 
 ### 3-1. 셀 검색 & 선택
-- **CellSearchTable** — 페이지네이션, 컬럼별 정렬, 컬럼 필터 드롭다운, `show-overflow-tooltip`
-- **Cell Type 드롭다운** (FF / ICG) — 선택 시 자동 검색, 변경 시 확인 다이얼로그
-- **PDK 드롭다운** — 단일 선택, cellType 기반 동적 옵션
-- **Library 드롭다운** — 다중 선택 (`multiple` + `collapse-tags`), PDK 변경 시 자동 초기화
-- **Cell Name 검색** — 디바운스 300ms, 입력 즉시 필터링 (Search 버튼 불필요)
-- Cell Type / PDK / Library 3개 필터 AND 조합으로 검색
-- **쉼표 구분 AND 검색** — Cell Name 및 컬럼 필터에서 `DFF, D2` 형태로 다중 조건 검색
-- 타입 변경 시 selected cells / 검색 결과 / chartConfig / derivedFormulas 일괄 초기화
-- el-table `reserve-selection` 누수 방지 가드 (`filteredCells`로 화이트리스트)
-- 다중 선택, 페이지 간 선택 유지, **드래그 선택** (`useDragSelect` composable)
-- **이미 선택된 셀 비활성화** — 현재 빌더의 selectedCellIds에 있는 셀은 체크박스 disabled + 행 반투명
-- **컬럼 auto-width** — 콘텐츠 길이 기반 자동 너비 계산 (상단 CHAR_WIDTH=8, 하단 CHAR_WIDTH=7)
-- **Clear Filters 버튼** — borderless 스타일, hover 시 빨간 톤, disabled 상태 지원
-- 별도 팝업창으로 검색 분리 가능 (`usePopupWindow` — Pinia / Element Plus 공유, 다른 모니터 지원)
-- 상단 검색 테이블에서 `cellType` / `PDK` 컬럼 제거 (드롭다운으로 이미 필터링하므로 중복)
+- **CellSearchTable** — 페이지네이션, 컬럼별 정렬, 컬럼 필터 드롭다운
+- **Cell Type 드롭다운** (FF / ICG) — 변경 시 selected cells / 검색 / chartConfig / labelTemplate 일괄 초기화
+- **PDK 드롭다운** — 단일 선택, API에서 동적 로드
+- **Library 드롭다운** — 다중 선택, **항상 regex 모드** (입력 즉시 case-insensitive regex로 필터링). 잘못된 패턴은 빨간 테두리 + 전체 목록 유지. `Select all` 버튼으로 매칭 결과를 기존 선택에 OR 합산
+- **Cell Name 검색** — 디바운스 300ms (substring)
+- Cell Type / PDK / Library 셋 다 선택 시 `/clara/meta/` 호출 → 결과 테이블 표시
+- 다중 선택, 페이지 간 선택 유지, **드래그 선택** (`useDragSelect`)
+- **이미 선택된 셀 비활성화** — 현재 빌더의 selectedCellIds에 있는 행은 disabled
+- **컬럼 auto-width** — 콘텐츠 길이 기반 자동 너비
+- 별도 팝업창으로 검색 분리 가능 (`usePopupWindow`)
 
-### 3-2. 셀 추가 & Aliasing
-- 상단 검색 테이블 **footer** 에서 Checked 카운트 + Alias 입력 + ↓ Add 버튼
-- 같은 alias를 부여하면 차트에서 "By Alias" 그룹핑으로 하나의 시리즈로 묶임
+### 3-2. 셀 추가 & Tag
+- 검색 테이블 **footer**에서 Checked 카운트 + **Tag (optional)** 입력 + ↓ Add
+- Tag는 per-cell 자유 입력 — Group 템플릿의 `[Tag]` 토큰이 이를 참조
 
-### 3-3. Selected Cells 패널
-- **체크박스 (좌측 고정)** + 체크 시 **Remove 버튼** 등장 (fade-in, borderless 스타일, hover 시 빨간색)
-- **Alias / Cell Name** 고정 2열 (Cell Name 280px)
-- **Metadata ↔ Simulation** 토글 (el-switch)
+### 3-3. Selected Cells 패널 (Group/Label 모델)
+- **Label template builder** — 테이블 위 chip builder. `[Field]` / `[Tag]` 토큰을 조합해서 Group을 정의. `_`로 자동 join, 빈 토큰은 생략
+- **Tag 컬럼** — per-cell 텍스트 입력 (이전 `Alias` 컬럼). monospace 폰트
+- **Group 컬럼** — 템플릿이 셀별로 계산한 read-only 결과 (`D2_fast`, `X4_NS3` 등)
+- **체크박스 + Remove 버튼** (체크 시 fade-in)
+- **Metadata ↔ Simulation** 토글
 - **Raw ↔ Diff** 비교 모드 + Reference 셀 선택
-- **컬럼별 Diff ↔ Ratio 오버라이드** (`[−|÷]` 토글, 전역 모드 변경 시 초기화)
-- Ratio 모드: **백분율 표시** (`+12.34%` / `-5.67%`)
-- 색상 강조: 양수 초록 / 음수 빨강 / Reference 행 "REF" 배지
-- Derived 컬럼은 `f(x)` 태그
-- cellType 에 따라 시뮬 컬럼 셋이 자동 전환 (FF/ICG 별 다른 필드)
-- 드래그 선택 지원 (`useDragSelect`)
+- **컬럼별 Diff ↔ Ratio 오버라이드** (`[−|÷]`)
+- Ratio 모드: 백분율 표시 (`+12.34%`)
+- 색상 강조: 양수 초록 / 음수 빨강 / Reference "REF" 배지
+- Derived 컬럼 `f(x)` 태그
+- cellType 별 시뮬 컬럼 자동 전환 (FF/ICG)
 
 ### 3-4. 차트 설정 (ChartConfigPanel)
 - 차트 타입 (scatter / line / bar)
-- **X / Y1 / Y2 축** — 활성 cellType 의 옵션만 표시 (자동 전환)
-- Primary / Secondary Y 축 **독립 차트 타입** (x-axis 호환성 clamp)
-- Grouping (alias / cellType / driveStrength / library / feol)
-- **Derived Metrics 다이얼로그** — 6 + 2 종 (Binary, Math Function, Z-score, Relative to Mean, Delta from Mean, % of Max, Group Mean, Group Std)
-- cellType 변경 시 chartConfig 기본값(X/Y) + derivedFormulas 자동 리셋
-- **Save / Load Preset 버튼** — borderless text 스타일, localStorage 기반 (`clara-chart-presets`)
-- **Load Preset 다이얼로그** — preset 테이블 (이름, 타입, 축, 그룹핑 표시) + Apply / Delete
+- **Grouped By** — Selected Cells의 Label template을 read-only chip으로 미러. 클릭 시 빌더로 스크롤 + flash
+- **X / Y1 / Y2 축** — 활성 cellType의 metric 옵션
+- **Bar 전용 동작:**
+  - Group은 항상 X-axis (라벨 `Grouped By (X-Axis)`)
+  - X-Axis 입력 행 자체 숨김 (옵션 없음)
+  - 시리즈는 single — Group 버킷별 평균 (mean aggregation)
+- **Scatter/Line:** 시리즈 색상은 Group 기준 자동 분리
+- Primary / Secondary Y 축 **독립 차트 타입**
+- **Derived Metrics 다이얼로그** — Binary / Math Function / Z-score / Relative to Mean / Delta from Mean / % of Max / Group Mean / Group Std
+- **Save / Load Preset** — API 호출 (`/clara/preset/`)
 
 ### 3-5. 차트 (ChartDisplay)
 - ECharts scatter / line / bar
-- Grouping 기준 시리즈 분할 (셀 1개 = 점 1개)
-- **Vivid 컬러 팔레트** — `#2563EB`, `#E63946`, `#2D9F46`, `#E88C1E`, `#8B5CF6` 등
-- **인터랙티브 줌** — 마우스 휠 X축 줌 + 드래그 팬
-- **Box Zoom** — 툴박스 돋보기 아이콘 또는 **Shift+드래그**로 X/Y 양축 영역 확대
-- **Shift+더블클릭** — zoom 리셋 (라벨 유지)
-- **커스텀 toolbox** — 태그 (라벨 토글), 돋보기+ (box zoom), ↺ (리셋), ↓ (PNG 저장) 커스텀 SVG 아이콘
-- **리셋 시 라벨 상태 동기화** — restore 시 labelsOn ref도 false로 리셋
-- **데이터 라벨 토글** — 태그 아이콘 클릭으로 on/off, 네모 테두리 + 연결선 + shiftY 겹침 방지 + 드래그 가능
-- **Tooltip 소수점 8자리** — 소수점 값은 toFixed(8), 정수는 그대로
-- **애니메이션 300ms** — 기본 1000ms에서 단축
-- **emphasis / blur** — 시리즈 호버 시 다른 시리즈 blur (opacity 0.3)
-- **테이블 행 선택 → 차트 하이라이트** 연동
-- **범례 우측 세로 배치** (width 350px, 텍스트 width 320px, right 150, top 50)
-- **축 여백** — `boundaryGap: ['5%', '5%']`로 양쪽 끝 여유
-- **차트 3:2 비율** — ResizeObserver로 높이 기반 너비 계산 (px 단위, max 80%, min 30%)
-- 타이틀 좌상단, 앱 폰트와 통일
+- **Vivid 컬러 팔레트** (`#2563EB`, `#E63946`, `#2D9F46`, `#E88C1E`, `#8B5CF6` 등)
+- **인터랙티브 줌** — 휠 X줌 + 드래그 팬, **Box Zoom** (Shift+드래그), Shift+더블클릭 리셋
+- **커스텀 toolbox** — 라벨 토글 / box zoom / 리셋 / PNG 저장
+- **데이터 라벨 토글** — 네모 테두리 + 연결선 + 겹침 방지 + 드래그
+- **Tooltip 소수점 8자리**
+- **emphasis / blur** — 호버 시 다른 시리즈 흐림
+- **테이블 행 ↔ 차트 점 highlight** 연동
+- 범례 우측 세로 배치
+- 차트 3:2 비율 (ResizeObserver)
 
 ### 3-6. 차트 페이지
 - ChartView 좌/우 분할 (차트 + Source Data 오버레이)
-- **12px 오버랩** — 테이블 패널이 차트 위로 살짝 겹침
-- **세로 스플리터** — 매트한 border + box-shadow 스타일, 세로 grip 줄 (48px, 2px, 간격 3px)
-- **더블클릭 토글** — 테이블 최소/최대 전환 (중간값 기준)
-- **hover 시 grip 색상** — primary color 50% opacity 전환 (0.15s ease)
-- **SourceDataTable** — 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw / Diff 비교, 컬럼별 −/÷ 오버라이드 (헤더 세로 배치)
-- **auto column width** — 데이터 내용 + 헤더 라벨 + 정렬 아이콘 기반 자동 계산
-- **정렬 아이콘 우측 정렬** — 헤더 셀 space-between
-- 차트 PNG 내보내기 (테이블 Export PNG 제거)
+- 12px 오버랩, 세로 스플리터 (더블클릭 토글)
+- **SourceDataTable** — Group / 축 순서(X, Y1, Y2) 기준 컬럼 정렬, Raw / Diff 비교
+- auto column width (CHAR_WIDTH=7)
 
 ### 3-7. 빌더 / 탭 관리
-- 다중 Builder 탭 + Builder 별 Chart 탭 자동 생성
-- **2단 탭 바** — 상단: 세트 이름 (30px), 하단: Builder/Chart 서브탭 (26px)
-- **비활성 탭 서브탭 표시** — 연한 색으로 Builder/Chart 보이고 직접 클릭 시 해당 세트+뷰로 이동
-- **active 탭 underline** — primary color 2px inset box-shadow
-- **탭 컨텍스트 메뉴** (`⋯` 아이콘) — Rename / Save / Close
-- **Builder 닫기 확인 다이얼로그** — 선택된 셀 수 경고
-- **탭 드래그 순서 변경** — builders 배열 직접 조작, 드롭 위치 파란 라인 표시
-- **탭 이름 인라인 편집** — 클릭 → 입력 + ✓ 확인
-- **Load / + New 버튼** — borderless text 스타일 (New는 primary color + bold)
-- **Chart Save** — `store.saveChart()` + 중복 이름 suffix
-- **Chart Load 다이얼로그** — 저장된 차트 테이블 + Load / Delete
-- 새 Builder 추가 시 빈 검색 상태로 시작, `nextUntitledName()` 자동 번호
+- 다중 Builder 탭 + Builder별 Chart 탭
+- 2단 탭 바 (세트명 + Builder/Chart 서브탭)
+- 탭 컨텍스트 메뉴 (Rename / Save / Close)
+- 탭 드래그 순서 변경
+- Chart Save (이름 중복 시 `(2)` suffix, prev suffix strip)
+- Chart Load 다이얼로그 (Load / Delete)
+- 활성 빌더/서브탭은 store에서 관리 (URL은 항상 `/`)
 
 ### 3-8. 레이아웃
-- 상단 / 하단 **드래그 splitter** — 가로 grip 줄 (72px, 2px, 간격 3px), 4px 드래그 dead zone
-- **더블클릭** — 기본값(420px) 근처면 확장(800px), 멀면 기본값 복귀 (±80px 임계값)
-- **드래그 중 transition 비활성화**, 더블클릭 시 0.25s ease 전환
-- **hover 시 grip 색상** — primary color 50% opacity 전환 (0.15s ease)
+- 상단/하단 드래그 splitter (가로 grip)
+- 더블클릭 — 기본(420px) ↔ 확장(800px)
 - 우측 ChartConfigPanel 360px 고정
-- 컨텐츠가 뷰포트 넘으면 페이지 스크롤
 
 ### 3-9. 영속성
-- localStorage 자동 저장: `builders` (selectedCellIds / chartConfig / derivedFormulas / name / **search**), `cellAliases`, `activeBuilderIndex`
-- **빌더별 검색 상태 독립** — 빌더 전환 시 search 조건 save/restore (PDK→Library cascade 방지 플래그)
-- **Chart Preset CRUD** — localStorage (`clara-chart-presets`), cellType 기반 필터링
-- **Saved Charts CRUD** — localStorage (`clara-saved-charts`), hidden preset + chart + items
+- **localStorage 자동 저장**: builders (selectedCellIds / chartConfig / derivedFormulas / labelTemplate / name / search), cellAliases(=tags), activeBuilderIndex, activeSubTab
+- **빌더별 검색 상태 독립** — 빌더 전환 시 save/restore
+- **Chart Preset / Saved Charts** — 백엔드 API
 - 첫 렌더 전 동기 복원
-- `nextBuilderId` / `nextDerivedId` 충돌 방지
 
 ---
 
@@ -138,156 +116,117 @@
 
 ### 4-1. 파일 구조
 ```
-public/data/
-  ├── cells.json              메타데이터
-  ├── simulations.json        시뮬 결과 (cellId 키)
-  └── column-config.json      컬럼/차트 옵션 정의
-
 src/
-  ├── api/cells.js            fetch 추상화 (백엔드 전환 시 이 파일만 수정)
-  └── stores/builderStore.js  Pinia store
+  ├── api/cells.js            REST 호출 + snake/camel 변환 + 로컬 fallback
+  ├── stores/builderStore.js  Pinia store (selectedCells, labelTemplate, ...)
+  ├── views/
+  │   ├── AppView.vue         BuilderView/ChartView 조건부 렌더
+  │   ├── BuilderView.vue     검색 + Selected Cells + ChartConfig
+  │   └── ChartView.vue       ECharts + SourceData
+  ├── components/
+  │   ├── builder/
+  │   │   ├── CellSearchTable.vue
+  │   │   ├── LabelTemplateBuilder.vue   ← Group 템플릿 chip builder
+  │   │   ├── SelectedCellsPanel.vue
+  │   │   └── ChartConfigPanel.vue
+  │   └── chart/
+  │       ├── ChartDisplay.vue
+  │       └── SourceDataTable.vue
+  └── layouts/AppLayout.vue
+
+public/data/                  로컬 fallback 데이터 (USE_LOCAL_DATA=true 시 사용)
+  ├── cells.json
+  ├── simulations.json
+  └── column-config.json       UI 메타 (chartOptions, labelableFields)
 ```
 
-### 4-2. `cells.json` 스키마
+### 4-2. 데이터 소스: API ↔ Local fallback
 
-배열 형태, 각 셀 20개 필드:
+`.env`의 `VITE_USE_LOCAL_DATA=true` 시 모든 fetch가 `public/data/*.json`으로 분기 (사내 DB 접근 불가 시 검토용). `false`/미설정 시 실제 API 호출. 프로덕션 Docker 빌드는 `.env` 없이 도므로 자동으로 API 모드.
 
-```json
-{
-  "id": 1,
-  "cellType": "FF",
-  "pdk": "[SF2P] HSPICE: V1.0.0.0 / LVS: V1.0.0.0 / PEX: V1.0.0.0",
-  "vendor": "SPIL",
-  "cellName": "SDFF_D2_N2_C01L03_SCH168",
-  "cell": "SDFF",
-  "version": "2025-01-04 09:37",
-  "driveStrength": "D2",
-  "nanosheet": "N2",
-  "gateLength": "L03",
-  "cellHeight": "CH168",
-  "cpp": "C01",
-  "feol": "tt",
-  "beol": "nominal",
-  "gdsOverlay": "max",
-  "library": "DFFASR",
-  "vth": "SLVT",
-  "vdd": 0.75,
-  "temperature": 25,
-  "characTool": "PrimeLib"
-}
-```
+**API 엔드포인트** (`/clara/...`) — 자세한 계약은 [API.md](API.md) 참조:
+- `GET /pdk/`, `/lib/`, `/metric/` — 드롭다운/축 옵션
+- `GET /meta/?cell_type=&pdk_id=&lib_id=` — 메타데이터 검색
+- `GET /cell/ff/?cell_id=...`, `/cell/icg/?cell_id=...` — 시뮬 데이터
+- `GET/POST/DELETE /preset/` — Chart Preset
+- `GET/POST/DELETE /chart/` — Saved Chart (preset + items 묶음)
 
-- `cellType`: **`FF`** 또는 **`ICG`** — 시뮬 컬럼 / 차트 옵션 / Derived Fields 분기 기준
-- `vth`: 문자열 flavor — `ULVT / SLVT / VLVT / LVT / RVT / HVT`
-- `vdd`, `temperature`: 숫자 (운영 조건)
-- `cellName`: `{cell}_{drive}_{nanosheet}_{cpp}{gateLength}_S{cellHeight}` 패턴
+### 4-3. snake_case ↔ camelCase 자동 변환
+`api/cells.js`의 `get()`/`post()` 헬퍼가 응답은 camelCase로, 요청 body는 snake_case로 자동 변환. 프론트 코드는 항상 camelCase.
 
-### 4-3. `simulations.json` 스키마
+### 4-4. Group 템플릿 인코딩 (백엔드 영속화)
+프론트의 `labelTemplate: [{type, field?}]` 배열을 `group_by` VARCHAR에 CSV로 직렬화:
+- field 토큰 → 필드명 (`drive_str`)
+- tag 토큰 → 센티넬 `__tag__`
+- 예: `[Drive Str, Tag]` → `"drive_str,__tag__"`
 
-`cellId(string) → 시뮬 객체`. cellType 에 따라 필드 셋이 다름.
-
-**FF (10 필드):**
-```json
-"1": {
-  "dqWorst": 0.12, "dqAvg": 0.08, "cqDelayAvg": 0.06,
-  "dSetup3SigmaAvg": 0.04, "dHoldSohmAvg": 0.02,
-  "area": 120.5, "ckCap": 3.2, "pLeakage": 1.8,
-  "pDyn": 5.4, "pdpAvg": 0.35
-}
-```
-
-**ICG (11 필드):**
-```json
-"2": {
-  "eeckWorst": 0.18, "eeckAvg": 0.12, "cqDelayAvg": 0.08,
-  "eSetup3SigmaAvg": 0.05, "eHoldSohmAvg": 0.03,
-  "delayTranRfRatio": 1.2,
-  "area": 95.0, "ckCap": 2.1, "pLeakage": 1.1,
-  "pDyn": 3.8, "pdpAvg": 0.22
-}
-```
-
-**공통 필드** (양쪽 모두 포함): `area`, `ckCap`, `pLeakage`, `pDyn`, `pdpAvg`
-
-### 4-4. `column-config.json` 스키마
-
-- `searchTableColumns[]` — 검색 테이블 컬럼 (key, label, width)
-- `selectedCellsMetadataColumns[]` — Selected Cells 의 Metadata 모드 컬럼
-- `selectedCellsSimulationColumns: { FF: [], ICG: [] }` — Simulation 모드 컬럼 (타입별 분기)
-- `chartOptions`:
-  - `chartTypes[]` — scatter / line / bar
-  - `xAxisOptions: { FF: [], ICG: [] }` — X축 옵션 (타입별 분기)
-  - `yAxisOptions: { FF: [], ICG: [] }` — Y축 옵션 (타입별 분기)
-  - `groupingOptions[]` — 시리즈 그룹핑
+자세한 인코딩 규칙: [API.md](API.md#group-템플릿-인코딩)
 
 ### 4-5. 데이터 흐름
-
 ```
 앱 시작
   └─ App.vue onMounted → store.init()
-       └─ Promise.all([
-            fetchCells(),         GET /data/cells.json
-            fetchColumnConfig(),  GET /data/column-config.json
-            fetchSimulations()    GET /data/simulations.json
-          ])
+       └─ Promise.all([fetchColumnConfig, fetchPdks, fetchLibraries,
+                       fetchMetrics, fetchPresets, fetchCharts])
 
-셀 선택 / 차트 생성
-  └─ store.selectedCells (computed)
-       └─ allCells.filter(id ∈ selected).map(c => ({
-            ...c,
-            ...simulations[c.id],
-            __df_{id}: computeDerived(...)   // derived 자동 주입
-          }))
+검색 (Cell Type + PDK + Library 셋 다 선택 시)
+  └─ store.applySearch() → fetchMeta({cellType, pdkId, libIds})
+       → metaCells 업데이트 → filteredCells (클라이언트 필터)
 
-타입 분기
-  └─ store.activeCellType (= appliedSearch.cellType)
-       └─ selectedCellsSimulationColumns / xAxisOptions / yAxisOptions
-          / derivedFields 모두 이 값으로 동적 dereference
+셀 선택
+  └─ store.selectCells(ids)
+       → fetchSimForCells(ids) → simulations[id] 캐시 채움
+
+selectedCells (computed)
+  └─ metaCells + simulations + computeLabel(template, cell, tag)
+       → 각 셀에 .label 주입 + derived formula 결과 주입
+
+차트 생성
+  └─ store.generateChart() → chartTab 생성 (cells + config + labelMap)
+       → ChartDisplay가 cell.label로 시리즈 분리, X-axis로 사용 (bar)
 
 영속성
-  └─ builders / cellAliases / activeBuilderIndex → localStorage (deep watch)
-  └─ 첫 렌더 전 동기 복원
+  └─ builders / cellAliases / activeBuilderIndex / activeSubTab → localStorage
 ```
 
 ---
 
 ## 5. 주요 화면 / 컴포넌트
 
-### 5-1. Builder 탭 (`/builder/:id`)
+### 5-1. Builder 뷰 (`store.activeSubTab === 'builder'`)
 - **CellSearchTable** — 셀 검색·선택 (상단)
-- **드래그 splitter** — 가로 grip 줄, 4px dead zone, 더블클릭 확장/복귀
-- **SelectedCellsPanel** — 선택된 셀 메타/시뮬 비교 (좌하)
-- **ChartConfigPanel** — 차트/축/그룹/Derived Metrics 설정 (우하, 360px 고정)
+- **SelectedCellsPanel** — Label template + 선택 셀 표 (좌하)
+- **ChartConfigPanel** — 차트 설정 (우하, 360px)
 
-### 5-2. Chart 탭 (`/chart/:builderId`)
-- **ChartDisplay** — ECharts 차트 (좌, 3:2 비율, box zoom + Shift 단축키)
-- **SourceDataTable** — 차트 데이터 테이블 (우, 오버레이 + box-shadow, auto column width)
-- **세로 스플리터** — 매트한 border 스타일, 더블클릭 토글, grip hover accent
-- 차트 PNG 내보내기
+### 5-2. Chart 뷰 (`store.activeSubTab === 'chart'`)
+- **ChartDisplay** — ECharts 차트 (좌)
+- **SourceDataTable** — 차트 데이터 테이블 (우, 오버레이)
 
 ### 5-3. 공통
-- **AppLayout** — 헤더 + 2단 탭바 (세트명 + Builder/Chart 서브탭) + `<router-view>`
-- **CellSearchPopupRoot** — 별도 윈도우에서 검색 (Pinia store 공유, Element Plus teleport 리다이렉트)
+- **AppLayout** — 헤더 + 2단 탭바 + `<AppView>` 직접 렌더
+- **CellSearchPopupRoot** — 별도 윈도우에서 검색 (Pinia store 공유)
 
 ---
 
 ## 6. UI 디자인 언어
 
 ### 6-1. 보조 버튼 (borderless text)
-앱 전체에서 보조 액션은 border-less text 버튼으로 통일:
-- 기본: `#909399`, hover: `rgba(0,0,0,0.04)` 배경 + `#606266`
-- Primary: `var(--clara-primary)` + `font-weight: 600`
-- 파괴적 액션 (Remove, Clear Filters): hover 시 `#f56c6c` + 빨간 배경
+- 기본: `#909399`, hover: `rgba(0,0,0,0.04)`
+- Primary: `var(--clara-primary, #4078C0)` + bold
+- 파괴적 액션: hover 시 `#f56c6c` + 빨간 배경
 
 ### 6-2. 스플리터
-- **가로 (Builder)**: grip 줄 2개 (72px, 2px, 간격 3px), hover 시 primary 50%
-- **세로 (Chart)**: grip 줄 2개 (48px, 2px, 간격 3px), hover 시 primary 50%
-- 둘 다 `transition: 0.15s ease`, primary color(`#4078C0`) 공통 accent
+- 가로/세로 grip 줄 2개, hover 시 primary 50%
 
-### 6-3. 컬럼 너비
-- 검색 테이블: 메타데이터 컬럼 65px 통일 (FEOL, BEOL, VDD, Temp, Drive Str 등)
-- Selected Cells: 메타 컬럼 70px 통일 + auto-width (데이터 기반 확장)
-- Source Data: auto-width (CHAR_WIDTH=7, 헤더+정렬 아이콘 고려)
+### 6-3. Tag / Group / Label
+- Tag, Group 컬럼은 monospace (`Menlo, Consolas`) — 식별자 톤
+- Label template 칩: 흰 배경 + 회색 테두리. Tag 토큰만 italic으로 구분
+- ChartConfig의 Grouped By 미러: 클릭 시 빌더로 스크롤 + 파란 flash 애니메이션
+
+### 6-4. 컬럼 너비
+- 검색 테이블 메타 컬럼: 65~70px 통일
+- Selected Cells: Tag 100px, Group 160px, Cell Name 320px
+- Source Data: auto-width
 
 ---
 
@@ -295,120 +234,51 @@ src/
 
 ```bash
 npm install
-npm run dev         # http://localhost:5173/clara_front/
+npm run dev         # http://localhost:5173/
 npm run build       # 프로덕션 빌드 (dist/)
 npm run preview     # 빌드 결과 확인
 ```
 
-`public/data/*.json` 직접 편집 가능 — dev 서버에서 즉시 반영, 빌드 불필요.
+**환경 변수** (`.env` 파일, gitignored):
+```
+VITE_USE_LOCAL_DATA=true    # public/data/*.json 사용 (API 우회)
+```
+미설정 또는 `false` → 실제 백엔드 API 호출. dev server는 env 변경 후 재시작 필요.
 
 ---
 
 ## 8. 배포
 
-- **URL**: https://micromy.github.io/clara_front/
-- **워크플로**: `.github/workflows/deploy.yml`
-- **트리거 브랜치**: `main`, `snp`, `claude/*` — push 시 자동 빌드 + 배포
-- **브랜치별 서브디렉토리**: feature 브랜치는 `/clara_front/{slug}/`에 배포 (예: `claude/ui-improvements` → `/clara_front/ui-improvements/`). `main`은 루트(`/clara_front/`)에 배포. `peaceiris/actions-gh-pages@v4` + `destination_dir` + `keep_files: true`.
+- **사내 Docker** — `Dockerfile`에서 `npm run build` → nginx 컨테이너로 정적 자산 서빙
+- **SPA fallback** — `nginx.conf`에서 `try_files $uri $uri/ /index.html`로 모든 경로 → index.html
+- **URL 정책** — 단일 경로 `/`. 비루트 접근은 mount 시 `history.replaceState`로 `/`로 정리
 
 ---
 
 ## 9. 알려진 이슈 / 향후 개선
 
-- **ECharts 번들 사이즈** — `dist/assets/index-*.js` ≈ 1.17MB (gzip 377KB). tree-shakable import + 코드 스플리팅 필요
-- **localStorage 마이그레이션** — `builders` 스키마 변경 시 충돌 가능. 버전 키 도입 필요
+- **ECharts 번들 사이즈** — `dist/assets/index-*.js` ≈ 2.4MB (gzip 770KB). tree-shakable import + 코드 스플리팅 필요
+- **localStorage 마이그레이션** — `builders` 스키마 변경 시 ensureBuilderShape에서 처리 중. 추후 스키마 버전 키 권장
+- **Group 템플릿 백엔드 영속화** — `group_by`에 CSV로 저장 중. JSON으로 확장 시 schema 변경 필요
 - **반응형** — 모바일/태블릿 레이아웃 미검증
+- **로그인 시스템 부재** — `CURRENT_USER = 'anonymous'` 하드코딩. 도입 시 교체 예정
 
 ---
 
-## 10. 백엔드 전환 계획
+## 10. 백로그
 
-`src/api/cells.js` 한 파일만 수정하면 됨 (스토어/컴포넌트 무변경).
+### 10-1. 백엔드 협의 필요
+- [ ] `chart_preset.group_by` 컬럼 `VARCHAR2(255)`로 길이 확장 (현재 길이 확인 필요)
+- [ ] `chart_item.cell_alias` → `cell_tag` 리네임 + 빈 값 허용
+- [ ] `chart_preset.x_axis`에서 `__label__` 문자열 허용
+- [ ] `/clara/meta/?id=...` 필터 — chart restore 시 cell_id로 정확히 가져오기
 
-```js
-// src/api/cells.js
-export async function fetchCells() {
-  const res = await fetch('https://api.example.com/v1/cells', { headers: ... })
-  return res.json()
-}
-export async function fetchSimulations() {
-  const res = await fetch('https://api.example.com/v1/simulations', { headers: ... })
-  return res.json()   // { cellId: {...} } 포맷 유지
-}
-```
+### 10-2. 기술적 개선
+- [ ] ECharts tree-shaking + 코드 스플리팅
+- [ ] localStorage 스키마 버전 키
+- [ ] 반응형 (모바일/태블릿) 검토
+- [ ] 로그인 시스템 도입 → `CURRENT_USER` 교체
 
-페이로드가 크면 per-cell lazy fetch 로 전환 가능 (`fetchSimulation(cellId)` 자리 이미 있음).
-
-### 예상 REST 인터페이스
-
-> **chart** = Builder + Chart 탭 전체 상태 (선택 셀, 차트 설정 등)를 저장/불러오기
-> **chart_preset** = Chart Configuration (축, 그룹핑, 파생 지표 등) 설정만 저장/불러오기
-
-#### 페이지 초기 로드
-
-| # | 메서드 | 경로 | 설명 | 시점 |
-|---|---|---|---|---|
-| 1 | GET | `/api/pdks` | PDK 드롭다운 목록 | 페이지 접속 |
-| 2 | GET | `/api/libraries` | Library 드롭다운 목록 | 페이지 접속 |
-| 3 | GET | `/api/charts` | 저장된 chart 리스트 (load 팝업용) | 페이지 접속 |
-
-#### 셀 검색 (FF/ICG + PDK + Library 셋 다 선택 시)
-
-| # | 메서드 | 경로 | 설명 | 시점 |
-|---|---|---|---|---|
-| 6 | GET | `/api/cells?cellType=FF&pdk=...&libraries=...` | 검색 조건에 맞는 Cell 리스트 + 시뮬 데이터 | 필터 3개 선택 완료 |
-| 7 | GET | `/api/chart-presets?cellType=FF&pdk=...&libraries=...` | 해당 조건의 chart_preset 리스트 | 필터 3개 선택 완료 |
-
-#### Chart 저장/삭제
-
-| # | 메서드 | 경로 | 설명 | 시점 |
-|---|---|---|---|---|
-| 4 | POST | `/api/charts` | chart 저장 (빌더 상태 전체: 선택 셀, alias, 차트 설정, 파생 지표 등) | 상단 탭 Save |
-| 5 | DELETE | `/api/charts/:id` | chart 삭제 | load 팝업에서 삭제 |
-
-#### Chart Preset 저장/삭제
-
-| # | 메서드 | 경로 | 설명 | 시점 |
-|---|---|---|---|---|
-| 8 | POST | `/api/chart-presets` | chart_preset 저장 (Chart Configuration: 축, 그룹핑, 파생 지표 설정만) | preset save 팝업 |
-| 9 | DELETE | `/api/chart-presets/:id` | chart_preset 삭제 | preset load 팝업에서 삭제 |
-
----
-
-## 11. 백로그
-
-> 2026-04-16 회의 결과 + 기존 기술 백로그를 영역별로 정리.
-
-### 11-1. 셀 검색 & 선택 (상단)
-- [x] Search 시 **AND 조합** 지원 (Cell Name 검색 + 컬럼 필터를 모두 만족하는 결과만)
-- [x] 상단에 **PDK / Library 드롭다운** 추가 — 선택된 값에 해당하는 데이터 전부 쿼리
-- [x] **Library 드롭다운은 다중 선택** 지원
-- [x] 필터 변경 시 **Search 버튼 누르지 않고 즉시** 목록 업데이트
-- [x] 팝업 검색창에서 **페이지당 표시 개수 선택** 옵션 (이미 메인은 있음, 팝업도 동일하게)
-- [x] 컬럼 헤더의 **필터 / 정렬 아이콘 위치 변경** + 컬럼 우측에 고정
-- [x] 컬럼 너비 **auto** — 콘텐츠 기반 자동 계산 (calcAutoWidth), 상하단 별도 CHAR_WIDTH
-- [x] Diff / Ratio **백분율 표시**, 자릿수 정렬
-
-### 11-2. Cell 선택 & Aliasing
-- [x] 상단에서 여러 셀 선택 후 **화살표 클릭으로 하단에 추가** + 선택 항목들에 **alias 일괄 적용** (같은 alias 부여 → "By Alias" 그룹핑으로 차트에서 묶임)
-
-### 11-3. Selected Cells (하단)
-- [x] **좌측 체크박스 추가** + **우측 X 버튼 제거**
-- [x] 체크된 항목 **일괄 제거** 액션
-
-### 11-4. 차트 탭
-- [x] 범례 별 색상을 **차트 우측**에 표시
-- [x] 우측 테이블 행 선택 시 좌측 차트의 해당 점 **highlight**
-- [x] 차트 데이터 점에 **이름/정보 라벨 고정 토글** (호버가 아닌 영구 표시)
-- [x] 범례 위치를 **차트 좌/우**로 이동 (현재 하단)
-- [x] 테이블 **Export PNG 제거**
-- [x] **Box Zoom** + Shift 단축키 + Shift+더블클릭 리셋
-- [x] **Tooltip 소수점 8자리**
-- [x] **SourceDataTable auto column width** + 정렬 아이콘 우측 정렬
-- [x] 컬럼 헤더 **−/÷ 태그 아래줄 배치** (세로 col-header)
-
-### 11-5. 기술적 개선
-- [ ] 실제 백엔드 연동 — `src/api/cells.js` fetch URL 교체
-- [ ] ECharts tree-shaking + 코드 스플리팅으로 번들 다이어트
-- [ ] localStorage 스키마 버전 키 + 마이그레이션 정책
-- [ ] 반응형 (모바일/태블릿 레이아웃) 검토
+### 10-3. UX
+- [ ] Cell Name 검색도 always-regex로 통일 (현재 substring + debounce)
+- [ ] Chart 저장 시 labelTemplate도 함께 영속화 (현재 CSV로 호환 완료, JSONField로 확장 시 고려)

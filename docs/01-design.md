@@ -1,7 +1,14 @@
 # CLARA 요구사항서 (역작성)
 
-> 작성일: 2026-04-13  
+> 작성일: 2026-04-13
 > 작성 방법: 기존 코드베이스(`clara_front`) 분석을 통한 역작성
+
+> **⚠ 2026-05 모델 변경 안내** (이 문서는 2026-04 시점 스냅샷)
+> - **Alias** → **Tag** (per-cell 입력) + 자동 계산 **Group** 컬럼
+> - **Grouping 단일 dropdown** → **Group 템플릿** (필드/Tag 토큰 조합)
+> - 차트 시리즈는 Group 기준 자동 분리. Bar X-axis는 항상 Group
+> - `chart_item.cell_alias` → `cell_tag` 컬럼 리네임
+> - 현재 API/데이터 모델은 [../API.md](../API.md) 참조
 
 ---
 
