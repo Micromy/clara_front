@@ -277,16 +277,6 @@ function onGenerate() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Group By">
-        <el-select
-          :model-value="store.activeBuilder.chartConfig.grouping"
-          @update:model-value="val => store.updateChartConfig('grouping', val)"
-          style="width: 100%"
-        >
-          <el-option v-for="opt in store.filteredGroupingOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
-      </el-form-item>
-
       <el-divider />
 
       <el-form-item label="Derived Metrics">

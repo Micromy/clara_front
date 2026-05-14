@@ -65,23 +65,36 @@
       "FF": ["DQ_wst (ns)", "DQ_avg (ns)", "CQ_delay_avg (ns)", "D_setup_3σ_avg (ns)", "D_hold_sohm_avg (ns)", "Area (cpp)", "CK_Cap (pF)", "P_Leakage (μW)", "Pdyn (pJ)", "PDP_avg"],
       "ICG": ["EECK_wst (ns)", "EECK_avg (ns)", "CQ_delay_avg (ns)", "E_setup_3σ_avg (ns)", "E_hold_sohm_avg (ns)", "Delay_Tran_rf_ratio", "Area (cpp)", "CK_Cap (pF)", "P_Leakage (μW)", "Pdyn (pJ)", "PDP_avg"]
     },
-    "groupingOptions": [
-      { "value": "alias", "label": "By Alias" },
-      { "value": "cellType", "label": "By Cell Type" },
-      { "value": "driveStrength", "label": "By Drive Strength" },
-      { "value": "library", "label": "By Library" },
-      { "value": "feol", "label": "By FEOL" }
-    ],
     "categoricalXAxisOptions": [
-      { "value": "alias",         "label": "Alias" },
-      { "value": "cellName",      "label": "Cell Name" },
-      { "value": "driveStrength", "label": "Drive Strength" },
-      { "value": "library",       "label": "Library" },
-      { "value": "feol",          "label": "FEOL" },
-      { "value": "vth",           "label": "Vth" },
-      { "value": "vdd",           "label": "VDD" },
-      { "value": "cellHeight",    "label": "Cell Height" },
-      { "value": "nanosheet",     "label": "Nano Sheet" }
+      { "value": "__label__",  "label": "Label (template)" },
+      { "value": "cellName",   "label": "Cell Name" },
+      { "value": "library",    "label": "Library" },
+      { "value": "vendor",     "label": "Vendor" },
+      { "value": "feol",       "label": "FEOL" },
+      { "value": "beol",       "label": "BEOL" },
+      { "value": "driveStr",   "label": "Drive Str" },
+      { "value": "nanoSheet",  "label": "Nano Sheet" },
+      { "value": "vth",        "label": "Vth" },
+      { "value": "vdd",        "label": "VDD" },
+      { "value": "cellHeight", "label": "Cell Height" }
+    ],
+    "labelableFields": [
+      { "value": "cellName",    "label": "Cell Name" },
+      { "value": "library",     "label": "Library" },
+      { "value": "vendor",      "label": "Vendor" },
+      { "value": "version",     "label": "Version" },
+      { "value": "pdk",         "label": "PDK" },
+      { "value": "feol",        "label": "FEOL" },
+      { "value": "beol",        "label": "BEOL" },
+      { "value": "vdd",         "label": "VDD" },
+      { "value": "temperature", "label": "Temp" },
+      { "value": "driveStr",    "label": "Drive Str" },
+      { "value": "nanoSheet",   "label": "Nano Sheet" },
+      { "value": "vth",         "label": "Vth" },
+      { "value": "gateLength",  "label": "Gate Length" },
+      { "value": "cellHeight",  "label": "Cell Height" },
+      { "value": "cpp",         "label": "CPP" },
+      { "value": "gdsOverlay",  "label": "GDS Overlay" }
     ]
   }
 }

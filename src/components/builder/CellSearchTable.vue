@@ -339,7 +339,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         <el-input
           v-model="aliasInput"
           size="small"
-          placeholder="Alias (optional)"
+          placeholder="Note (optional)"
           style="width: 150px"
           :disabled="checkedCount === 0"
           @keyup.enter="addToSelection"

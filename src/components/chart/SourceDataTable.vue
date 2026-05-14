@@ -40,11 +40,11 @@ function toggleColumnMode(colKey) {
   columnModes.value = { ...columnModes.value, [colKey]: cur === 'diff' ? 'ratio' : 'diff' }
 }
 
-// Reference options: show "alias (cellName)" when alias differs from cellName
+// Reference options: show "label (cellName)" when label is present
 const referenceOptions = computed(() =>
   cells.value.map(c => ({
     value: c.id,
-    label: c.alias && c.alias !== c.cellName ? `${c.alias} (${c.cellName})` : c.cellName
+    label: c.label ? `${c.label} (${c.cellName})` : c.cellName
   }))
 )
 
@@ -223,10 +223,11 @@ function cellInfo(row, col) {
       @cell-mouse-enter="row => emit('row-hover', row.id)"
       @cell-mouse-leave="() => emit('row-hover', null)"
     >
-      <!-- Alias (fixed, 1st) -->
-      <el-table-column label="Alias" prop="alias" fixed width="140" sortable :show-overflow-tooltip="{ showAfter: 500 }">
+      <!-- Label (fixed, 1st) -->
+      <el-table-column label="Label" prop="label" fixed width="160" sortable :show-overflow-tooltip="{ showAfter: 500 }">
         <template #default="{ row }">
-          <span class="cell-alias">{{ row.alias && row.alias !== row.cellName ? row.alias : row.cellName }}</span>
+          <span v-if="row.label" class="cell-alias">{{ row.label }}</span>
+          <span v-else class="cell-label-empty">—</span>
         </template>
       </el-table-column>
 
@@ -305,7 +306,12 @@ function cellInfo(row, col) {
 }
 
 .cell-alias {
-  color: #606266;
+  color: #303133;
+  font-weight: 500;
+  font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
+}
+.cell-label-empty {
+  color: #c0c4cc;
 }
 
 .cell-id {

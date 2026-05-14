@@ -38,27 +38,29 @@ const chartOption = computed(() => {
 
   const isBar = config.chartType === 'bar'
   const isLine = config.chartType === 'line'
+  const isXLabel = config.xAxis === '__label__' || config.xAxis === 'label'
 
-  // Secondary type must be compatible with primary's x-axis type:
-  //   bar requires category x-axis → only allowed when primary is also bar; else falls back to line
-  //   scatter/line require value x-axis → only allowed when primary is NOT bar; else bar primary gets line fallback
+  // Secondary type must be compatible with primary's x-axis type
   const rawSecType = config.chartTypeSecondary || config.chartType
   const secType = isBar
-    ? (rawSecType === 'bar' ? 'bar' : 'line')        // category x-axis: bar or line OK, scatter→line
-    : (rawSecType === 'bar' ? 'scatter' : rawSecType) // value x-axis: scatter/line OK, bar→scatter
+    ? (rawSecType === 'bar' ? 'bar' : 'line')
+    : (rawSecType === 'bar' ? 'scatter' : rawSecType)
   const isBarSec = secType === 'bar'
   const isLineSec = secType === 'line'
 
-  // Group cells by the grouping field.
-  // Fall back to cellName when the grouping value is null/undefined/empty string
-  // (e.g. alias is '' before the user fills it in).
+  const EMPTY_LABEL = '(no label)'
+  const labelOf = c => c.label || EMPTY_LABEL
+  const xValueOf = c => isXLabel ? labelOf(c) : c[config.xAxis]
+
+  // Series grouping rules:
+  //   bar with X = Label → single series (X already encodes label)
+  //   else                → group by cell.label (each unique label is a series/color)
   const groups = new Map()
-  if (config.grouping === '__none__') {
+  if (isBar && isXLabel) {
     groups.set('All', cells)
   } else {
     cells.forEach(cell => {
-      const raw = cell[config.grouping]
-      const key = (raw != null && String(raw).trim() !== '') ? String(raw) : cell.cellName
+      const key = labelOf(cell)
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(cell)
     })
@@ -67,8 +69,8 @@ const chartOption = computed(() => {
   // For bar chart: collect unique X values as categories (sorted)
   let xCategories = null
   if (isBar) {
-    const xVals = new Set(cells.map(c => c[config.xAxis]))
-    xCategories = [...xVals].map(String).sort((a, b) => {
+    const xVals = new Set(cells.map(xValueOf))
+    xCategories = [...xVals].map(v => v == null ? '' : String(v)).sort((a, b) => {
       const numA = Number(a), numB = Number(b)
       if (!isNaN(numA) && !isNaN(numB)) return numA - numB
       return a.localeCompare(b)
@@ -84,10 +86,14 @@ const chartOption = computed(() => {
 
     if (isBar) {
       const data = xCategories.map(xCat => {
-        const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
+        const matching = groupCells.filter(c => {
+          const v = xValueOf(c)
+          return (v == null ? '' : String(v)) === xCat
+        })
         if (!matching.length) return null
-        const avg = matching.reduce((s, c) => s + (c[config.yAxisPrimary] ?? 0), 0) / matching.length
-        return avg
+        const ys = matching.map(c => c[config.yAxisPrimary]).filter(v => typeof v === 'number')
+        if (!ys.length) return null
+        return ys.reduce((s, v) => s + v, 0) / ys.length
       })
       series.push({
         name: groupName, type: 'bar', data, itemStyle: { color },
@@ -118,10 +124,14 @@ const chartOption = computed(() => {
       if (isBarSec) {
         // isBarSec is only true when primary is also bar (xCategories always exists here)
         const data = xCategories.map(xCat => {
-          const matching = groupCells.filter(c => String(c[config.xAxis]) === xCat)
+          const matching = groupCells.filter(c => {
+            const v = xValueOf(c)
+            return (v == null ? '' : String(v)) === xCat
+          })
           if (!matching.length) return null
-          const avg = matching.reduce((s, c) => s + (c[config.yAxisSecondary] ?? 0), 0) / matching.length
-          return avg
+          const ys = matching.map(c => c[config.yAxisSecondary]).filter(v => typeof v === 'number')
+          if (!ys.length) return null
+          return ys.reduce((s, v) => s + v, 0) / ys.length
         })
         series.push({
           name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
@@ -319,7 +329,8 @@ const chartOption = computed(() => {
     if (isBar) {
       // For bar charts, cells within a group map to xCategory indices
       groupCells.forEach(cell => {
-        const xCat = String(cell[config.xAxis])
+        const v = xValueOf(cell)
+        const xCat = v == null ? '' : String(v)
         const dIdx = xCategories.indexOf(xCat)
         if (dIdx !== -1) cellMap.set(cell.id, { seriesIndex: sIdx, dataIndex: dIdx })
       })

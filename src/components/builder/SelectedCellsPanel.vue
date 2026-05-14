@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
 import { useDragSelect } from '../../composables/useDragSelect.js'
+import LabelTemplateBuilder from './LabelTemplateBuilder.vue'
 
 const store = useBuilderStore()
 const selectedTableRef = ref(null)
@@ -28,8 +29,8 @@ const COMPARISON_OPTIONS = [
   { label: 'Diff', value: 'diff' }
 ]
 
-function updateAlias(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
-function getAlias(cellId)           { return store.getCellAlias(store.activeBuilder.id, cellId) }
+function updateNote(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
+function getNote(cellId)           { return store.getCellAlias(store.activeBuilder.id, cellId) }
 function removeCell(cellId)         { store.toggleCellSelection(cellId) }
 
 // Reset column overrides when global mode changes
@@ -51,8 +52,8 @@ watch([comparisonMode, () => store.selectedCells], ([mode, cells]) => {
 
 const referenceOptions = computed(() =>
   store.selectedCells.map(c => {
-    const alias = getAlias(c.id)
-    return { value: c.id, label: alias ? `${alias} (${c.cellName})` : c.cellName }
+    const label = c.label
+    return { value: c.id, label: label ? `${label} (${c.cellName})` : c.cellName }
   })
 )
 
@@ -180,6 +181,8 @@ function simCellInfo(row, col) {
       </div>
     </div>
 
+    <LabelTemplateBuilder v-if="store.activeBuilder" class="label-template-row" />
+
     <el-table
       ref="selectedTableRef"
       :data="tableRows"
@@ -194,18 +197,29 @@ function simCellInfo(row, col) {
       <!-- Selection checkbox (fixed 1st) -->
       <el-table-column type="selection" width="38" fixed align="center" />
 
-      <!-- Alias input (fixed 2nd) -->
-      <el-table-column label="Alias" width="140" fixed>
+      <!-- Note input (per-cell, fixed) -->
+      <el-table-column label="Note" width="140" fixed>
+        <template #header>
+          <span class="col-note-header" title="Per-cell text. Referenced by the Note token in the label template.">Note</span>
+        </template>
         <template #default="{ row }">
           <el-input
-            :model-value="getAlias(row.id)"
-            @update:model-value="val => updateAlias(row.id, val)"
-            size="small" :placeholder="row.cellName"
+            :model-value="getNote(row.id)"
+            @update:model-value="val => updateNote(row.id, val)"
+            size="small" placeholder="—"
           />
         </template>
       </el-table-column>
 
-      <!-- Cell Name (fixed 2nd) -->
+      <!-- Computed Label (read-only, fixed) -->
+      <el-table-column label="Label" width="160" fixed>
+        <template #default="{ row }">
+          <span v-if="row.label" class="cell-label">{{ row.label }}</span>
+          <span v-else class="cell-label-empty">—</span>
+        </template>
+      </el-table-column>
+
+      <!-- Cell Name (fixed) -->
       <el-table-column label="Cell Name" width="320" :show-overflow-tooltip="{ showAfter: 500 }" fixed>
         <template #default="{ row }">
           <el-tag v-if="isRefRow(row)" size="small" type="primary" style="margin-right:4px;vertical-align:middle">REF</el-tag>
@@ -309,4 +323,16 @@ function simCellInfo(row, col) {
 .selected-cells-panel :deep(.cell-pos) { color: #67c23a; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .selected-cells-panel :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .selected-cells-panel :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
+
+.label-template-row { margin-bottom: 10px; }
+.cell-label {
+  font-weight: 500;
+  color: #303133;
+  font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
+  letter-spacing: 0.1px;
+}
+.cell-label-empty {
+  color: #c0c4cc;
+}
+.col-note-header { cursor: help; border-bottom: 1px dotted #c0c4cc; }
 </style>

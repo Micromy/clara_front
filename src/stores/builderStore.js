@@ -148,6 +148,32 @@ export function formulaDesc(df, derivedFields = []) {
 
 let nextDerivedId = 1
 
+// ── Label template ────────────────────────────────────────────────────────
+// Each cell's display label is computed from an ordered list of tokens.
+// Token types:
+//   { type: 'field',   field: 'driveStr' }   → cell[field]
+//   { type: 'literal', text: '_' }           → text as-is
+//   { type: 'note' }                          → per-cell user-entered note
+export const LABEL_TOKEN_TYPES = ['field', 'literal', 'note']
+
+export function computeLabel(template, cell, noteValue = '') {
+  if (!Array.isArray(template) || template.length === 0) return ''
+  return template.map(tok => {
+    if (!tok || typeof tok !== 'object') return ''
+    if (tok.type === 'field') {
+      const v = cell?.[tok.field]
+      return v == null ? '' : String(v)
+    }
+    if (tok.type === 'literal') return tok.text ?? ''
+    if (tok.type === 'note') return noteValue ?? ''
+    return ''
+  }).join('')
+}
+
+function defaultLabelTemplate() {
+  return [{ type: 'note' }]
+}
+
 // Cell type top-level classification (mutually exclusive).
 // `cellType` on each cell is now 'FF' or 'ICG' directly.
 export const CELL_TYPE_OPTIONS = [
@@ -190,15 +216,26 @@ export const useBuilderStore = defineStore('builder', () => {
   // Restore persisted builder state (before first render)
   const _saved = loadPersistedState()
 
-  function ensureBuilderSearch(b) {
+  function ensureBuilderShape(b) {
     if (!b.search) b.search = { pending: createEmptySearch(), applied: createEmptySearch() }
+    if (!Array.isArray(b.labelTemplate)) b.labelTemplate = defaultLabelTemplate()
+    if (b.chartConfig) {
+      // Migrate away from removed `grouping` field
+      if ('grouping' in b.chartConfig) delete b.chartConfig.grouping
+      // Migrate stale categorical xAxis values (only meaningful on bar charts)
+      if (b.chartConfig.chartType === 'bar') {
+        if (b.chartConfig.xAxis === 'alias')         b.chartConfig.xAxis = '__label__'
+        if (b.chartConfig.xAxis === 'driveStrength') b.chartConfig.xAxis = 'driveStr'
+        if (b.chartConfig.xAxis === 'nanosheet')     b.chartConfig.xAxis = 'nanoSheet'
+      }
+    }
     return b
   }
 
   const builders = ref(
     (_saved?.builders ?? [
-      { id: 1, name: 'Untitled', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [] }
-    ]).map(ensureBuilderSearch)
+      { id: 1, name: 'Untitled', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [], labelTemplate: defaultLabelTemplate() }
+    ]).map(ensureBuilderShape)
   )
   const activeBuilderIndex = ref(
     _saved?.activeBuilderIndex != null
@@ -282,8 +319,7 @@ export const useBuilderStore = defineStore('builder', () => {
       chartTypeSecondary: null,
       xAxis: firstRaw?.metricId || null,
       yAxisPrimary: firstRaw?.metricId || null,
-      yAxisSecondary: null,
-      grouping: 'alias'
+      yAxisSecondary: null
     }
   }
 
@@ -350,12 +386,18 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!activeBuilder.value) return []
     const ids = activeBuilder.value.selectedCellIds
     const formulas = activeBuilder.value.derivedFormulas || []
+    const template = activeBuilder.value.labelTemplate || []
+    const builderId = activeBuilder.value.id
 
-    // Pass 1: merge base + simulation data
+    // Pass 1: merge base + simulation data, then attach computed label
     const cellMap = new Map(metaCells.value.map(c => [c.id, c]))
     const baseCells = ids
       .filter(id => cellMap.has(id))
-      .map(id => ({ ...cellMap.get(id), ...(simulations.value[id] || {}) }))
+      .map(id => {
+        const merged = { ...cellMap.get(id), ...(simulations.value[id] || {}) }
+        merged.label = computeLabel(template, merged, getCellAlias(builderId, id))
+        return merged
+      })
 
     if (formulas.length === 0) return baseCells
 
@@ -371,7 +413,7 @@ export const useBuilderStore = defineStore('builder', () => {
     formulas.filter(df => df.type === 'mean' || df.type === 'std').forEach(df => {
       const byGroup = new Map()
       baseCells.forEach(c => {
-        const gKey = String(c[df.groupBy ?? 'alias'] ?? '')
+        const gKey = String(c[df.groupBy ?? 'label'] ?? '')
         if (!byGroup.has(gKey)) byGroup.set(gKey, [])
         const v = c[df.field]
         if (typeof v === 'number') byGroup.get(gKey).push(v)
@@ -394,7 +436,7 @@ export const useBuilderStore = defineStore('builder', () => {
       formulas.forEach(df => {
         let stats = groupStats[df.id]
         if (df.type === 'mean' || df.type === 'std') {
-          const gKey = String(c[df.groupBy ?? 'alias'] ?? '')
+          const gKey = String(c[df.groupBy ?? 'label'] ?? '')
           stats = groupStatsMap[df.id]?.get(gKey)
         }
         merged[`__df_${df.id}`] = computeDerivedValue(c, df, stats)
@@ -602,7 +644,7 @@ export const useBuilderStore = defineStore('builder', () => {
     return cfg?.[activeCellType.value] ?? []
   })
   const chartOptions = computed(() => config.value?.chartOptions ?? {
-    chartTypes: [], xAxisOptions: [], yAxisOptions: {}, groupingOptions: []
+    chartTypes: [], categoricalXAxisOptions: [], labelableFields: []
   })
   const metricOptionsForType = computed(() => {
     const ct = activeCellType.value
@@ -617,18 +659,11 @@ export const useBuilderStore = defineStore('builder', () => {
     return raw.map(m => ({ value: m.metricId, label: m.name }))
   })
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
+  const labelableFields = computed(() => chartOptions.value.labelableFields ?? [])
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
     if (chartType === 'bar') return categoricalXAxisOptions.value
     return metricOptionsForType.value
-  })
-  const filteredGroupingOptions = computed(() => {
-    const all = chartOptions.value.groupingOptions || []
-    const xAxis = activeBuilder.value?.chartConfig?.xAxis
-    const chartType = activeBuilder.value?.chartConfig?.chartType
-    const filtered = all.filter(opt => opt.value !== xAxis)
-    if (chartType === 'bar') return [{ value: '__none__', label: 'None' }, ...filtered]
-    return filtered
   })
   const yAxisOptions = computed(() => metricOptionsForType.value)
   const derivedFields = computed(() => buildDerivedFields(activeCellType.value, config.value))
@@ -733,6 +768,7 @@ export const useBuilderStore = defineStore('builder', () => {
       selectedCellIds: [],
       chartConfig: createDefaultChartConfig(),
       derivedFormulas: [],
+      labelTemplate: defaultLabelTemplate(),
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     })
     activeBuilderIndex.value = builders.value.length - 1
@@ -758,6 +794,7 @@ export const useBuilderStore = defineStore('builder', () => {
     builder.selectedCellIds = []
     builder.chartConfig = createDefaultChartConfig()
     builder.derivedFormulas = []
+    builder.labelTemplate = defaultLabelTemplate()
     builder.search = { pending: createEmptySearch(), applied: createEmptySearch() }
 
     if (activeBuilderIndex.value === index) {
@@ -775,25 +812,45 @@ export const useBuilderStore = defineStore('builder', () => {
     if (key === 'chartType') {
       const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
       if (value === 'bar') {
-        if (!catValues.has(cfg.xAxis)) cfg.xAxis = categoricalXAxisOptions.value[0]?.value || 'alias'
-        cfg.grouping = '__none__'
-      } else {
-        if (catValues.has(cfg.xAxis)) {
-          const firstMetric = metricOptionsForType.value[0]
-          cfg.xAxis = firstMetric?.value || null
-        }
-        if (cfg.grouping === '__none__') cfg.grouping = 'alias'
+        if (!catValues.has(cfg.xAxis)) cfg.xAxis = categoricalXAxisOptions.value[0]?.value || '__label__'
+      } else if (catValues.has(cfg.xAxis)) {
+        const firstMetric = metricOptionsForType.value[0]
+        cfg.xAxis = firstMetric?.value || null
       }
-    }
-
-    if (key === 'xAxis' && cfg.grouping === value) {
-      const fallback = (chartOptions.value.groupingOptions || []).find(o => o.value !== value)
-      cfg.grouping = fallback?.value || 'alias'
     }
 
     if (key === 'yAxisSecondary' && !value) {
       cfg.chartTypeSecondary = null
     }
+  }
+
+  // ── Label template helpers ──
+  function setLabelTemplate(template) {
+    if (!activeBuilder.value) return
+    activeBuilder.value.labelTemplate = Array.isArray(template) ? [...template] : []
+  }
+
+  function addLabelToken(token) {
+    if (!activeBuilder.value) return
+    if (!Array.isArray(activeBuilder.value.labelTemplate)) {
+      activeBuilder.value.labelTemplate = []
+    }
+    activeBuilder.value.labelTemplate.push({ ...token })
+  }
+
+  function removeLabelToken(index) {
+    if (!activeBuilder.value) return
+    const t = activeBuilder.value.labelTemplate
+    if (Array.isArray(t) && index >= 0 && index < t.length) t.splice(index, 1)
+  }
+
+  function moveLabelToken(from, to) {
+    if (!activeBuilder.value) return
+    const t = activeBuilder.value.labelTemplate
+    if (!Array.isArray(t)) return
+    if (from < 0 || from >= t.length || to < 0 || to >= t.length) return
+    const [item] = t.splice(from, 1)
+    t.splice(to, 0, item)
   }
 
   // formulaConfig: { name, type, field?, field1?, op?, field2?, fn? }
@@ -829,7 +886,7 @@ export const useBuilderStore = defineStore('builder', () => {
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
 
     // Build a label map: field name → display label
-    const labelMap = {}
+    const labelMap = { __label__: 'Label', label: 'Label' }
     metrics.value.forEach(m => { labelMap[m.field1] = m.name; labelMap[m.metricId] = m.name })
     ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
@@ -847,12 +904,10 @@ export const useBuilderStore = defineStore('builder', () => {
       builderId,
       builderName: activeBuilder.value.name,
       cellType: activeCellType.value,
-      cells: selectedCells.value.map(c => ({
-        ...c,
-        alias: getCellAlias(builderId, c.id) || c.cellName
-      })),
+      cells: selectedCells.value.map(c => ({ ...c })),
       config: resolvedConfig,
       derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])],
+      labelTemplate: [...(activeBuilder.value.labelTemplate || [])],
       labelMap,
       simulationColumns: [...(selectedCellsSimulationColumns.value || [])]
     }
@@ -905,7 +960,6 @@ export const useBuilderStore = defineStore('builder', () => {
       xAxis: cfg.xAxis,
       y1Axis: cfg.yAxisPrimary,
       y2Axis: cfg.yAxisSecondary,
-      groupBy: cfg.grouping,
       isVisible: 'Y',
       createdBy: CURRENT_USER
     })
@@ -920,7 +974,6 @@ export const useBuilderStore = defineStore('builder', () => {
     cfg.xAxis = preset.xAxis
     cfg.yAxisPrimary = preset.y1Axis
     cfg.yAxisSecondary = preset.y2Axis
-    cfg.grouping = preset.groupBy
   }
 
   async function deletePreset(presetId) {
@@ -945,8 +998,7 @@ export const useBuilderStore = defineStore('builder', () => {
         chartType: cfg.chartType,
         xAxis: cfg.xAxis,
         y1Axis: cfg.yAxisPrimary,
-        y2Axis: cfg.yAxisSecondary,
-        groupBy: cfg.grouping
+        y2Axis: cfg.yAxisSecondary
       },
       items: b.selectedCellIds.map(cellId => {
         const meta = metaCells.value.find(c => c.id === cellId)
@@ -978,10 +1030,10 @@ export const useBuilderStore = defineStore('builder', () => {
         chartTypeSecondary: null,
         xAxis: preset.xAxis,
         yAxisPrimary: preset.y1Axis,
-        yAxisSecondary: preset.y2Axis,
-        grouping: preset.groupBy
+        yAxisSecondary: preset.y2Axis
       } : createDefaultChartConfig(),
       derivedFormulas: [],
+      labelTemplate: defaultLabelTemplate(),
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     }
     builders.value.push(newBuilder)
@@ -1011,12 +1063,13 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     metaCells, simulations, config, metrics, pdks, libraries, loading, restoringSessionState, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, metricOptionsForType, augmentedXAxisOptions, filteredGroupingOptions, yAxisOptions, derivedFields, activeCellType,
+    chartOptions, metricOptionsForType, augmentedXAxisOptions, labelableFields, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeSubTab, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
     toggleCellSelection, selectCells, deselectCells, clearSelection,
     addBuilder, removeBuilder, resetBuilder, updateChartConfig,
+    setLabelTemplate, addLabelToken, removeLabelToken, moveLabelToken,
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,
     // search / filter
