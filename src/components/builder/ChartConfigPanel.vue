@@ -255,7 +255,11 @@ function focusLabelBuilder() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Grouped By">
+      <el-form-item>
+        <template #label>
+          Grouped By
+          <span v-if="store.activeBuilder.chartConfig.chartType === 'bar'" class="group-label-suffix">(X-Axis)</span>
+        </template>
         <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
           <template v-if="labelTemplate.length === 0">
             <span class="group-empty">empty — all cells in one group</span>
@@ -269,9 +273,6 @@ function focusLabelBuilder() {
             >{{ tokenText(tok) }}</span>
           </template>
           <span class="group-edit-hint">edit ↑</span>
-        </div>
-        <div v-if="store.activeBuilder.chartConfig.chartType === 'bar'" class="group-bar-hint">
-          becomes the X-axis
         </div>
       </el-form-item>
 
@@ -536,11 +537,11 @@ function focusLabelBuilder() {
   line-height: 1.5;
 }
 .group-chip-tag { font-style: italic; }
-.group-bar-hint {
-  font-size: 11px;
+.group-label-suffix {
   color: #909399;
-  font-style: italic;
-  margin-top: 4px;
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 4px;
 }
 .group-empty {
   color: #909399;
