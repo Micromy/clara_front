@@ -175,6 +175,24 @@ function defaultLabelTemplate() {
   return [{ type: 'tag' }]
 }
 
+// ── CSV serialization for backend group_by VARCHAR ─────────────────────
+const LABEL_TAG_SENTINEL = '__tag__'
+
+function templateToCsv(template) {
+  if (!Array.isArray(template) || template.length === 0) return ''
+  return template
+    .map(t => t?.type === 'tag' ? LABEL_TAG_SENTINEL : (t?.field || ''))
+    .filter(Boolean)
+    .join(',')
+}
+
+function csvToTemplate(csv) {
+  if (!csv || typeof csv !== 'string') return []
+  return csv.split(',').map(s => s.trim()).filter(Boolean).map(s =>
+    s === LABEL_TAG_SENTINEL ? { type: 'tag' } : { type: 'field', field: s }
+  )
+}
+
 // Cell type top-level classification (mutually exclusive).
 // `cellType` on each cell is now 'FF' or 'ICG' directly.
 export const CELL_TYPE_OPTIONS = [
@@ -969,6 +987,7 @@ export const useBuilderStore = defineStore('builder', () => {
       xAxis: cfg.xAxis,
       y1Axis: cfg.yAxisPrimary,
       y2Axis: cfg.yAxisSecondary,
+      groupBy: templateToCsv(activeBuilder.value.labelTemplate),
       isVisible: 'Y',
       createdBy: CURRENT_USER
     })
@@ -983,6 +1002,7 @@ export const useBuilderStore = defineStore('builder', () => {
     cfg.xAxis = preset.xAxis
     cfg.yAxisPrimary = preset.y1Axis
     cfg.yAxisSecondary = preset.y2Axis
+    activeBuilder.value.labelTemplate = csvToTemplate(preset.groupBy)
   }
 
   async function deletePreset(presetId) {
@@ -1007,15 +1027,13 @@ export const useBuilderStore = defineStore('builder', () => {
         chartType: cfg.chartType,
         xAxis: cfg.xAxis,
         y1Axis: cfg.yAxisPrimary,
-        y2Axis: cfg.yAxisSecondary
+        y2Axis: cfg.yAxisSecondary,
+        groupBy: templateToCsv(b.labelTemplate)
       },
-      items: b.selectedCellIds.map(cellId => {
-        const meta = metaCells.value.find(c => c.id === cellId)
-        return {
-          cellId,
-          cellAlias: getCellAlias(builderId, cellId) || meta?.cellName || String(cellId)
-        }
-      })
+      items: b.selectedCellIds.map(cellId => ({
+        cellId,
+        cellTag: getCellAlias(builderId, cellId) || ''
+      }))
     })
     savedCharts.value.push(chart)
   }
@@ -1042,16 +1060,16 @@ export const useBuilderStore = defineStore('builder', () => {
         yAxisSecondary: preset.y2Axis
       } : createDefaultChartConfig(),
       derivedFormulas: [],
-      labelTemplate: defaultLabelTemplate(),
+      labelTemplate: csvToTemplate(preset?.groupBy || ''),
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     }
     builders.value.push(newBuilder)
     activeBuilderIndex.value = builders.value.length - 1
 
-    // Restore aliases
+    // Restore tags
     chart.items.forEach(item => {
-      if (item.cellAlias) {
-        cellAliases.value[`${id}-${item.cellId}`] = item.cellAlias
+      if (item.cellTag) {
+        cellAliases.value[`${id}-${item.cellId}`] = item.cellTag
       }
     })
 
