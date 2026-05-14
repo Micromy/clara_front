@@ -174,7 +174,7 @@ const groupTitle = 'Group tokens determine how cells are split into colors. Clic
 
 function tokenText(tok) {
   if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
-  if (tok.type === 'note') return 'Note'
+  if (tok.type === 'tag') return 'Tag'
   return '?'
 }
 

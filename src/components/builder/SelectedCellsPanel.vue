@@ -198,7 +198,7 @@ function simCellInfo(row, col) {
       <el-table-column type="selection" width="38" fixed align="center" />
 
       <!-- Tag input (per-cell, fixed) -->
-      <el-table-column label="Tag" width="140" fixed>
+      <el-table-column label="Tag" width="100" fixed>
         <template #header>
           <span class="col-note-header" title="Per-cell text. Referenced by the Tag token in the Group template.">Tag</span>
         </template>

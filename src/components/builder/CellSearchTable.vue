@@ -83,39 +83,24 @@ watch(pendingPdk, () => {
   pendingLibraries.value = []
 })
 
-// ── Library regex / search ───────────────────────────────────────────────
+// ── Library regex search (always regex) ────────────────────────────────
 const librarySelectRef = ref(null)
 const libraryFilter = ref('')
 
-const regexMode = computed(() => libraryFilter.value.trim().startsWith('/'))
-
 const compiledRegex = computed(() => {
-  if (!regexMode.value) return null
-  let p = libraryFilter.value.trim().slice(1)
-  if (p.endsWith('/') && p.length > 0) p = p.slice(0, -1)
+  const p = libraryFilter.value.trim()
   if (!p) return null
   try { return new RegExp(p, 'i') } catch { return false }
 })
-
 const regexError = computed(() => compiledRegex.value === false)
 
-const regexMatchedIds = computed(() => {
-  const re = compiledRegex.value
-  if (!re || re === false) return []
-  return store.libraryOptions.filter(o => re.test(o.label)).map(o => o.id)
-})
-
 const filteredLibraryOptions = computed(() => {
-  const q = libraryFilter.value.trim()
-  if (!q) return store.libraryOptions
-  if (regexMode.value) return store.libraryOptions
-  const lower = q.toLowerCase()
-  return store.libraryOptions.filter(o => o.label.toLowerCase().includes(lower))
+  const re = compiledRegex.value
+  if (!re || re === false) return store.libraryOptions
+  return store.libraryOptions.filter(o => re.test(o.label))
 })
 
-function isRegexMatch(id) {
-  return regexMode.value && regexMatchedIds.value.includes(id)
-}
+const matchedIds = computed(() => filteredLibraryOptions.value.map(o => o.id))
 
 function onLibraryFilterInput(query) {
   libraryFilter.value = query
@@ -123,7 +108,7 @@ function onLibraryFilterInput(query) {
 
 function applyRegexMatches() {
   const next = new Set(pendingLibraries.value || [])
-  regexMatchedIds.value.forEach(id => next.add(id))
+  matchedIds.value.forEach(id => next.add(id))
   pendingLibraries.value = [...next]
 }
 
@@ -229,7 +214,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         <el-select
           ref="librarySelectRef"
           v-model="pendingLibraries"
-          placeholder="Library (try /regex)"
+          placeholder="Library (regex)"
           multiple
           collapse-tags
           collapse-tags-tooltip
@@ -237,6 +222,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           filterable
           :filter-method="onLibraryFilterInput"
           popper-class="library-select-popper"
+          :class="{ 'library-regex-error-input': regexError }"
           style="width: 200px"
           :teleported="!inPopup"
         >
@@ -245,21 +231,23 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
             :key="opt.id"
             :label="opt.label"
             :value="opt.id"
-            :class="{ 'is-regex-match': isRegexMatch(opt.id) }"
           />
           <template #footer>
-            <div v-if="regexMode" class="library-regex-footer">
+            <div class="library-regex-footer">
               <span v-if="regexError" class="library-regex-error">⚠ Invalid regex</span>
-              <span v-else class="library-regex-info">
-                <span class="library-regex-icon">⚡</span>
-                {{ regexMatchedIds.length }} match{{ regexMatchedIds.length === 1 ? '' : 'es' }}
+              <span v-else-if="libraryFilter.trim()" class="library-regex-info">
+                <span class="library-regex-icon">.*</span>
+                {{ matchedIds.length }} match{{ matchedIds.length === 1 ? '' : 'es' }}
+              </span>
+              <span v-else class="library-regex-hint">
+                <span class="library-regex-icon">.*</span> regex search
               </span>
               <el-button
+                v-if="!regexError && libraryFilter.trim() && matchedIds.length > 0"
                 size="small"
                 type="primary"
-                :disabled="regexError || regexMatchedIds.length === 0"
                 @click="applyRegexMatches"
-              >Apply</el-button>
+              >Select all</el-button>
             </div>
           </template>
         </el-select>
@@ -484,43 +472,43 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
 <style>
 /* Library regex search — teleported popper styles (must be unscoped) */
-.library-select-popper .el-select-dropdown__item.is-regex-match {
-  background: rgba(64, 120, 192, 0.08);
-  font-weight: 500;
-  position: relative;
-}
-.library-select-popper .el-select-dropdown__item.is-regex-match::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--clara-primary, #4078C0);
-  border-radius: 1px;
-}
-
 .library-regex-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 6px 10px;
   border-top: 1px solid #ebeef5;
   background: #fafbfc;
   font-size: 12px;
 }
-.library-regex-info {
+.library-regex-info,
+.library-regex-hint {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: #606266;
 }
+.library-regex-hint {
+  color: #909399;
+  font-style: italic;
+}
 .library-regex-icon {
+  font-family: 'Menlo', 'Consolas', monospace;
   font-size: 11px;
   color: var(--clara-primary, #4078C0);
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(64, 120, 192, 0.1);
 }
 .library-regex-error {
   color: #f56c6c;
   font-weight: 500;
+}
+
+/* Error state on the select input itself */
+.library-regex-error-input .el-select__wrapper,
+.library-regex-error-input .el-input__wrapper {
+  box-shadow: 0 0 0 1px #f56c6c inset !important;
 }
 </style>
