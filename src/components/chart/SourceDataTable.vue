@@ -223,8 +223,8 @@ function cellInfo(row, col) {
       @cell-mouse-enter="row => emit('row-hover', row.id)"
       @cell-mouse-leave="() => emit('row-hover', null)"
     >
-      <!-- Label (fixed, 1st) -->
-      <el-table-column label="Label" prop="label" fixed width="160" sortable :show-overflow-tooltip="{ showAfter: 500 }">
+      <!-- Group (fixed, 1st) -->
+      <el-table-column label="Group" prop="label" fixed width="160" sortable :show-overflow-tooltip="{ showAfter: 500 }">
         <template #default="{ row }">
           <span v-if="row.label" class="cell-alias">{{ row.label }}</span>
           <span v-else class="cell-label-empty">—</span>

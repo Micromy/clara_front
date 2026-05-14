@@ -170,7 +170,7 @@ const fieldLabelMap = computed(() => {
   store.labelableFields.forEach(f => { m[f.value] = f.label })
   return m
 })
-const groupTitle = 'Series colors come from the Label template above. Click to edit.'
+const groupTitle = 'Group tokens determine how cells are split into colors. Click to edit.'
 
 function tokenText(tok) {
   if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
@@ -258,7 +258,7 @@ function focusLabelBuilder() {
       <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Group">
         <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
           <template v-if="labelTemplate.length === 0">
-            <span class="group-empty">no label — all cells in one group</span>
+            <span class="group-empty">empty — all cells in one group</span>
           </template>
           <template v-else>
             <span

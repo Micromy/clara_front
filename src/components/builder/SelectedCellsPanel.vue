@@ -211,8 +211,8 @@ function simCellInfo(row, col) {
         </template>
       </el-table-column>
 
-      <!-- Computed Label (read-only, fixed) -->
-      <el-table-column label="Label" width="160" fixed>
+      <!-- Computed Group (read-only, fixed) -->
+      <el-table-column label="Group" width="160" fixed>
         <template #default="{ row }">
           <span v-if="row.label" class="cell-label">{{ row.label }}</span>
           <span v-else class="cell-label-empty">—</span>

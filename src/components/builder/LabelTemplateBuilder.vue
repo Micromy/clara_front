@@ -64,7 +64,7 @@ function onDragEnd() { dragFrom.value = -1 }
 
 <template>
   <div class="label-template-builder">
-    <span class="lt-label">Label</span>
+    <span class="lt-label">Group</span>
 
     <div class="lt-chips">
       <div

@@ -892,7 +892,7 @@ export const useBuilderStore = defineStore('builder', () => {
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
 
     // Build a label map: field name → display label
-    const labelMap = { __label__: 'Label', label: 'Label' }
+    const labelMap = { __label__: 'Group', label: 'Group' }
     metrics.value.forEach(m => { labelMap[m.field1] = m.name; labelMap[m.metricId] = m.name })
     ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
