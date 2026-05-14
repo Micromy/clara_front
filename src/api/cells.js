@@ -127,12 +127,26 @@ export async function fetchMeta({ cellType, pdkId, libIds, cellIds }) {
 
 // ── Simulation Data ──────────────────────────────────────────────────────
 
-export function fetchSimFF(cellIds) {
-  return get(`/clara/cell/ff?cell_id=${cellIds.join(',')}`)
+// Django DecimalField serializes as string; coerce numeric strings to Number
+// so downstream diff/ratio math works.
+const NUMERIC_RE = /^-?\d+(\.\d+)?(e[+-]?\d+)?$/i
+function numerizeRow(row) {
+  const out = {}
+  for (const [k, v] of Object.entries(row)) {
+    if (typeof v === 'string' && NUMERIC_RE.test(v)) out[k] = Number(v)
+    else out[k] = v
+  }
+  return out
 }
 
-export function fetchSimICG(cellIds) {
-  return get(`/clara/cell/icg?cell_id=${cellIds.join(',')}`)
+export async function fetchSimFF(cellIds) {
+  const data = await get(`/clara/cell/ff?cell_id=${cellIds.join(',')}`)
+  return data.map(numerizeRow)
+}
+
+export async function fetchSimICG(cellIds) {
+  const data = await get(`/clara/cell/icg?cell_id=${cellIds.join(',')}`)
+  return data.map(numerizeRow)
 }
 
 // ── Presets ──────────────────────────────────────────────────────────────
