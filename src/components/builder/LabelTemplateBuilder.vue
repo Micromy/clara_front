@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
 
 const store = useBuilderStore()
-const literalText = ref('')
 const popoverVisible = ref(false)
 
 const template = computed(() => store.activeBuilder?.labelTemplate || [])
@@ -17,32 +16,18 @@ const fieldLabelMap = computed(() => {
 
 function tokenLabel(tok) {
   if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
-  if (tok.type === 'literal') return tok.text === '' ? '⎵' : tok.text
   if (tok.type === 'note') return 'Note'
   return '?'
 }
 
 function tokenDesc(tok) {
   if (tok.type === 'field') return `Field: ${tokenLabel(tok)}`
-  if (tok.type === 'literal') return `Literal: "${tok.text}"`
   if (tok.type === 'note') return 'Per-cell user note'
   return ''
 }
 
 function onAddField(value) {
   store.addLabelToken({ type: 'field', field: value })
-  popoverVisible.value = false
-}
-
-function onAddLiteral() {
-  if (literalText.value === '') return
-  store.addLabelToken({ type: 'literal', text: literalText.value })
-  literalText.value = ''
-  popoverVisible.value = false
-}
-
-function onAddSeparator(sep) {
-  store.addLabelToken({ type: 'literal', text: sep })
   popoverVisible.value = false
 }
 
@@ -106,7 +91,7 @@ function onDragEnd() { dragFrom.value = -1 }
         popper-class="lt-popover"
       >
         <template #reference>
-          <button class="lt-add-btn" :title="'Add field, literal, or note'">+</button>
+          <button class="lt-add-btn" :title="'Add field or note'">+</button>
         </template>
         <div class="lt-add-panel">
           <div class="lt-add-section">
@@ -118,27 +103,6 @@ function onDragEnd() { dragFrom.value = -1 }
                 class="lt-add-item"
                 @click="onAddField(f.value)"
               >{{ f.label }}</div>
-            </div>
-          </div>
-          <div class="lt-add-section">
-            <div class="lt-section-title">Separator</div>
-            <div class="lt-sep-row">
-              <button class="lt-sep-btn" @click="onAddSeparator('_')">_</button>
-              <button class="lt-sep-btn" @click="onAddSeparator('-')">-</button>
-              <button class="lt-sep-btn" @click="onAddSeparator('.')">.</button>
-              <button class="lt-sep-btn" @click="onAddSeparator(' ')">␣</button>
-            </div>
-          </div>
-          <div class="lt-add-section">
-            <div class="lt-section-title">Literal</div>
-            <div class="lt-literal-input">
-              <el-input
-                v-model="literalText"
-                size="small"
-                placeholder="any text"
-                @keyup.enter="onAddLiteral"
-              />
-              <el-button size="small" type="primary" :disabled="literalText === ''" @click="onAddLiteral">Add</el-button>
             </div>
           </div>
           <div class="lt-add-section">
@@ -186,13 +150,14 @@ function onDragEnd() { dragFrom.value = -1 }
   font-size: 12px;
   cursor: grab;
   user-select: none;
-  border: 1px solid transparent;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  color: #303133;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
 }
+.lt-chip:hover { border-color: #c0c4cc; }
 .lt-chip:active, .lt-chip-dragging { cursor: grabbing; opacity: 0.5; }
-.lt-chip-field   { background: rgba(64,120,192,0.10);  color: #356fb6; border-color: rgba(64,120,192,0.25); }
-.lt-chip-literal { background: rgba(96,98,102,0.10);   color: #606266; border-color: rgba(96,98,102,0.22); font-family: 'Menlo', 'Consolas', monospace; }
-.lt-chip-note    { background: rgba(103,194,58,0.10);  color: #5b8a26; border-color: rgba(103,194,58,0.28); }
+.lt-chip-note .lt-chip-text { font-style: italic; }
 .lt-chip-text { font-weight: 500; line-height: 1; }
 .lt-chip-x {
   font-size: 13px; cursor: pointer;
@@ -254,25 +219,6 @@ function onDragEnd() { dragFrom.value = -1 }
   background: rgba(64,120,192,0.08);
   color: var(--clara-primary, #4078C0);
 }
-.lt-sep-row { display: flex; gap: 4px; }
-.lt-sep-btn {
-  flex: 1;
-  height: 26px;
-  border-radius: 5px;
-  border: 1px solid #ebeef5;
-  background: #fff;
-  color: #606266;
-  cursor: pointer;
-  font-family: 'Menlo', 'Consolas', monospace;
-  font-size: 13px;
-  transition: all 0.12s ease;
-}
-.lt-sep-btn:hover {
-  border-color: var(--clara-primary, #4078C0);
-  color: var(--clara-primary, #4078C0);
-}
-.lt-literal-input { display: flex; gap: 5px; align-items: stretch; }
-.lt-literal-input .el-input { flex: 1; }
 .lt-note-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   height: 28px; padding: 0 10px;

@@ -151,10 +151,12 @@ let nextDerivedId = 1
 // ── Label template ────────────────────────────────────────────────────────
 // Each cell's display label is computed from an ordered list of tokens.
 // Token types:
-//   { type: 'field',   field: 'driveStr' }   → cell[field]
-//   { type: 'literal', text: '_' }           → text as-is
-//   { type: 'note' }                          → per-cell user-entered note
-export const LABEL_TOKEN_TYPES = ['field', 'literal', 'note']
+//   { type: 'field', field: 'driveStr' }   → cell[field]
+//   { type: 'note' }                        → per-cell user-entered note
+// Tokens are joined with '_'; empty values are dropped so labels never
+// carry stray separators.
+export const LABEL_TOKEN_TYPES = ['field', 'note']
+const LABEL_SEPARATOR = '_'
 
 export function computeLabel(template, cell, noteValue = '') {
   if (!Array.isArray(template) || template.length === 0) return ''
@@ -164,10 +166,9 @@ export function computeLabel(template, cell, noteValue = '') {
       const v = cell?.[tok.field]
       return v == null ? '' : String(v)
     }
-    if (tok.type === 'literal') return tok.text ?? ''
     if (tok.type === 'note') return noteValue ?? ''
     return ''
-  }).join('')
+  }).filter(s => s !== '').join(LABEL_SEPARATOR)
 }
 
 function defaultLabelTemplate() {
@@ -218,7 +219,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function ensureBuilderShape(b) {
     if (!b.search) b.search = { pending: createEmptySearch(), applied: createEmptySearch() }
-    if (!Array.isArray(b.labelTemplate)) b.labelTemplate = defaultLabelTemplate()
+    if (!Array.isArray(b.labelTemplate)) {
+      b.labelTemplate = defaultLabelTemplate()
+    } else {
+      // Strip any legacy literal tokens — separators are now auto-applied.
+      b.labelTemplate = b.labelTemplate.filter(t => t?.type === 'field' || t?.type === 'note')
+    }
     if (b.chartConfig) {
       // Migrate away from removed `grouping` field
       if ('grouping' in b.chartConfig) delete b.chartConfig.grouping
