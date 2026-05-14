@@ -6,7 +6,7 @@ const store = useBuilderStore()
 const popoverVisible = ref(false)
 
 const template = computed(() => store.activeBuilder?.labelTemplate || [])
-const hasNote = computed(() => template.value.some(t => t.type === 'note'))
+const hasTag = computed(() => template.value.some(t => t.type === 'tag'))
 
 const fieldLabelMap = computed(() => {
   const m = {}
@@ -16,13 +16,13 @@ const fieldLabelMap = computed(() => {
 
 function tokenLabel(tok) {
   if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
-  if (tok.type === 'note') return 'Note'
+  if (tok.type === 'tag') return 'Tag'
   return '?'
 }
 
 function tokenDesc(tok) {
   if (tok.type === 'field') return `Field: ${tokenLabel(tok)}`
-  if (tok.type === 'note') return 'Per-cell user note'
+  if (tok.type === 'tag') return 'Per-cell user tag'
   return ''
 }
 
@@ -31,9 +31,9 @@ function onAddField(value) {
   popoverVisible.value = false
 }
 
-function onAddNote() {
-  if (hasNote.value) return
-  store.addLabelToken({ type: 'note' })
+function onAddTag() {
+  if (hasTag.value) return
+  store.addLabelToken({ type: 'tag' })
   popoverVisible.value = false
 }
 
@@ -108,12 +108,12 @@ function onDragEnd() { dragFrom.value = -1 }
           <div class="lt-add-section">
             <button
               class="lt-note-btn"
-              :class="{ 'lt-note-btn-disabled': hasNote }"
-              :disabled="hasNote"
-              @click="onAddNote"
+              :class="{ 'lt-note-btn-disabled': hasTag }"
+              :disabled="hasTag"
+              @click="onAddTag"
             >
-              <span>+ Note (per-cell)</span>
-              <span v-if="hasNote" class="lt-note-hint">already added</span>
+              <span>+ Tag (per-cell)</span>
+              <span v-if="hasTag" class="lt-note-hint">already added</span>
             </button>
           </div>
         </div>
@@ -165,7 +165,7 @@ function onDragEnd() { dragFrom.value = -1 }
 }
 .lt-chip:hover { border-color: #c0c4cc; }
 .lt-chip:active, .lt-chip-dragging { cursor: grabbing; opacity: 0.5; }
-.lt-chip-note .lt-chip-text { font-style: italic; }
+.lt-chip-tag .lt-chip-text { font-style: italic; }
 .lt-chip-text { font-weight: 500; line-height: 1; }
 .lt-chip-x {
   font-size: 13px; cursor: pointer;

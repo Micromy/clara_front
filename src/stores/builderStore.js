@@ -152,13 +152,13 @@ let nextDerivedId = 1
 // Each cell's display label is computed from an ordered list of tokens.
 // Token types:
 //   { type: 'field', field: 'driveStr' }   → cell[field]
-//   { type: 'note' }                        → per-cell user-entered note
+//   { type: 'tag' }                         → per-cell user-entered tag
 // Tokens are joined with '_'; empty values are dropped so labels never
 // carry stray separators.
-export const LABEL_TOKEN_TYPES = ['field', 'note']
+export const LABEL_TOKEN_TYPES = ['field', 'tag']
 const LABEL_SEPARATOR = '_'
 
-export function computeLabel(template, cell, noteValue = '') {
+export function computeLabel(template, cell, tagValue = '') {
   if (!Array.isArray(template) || template.length === 0) return ''
   return template.map(tok => {
     if (!tok || typeof tok !== 'object') return ''
@@ -166,13 +166,13 @@ export function computeLabel(template, cell, noteValue = '') {
       const v = cell?.[tok.field]
       return v == null ? '' : String(v)
     }
-    if (tok.type === 'note') return noteValue ?? ''
+    if (tok.type === 'tag') return tagValue ?? ''
     return ''
   }).filter(s => s !== '').join(LABEL_SEPARATOR)
 }
 
 function defaultLabelTemplate() {
-  return [{ type: 'note' }]
+  return [{ type: 'tag' }]
 }
 
 // Cell type top-level classification (mutually exclusive).
@@ -222,8 +222,10 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!Array.isArray(b.labelTemplate)) {
       b.labelTemplate = defaultLabelTemplate()
     } else {
-      // Strip any legacy literal tokens — separators are now auto-applied.
-      b.labelTemplate = b.labelTemplate.filter(t => t?.type === 'field' || t?.type === 'note')
+      // Drop legacy literal tokens; rename note → tag for older payloads.
+      b.labelTemplate = b.labelTemplate
+        .filter(t => t?.type === 'field' || t?.type === 'note' || t?.type === 'tag')
+        .map(t => t.type === 'note' ? { type: 'tag' } : t)
     }
     if (b.chartConfig) {
       // Migrate away from removed `grouping` field
@@ -668,7 +670,8 @@ export const useBuilderStore = defineStore('builder', () => {
   const labelableFields = computed(() => chartOptions.value.labelableFields ?? [])
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
-    if (chartType === 'bar') return categoricalXAxisOptions.value
+    // Bar charts are always grouped on the Group template — no field picker.
+    if (chartType === 'bar') return [{ value: '__label__', label: 'Group (template)' }]
     return metricOptionsForType.value
   })
   const yAxisOptions = computed(() => metricOptionsForType.value)
@@ -818,7 +821,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (key === 'chartType') {
       const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
       if (value === 'bar') {
-        if (!catValues.has(cfg.xAxis)) cfg.xAxis = categoricalXAxisOptions.value[0]?.value || '__label__'
+        cfg.xAxis = '__label__'
       } else if (catValues.has(cfg.xAxis)) {
         const firstMetric = metricOptionsForType.value[0]
         cfg.xAxis = firstMetric?.value || null

@@ -255,7 +255,7 @@ function focusLabelBuilder() {
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Grouped By">
+      <el-form-item label="Grouped By">
         <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
           <template v-if="labelTemplate.length === 0">
             <span class="group-empty">empty — all cells in one group</span>
@@ -265,14 +265,17 @@ function focusLabelBuilder() {
               v-for="(tok, i) in labelTemplate"
               :key="i"
               class="group-chip"
-              :class="{ 'group-chip-note': tok.type === 'note' }"
+              :class="{ 'group-chip-tag': tok.type === 'tag' }"
             >{{ tokenText(tok) }}</span>
           </template>
           <span class="group-edit-hint">edit ↑</span>
         </div>
+        <div v-if="store.activeBuilder.chartConfig.chartType === 'bar'" class="group-bar-hint">
+          becomes the X-axis
+        </div>
       </el-form-item>
 
-      <el-form-item label="X-Axis">
+      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="X-Axis">
         <el-select
           :model-value="store.activeBuilder.chartConfig.xAxis"
           @update:model-value="val => store.updateChartConfig('xAxis', val)"
@@ -532,7 +535,13 @@ function focusLabelBuilder() {
   font-weight: 500;
   line-height: 1.5;
 }
-.group-chip-note { font-style: italic; }
+.group-chip-tag { font-style: italic; }
+.group-bar-hint {
+  font-size: 11px;
+  color: #909399;
+  font-style: italic;
+  margin-top: 4px;
+}
 .group-empty {
   color: #909399;
   font-style: italic;

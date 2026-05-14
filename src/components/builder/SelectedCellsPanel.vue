@@ -29,9 +29,9 @@ const COMPARISON_OPTIONS = [
   { label: 'Diff', value: 'diff' }
 ]
 
-function updateNote(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
-function getNote(cellId)           { return store.getCellAlias(store.activeBuilder.id, cellId) }
-function removeCell(cellId)         { store.toggleCellSelection(cellId) }
+function updateTag(cellId, value) { store.setCellAlias(store.activeBuilder.id, cellId, value) }
+function getTag(cellId)           { return store.getCellAlias(store.activeBuilder.id, cellId) }
+function removeCell(cellId)        { store.toggleCellSelection(cellId) }
 
 // Reset column overrides when global mode changes
 watch(comparisonMode, () => { columnModes.value = {} })
@@ -197,15 +197,15 @@ function simCellInfo(row, col) {
       <!-- Selection checkbox (fixed 1st) -->
       <el-table-column type="selection" width="38" fixed align="center" />
 
-      <!-- Note input (per-cell, fixed) -->
-      <el-table-column label="Note" width="140" fixed>
+      <!-- Tag input (per-cell, fixed) -->
+      <el-table-column label="Tag" width="140" fixed>
         <template #header>
-          <span class="col-note-header" title="Per-cell text. Referenced by the Note token in the label template.">Note</span>
+          <span class="col-note-header" title="Per-cell text. Referenced by the Tag token in the Group template.">Tag</span>
         </template>
         <template #default="{ row }">
           <el-input
-            :model-value="getNote(row.id)"
-            @update:model-value="val => updateNote(row.id, val)"
+            :model-value="getTag(row.id)"
+            @update:model-value="val => updateTag(row.id, val)"
             size="small" placeholder="—"
           />
         </template>
