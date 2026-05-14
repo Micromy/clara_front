@@ -255,6 +255,23 @@ function focusLabelBuilder() {
         </el-select>
       </el-form-item>
 
+      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Group">
+        <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
+          <template v-if="labelTemplate.length === 0">
+            <span class="group-empty">no label — all cells in one group</span>
+          </template>
+          <template v-else>
+            <span
+              v-for="(tok, i) in labelTemplate"
+              :key="i"
+              class="group-chip"
+              :class="{ 'group-chip-note': tok.type === 'note' }"
+            >{{ tokenText(tok) }}</span>
+          </template>
+          <span class="group-edit-hint">edit ↑</span>
+        </div>
+      </el-form-item>
+
       <el-form-item label="X-Axis">
         <el-select
           :model-value="store.activeBuilder.chartConfig.xAxis"
@@ -298,23 +315,6 @@ function focusLabelBuilder() {
         >
           <el-option v-for="opt in CHART_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
-      </el-form-item>
-
-      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Group">
-        <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
-          <template v-if="labelTemplate.length === 0">
-            <span class="group-empty">no label — all cells in one group</span>
-          </template>
-          <template v-else>
-            <span
-              v-for="(tok, i) in labelTemplate"
-              :key="i"
-              class="group-chip"
-              :class="{ 'group-chip-note': tok.type === 'note' }"
-            >{{ tokenText(tok) }}</span>
-          </template>
-          <span class="group-edit-hint">edit ↑</span>
-        </div>
       </el-form-item>
 
       <el-divider />
