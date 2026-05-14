@@ -255,7 +255,7 @@ function focusLabelBuilder() {
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Group">
+      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Grouped By">
         <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
           <template v-if="labelTemplate.length === 0">
             <span class="group-empty">empty — all cells in one group</span>

@@ -338,6 +338,8 @@ function simCellInfo(row, col) {
 }
 .selected-cells-panel :deep(.el-table .el-input__inner) {
   font-size: 12px;
+  font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
+  letter-spacing: 0.1px;
 }
 .col-note-header { cursor: help; border-bottom: 1px dotted #c0c4cc; }
 </style>
