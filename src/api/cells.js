@@ -19,8 +19,8 @@
 const API_BASE = 'http://at-django--at-backend-django-dev.khdevpb01.apps.dks.samsungds.net'
 
 // ── 임시 로컬 모드: 사내 API 접근 불가 시 public/data/*.json 사용 ──
-// 작업 끝나면 false로 되돌리거나 블록 자체 삭제할 것.
-const USE_LOCAL_DATA = true
+// 토글은 프로젝트 루트 .env 파일의 VITE_USE_LOCAL_DATA로 제어.
+const USE_LOCAL_DATA = import.meta.env.VITE_USE_LOCAL_DATA === 'true'
 
 // 로컬 JSON의 옛 필드명 → 현재 스키마 매핑
 const LOCAL_FIELD_MAP = {
