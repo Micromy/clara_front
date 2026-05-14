@@ -162,6 +162,29 @@ function onGenerate() {
   const chart = store.generateChart()
   if (chart) store.activeSubTab = 'chart'
 }
+
+// ── Series mirror (read-only view of Label template) ──
+const labelTemplate = computed(() => store.activeBuilder?.labelTemplate || [])
+const fieldLabelMap = computed(() => {
+  const m = {}
+  store.labelableFields.forEach(f => { m[f.value] = f.label })
+  return m
+})
+const seriesTitle = computed(() => 'Color/series come from the Label template above. Click to edit.')
+
+function tokenText(tok) {
+  if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
+  if (tok.type === 'note') return 'Note'
+  return '?'
+}
+
+function focusLabelBuilder() {
+  const el = document.querySelector('.label-template-builder')
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('lt-flash')
+  setTimeout(() => el.classList.remove('lt-flash'), 1200)
+}
 </script>
 
 <template>
@@ -275,6 +298,23 @@ function onGenerate() {
         >
           <el-option v-for="opt in CHART_TYPES" :key="opt.value" :label="opt.label" :value="opt.value" />
         </el-select>
+      </el-form-item>
+
+      <el-form-item label="Series">
+        <div class="series-mirror" :title="seriesTitle" @click="focusLabelBuilder">
+          <template v-if="labelTemplate.length === 0">
+            <span class="series-empty">no label — all cells in one series</span>
+          </template>
+          <template v-else>
+            <span
+              v-for="(tok, i) in labelTemplate"
+              :key="i"
+              class="series-chip"
+              :class="{ 'series-chip-note': tok.type === 'note' }"
+            >{{ tokenText(tok) }}</span>
+          </template>
+          <span class="series-edit-hint">edit ↑</span>
+        </div>
       </el-form-item>
 
       <el-divider />
@@ -462,4 +502,47 @@ function onGenerate() {
   color: #303133;
   width: 100%;
 }
+
+.series-mirror {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 6px 8px;
+  background: #f8fafb;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.series-mirror:hover {
+  border-color: var(--clara-primary, #4078C0);
+  background: #fff;
+}
+.series-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  background: #fff;
+  border: 1px solid #dcdfe6;
+  color: #303133;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.series-chip-note { font-style: italic; }
+.series-empty {
+  color: #909399;
+  font-style: italic;
+  font-size: 11.5px;
+}
+.series-edit-hint {
+  margin-left: auto;
+  color: #909399;
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+}
+.series-mirror:hover .series-edit-hint { color: var(--clara-primary, #4078C0); }
 </style>

@@ -330,9 +330,14 @@ function simCellInfo(row, col) {
   color: #303133;
   font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
   letter-spacing: 0.1px;
+  font-size: 12px;
 }
 .cell-label-empty {
   color: #c0c4cc;
+  font-size: 12px;
+}
+.selected-cells-panel :deep(.el-table .el-input__inner) {
+  font-size: 12px;
 }
 .col-note-header { cursor: help; border-bottom: 1px dotted #c0c4cc; }
 </style>

@@ -132,6 +132,14 @@ function onDragEnd() { dragFrom.value = -1 }
   border: 1px solid #ebeef5;
   border-radius: 8px;
   font-size: 12.5px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.label-template-builder.lt-flash {
+  animation: lt-flash-anim 1.2s ease;
+}
+@keyframes lt-flash-anim {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(64,120,192,0); border-color: #ebeef5; }
+  30% { box-shadow: 0 0 0 4px rgba(64,120,192,0.25); border-color: var(--clara-primary, #4078C0); }
 }
 .lt-label {
   color: #606266;
