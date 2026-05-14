@@ -53,10 +53,10 @@ const chartOption = computed(() => {
   const xValueOf = c => isXLabel ? labelOf(c) : c[config.xAxis]
 
   // Series grouping rules:
-  //   bar with X = Label → single series (X already encodes label)
-  //   else                → group by cell.label (each unique label is a series/color)
+  //   bar          → single series (X already encodes the grouping dimension)
+  //   scatter/line → group by cell.label (each unique label is a series/color)
   const groups = new Map()
-  if (isBar && isXLabel) {
+  if (isBar) {
     groups.set('All', cells)
   } else {
     cells.forEach(cell => {

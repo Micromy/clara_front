@@ -163,14 +163,14 @@ function onGenerate() {
   if (chart) store.activeSubTab = 'chart'
 }
 
-// ── Series mirror (read-only view of Label template) ──
+// ── Group mirror (read-only view of Label template) ──
 const labelTemplate = computed(() => store.activeBuilder?.labelTemplate || [])
 const fieldLabelMap = computed(() => {
   const m = {}
   store.labelableFields.forEach(f => { m[f.value] = f.label })
   return m
 })
-const seriesTitle = computed(() => 'Color/series come from the Label template above. Click to edit.')
+const groupTitle = 'Series colors come from the Label template above. Click to edit.'
 
 function tokenText(tok) {
   if (tok.type === 'field') return fieldLabelMap.value[tok.field] || tok.field
@@ -300,20 +300,20 @@ function focusLabelBuilder() {
         </el-select>
       </el-form-item>
 
-      <el-form-item label="Series">
-        <div class="series-mirror" :title="seriesTitle" @click="focusLabelBuilder">
+      <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="Group">
+        <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
           <template v-if="labelTemplate.length === 0">
-            <span class="series-empty">no label — all cells in one series</span>
+            <span class="group-empty">no label — all cells in one group</span>
           </template>
           <template v-else>
             <span
               v-for="(tok, i) in labelTemplate"
               :key="i"
-              class="series-chip"
-              :class="{ 'series-chip-note': tok.type === 'note' }"
+              class="group-chip"
+              :class="{ 'group-chip-note': tok.type === 'note' }"
             >{{ tokenText(tok) }}</span>
           </template>
-          <span class="series-edit-hint">edit ↑</span>
+          <span class="group-edit-hint">edit ↑</span>
         </div>
       </el-form-item>
 
@@ -503,7 +503,7 @@ function focusLabelBuilder() {
   width: 100%;
 }
 
-.series-mirror {
+.group-mirror {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -516,11 +516,11 @@ function focusLabelBuilder() {
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.series-mirror:hover {
+.group-mirror:hover {
   border-color: var(--clara-primary, #4078C0);
   background: #fff;
 }
-.series-chip {
+.group-chip {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
@@ -532,17 +532,17 @@ function focusLabelBuilder() {
   font-weight: 500;
   line-height: 1.5;
 }
-.series-chip-note { font-style: italic; }
-.series-empty {
+.group-chip-note { font-style: italic; }
+.group-empty {
   color: #909399;
   font-style: italic;
   font-size: 11.5px;
 }
-.series-edit-hint {
+.group-edit-hint {
   margin-left: auto;
   color: #909399;
   font-size: 10.5px;
   letter-spacing: 0.3px;
 }
-.series-mirror:hover .series-edit-hint { color: var(--clara-primary, #4078C0); }
+.group-mirror:hover .group-edit-hint { color: var(--clara-primary, #4078C0); }
 </style>
