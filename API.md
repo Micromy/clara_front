@@ -263,10 +263,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
   {
     "preset_id": 12,
     "name": "FF PDP vs Area",
+    "cell_type": 1,
     "chart_type": "scatter",
-    "x_axis": 1,
-    "y1_axis": 2,
-    "y2_axis": null,
+    "x_metric": 1,
+    "y1_metric": 2,
+    "y2_metric": null,
     "group_by": "drive_strength,__tag__",
     "is_visible": "Y",
     "created_at": "2026-04-20T15:30:00",
@@ -278,10 +279,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 #### 필드 설명
 | 필드 | 타입 | 설명 |
 |------|------|------|
+| `cell_type` | int | cellTypes 매핑의 id (`GET /clara/cell/type`) |
 | `chart_type` | string | `scatter`, `line`, `bar` |
-| `x_axis` | int / string | scatter/line: metric_id, bar: `__group__` |
-| `y1_axis` | int | metric_id |
-| `y2_axis` | int / null | secondary y축, 없으면 null |
+| `x_metric` | int / string | scatter/line: metric_id, bar: `__group__` |
+| `y1_metric` | int | metric_id |
+| `y2_metric` | int / null | secondary y축, 없으면 null |
 | `group_by` | string | Group 템플릿 CSV — 아래 [Group 템플릿 인코딩](#group-템플릿-인코딩) 참조 |
 | `is_visible` | `'Y'` / `'N'` | preset list 노출 여부 |
 
@@ -312,10 +314,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 ```json
 {
   "name": "FF PDP vs Area",
+  "cell_type": 1,
   "chart_type": "scatter",
-  "x_axis": 1,
-  "y1_axis": 2,
-  "y2_axis": null,
+  "x_metric": 1,
+  "y1_metric": 2,
+  "y2_metric": null,
   "group_by": "drive_strength,__tag__",
   "created_by": "sh0913.park"
 }
@@ -326,10 +329,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 |------|------|------|
 | `preset_id` | ❌ | 자동 채번 |
 | `name` | ✅ 필수 | |
+| `cell_type` | ✅ 필수 | cellTypes 매핑의 id |
 | `chart_type` | ✅ 필수 | `scatter` / `line` / `bar` |
-| `x_axis` | ✅ 필수 | scatter/line: metric_id, bar: `__group__` |
-| `y1_axis` | ✅ 필수 | metric_id |
-| `y2_axis` | nullable | 미사용 시 null |
+| `x_metric` | ✅ 필수 | scatter/line: metric_id, bar: `__group__` |
+| `y1_metric` | ✅ 필수 | metric_id |
+| `y2_metric` | nullable | 미사용 시 null |
 | `group_by` | nullable | Group 템플릿 CSV. 빈 문자열 또는 `null` 허용 |
 | `is_visible` | 선택 | 기본값 `'Y'` |
 | `created_by` | 선택 | 기본값 `''` |
@@ -364,10 +368,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
     "preset": {
       "preset_id": 99,
       "name": "__chart_12_preset",
+      "cell_type": 1,
       "chart_type": "scatter",
-      "x_axis": 1,
-      "y1_axis": 2,
-      "y2_axis": null,
+      "x_metric": 1,
+      "y1_metric": 2,
+      "y2_metric": null,
       "group_by": "drive_strength,__tag__",
       "is_visible": "N"
     },
@@ -394,10 +399,11 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
   "created_by": "sh0913.park",
   "preset": {
     "name": "__chart_q2_preset",
+    "cell_type": 1,
     "chart_type": "scatter",
-    "x_axis": 1,
-    "y1_axis": 2,
-    "y2_axis": null,
+    "x_metric": 1,
+    "y1_metric": 2,
+    "y2_metric": null,
     "group_by": "drive_strength,__tag__"
   },
   "items": [
@@ -457,7 +463,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 ```json
 {
   "name": ["This field is required."],
-  "x_axis": ["Invalid pk \"999\" - object does not exist."]
+  "x_metric": ["Invalid pk \"999\" - object does not exist."]
 }
 ```
 
@@ -486,9 +492,9 @@ ChartPreset ─────┐ (1:1, 자동 생성/삭제)
                     └── ChartItem
                     └── ChartItem ...
 
-ChartPreset.x_axis  ──→ ChartMetric (FK)
-ChartPreset.y1_axis ──→ ChartMetric (FK)
-ChartPreset.y2_axis ──→ ChartMetric (FK, nullable)
+ChartPreset.x_metric  ──→ ChartMetric (FK)
+ChartPreset.y1_metric ──→ ChartMetric (FK)
+ChartPreset.y2_metric ──→ ChartMetric (FK, nullable)
 
 CellMeta.lib_id ──→ Library (FK 의미상)
 CellMeta.pdk_id ──→ PDKVersion (FK 의미상)
@@ -544,7 +550,7 @@ GET /clara/chart/<chart_id>/
 **Preset 저장 → 적용:**
 ```
 POST /clara/preset/
-  body: { name, chart_type, x_axis, y1_axis, y2_axis, group_by }
+  body: { name, cell_type, chart_type, x_metric, y1_metric, y2_metric, group_by }
   group_by: Group 템플릿 CSV (예: "drive_strength,__tag__")
 
 GET /clara/preset/
@@ -555,9 +561,14 @@ GET /clara/preset/
 
 ## 변경 이력
 
+- **2026-05-15** 필드 리네임
+  - `chart_preset.x_axis` → **`x_metric`**, `y1_axis` → **`y1_metric`**, `y2_axis` → **`y2_metric`**
+  - `chart_preset.cell_type` 필드 추가 (FK to cell types 매핑 id) — 필수
+  - 신규 endpoint `GET /clara/cell/type` (셀 타입 id ↔ 이름 매핑)
+  - `chart_metric.cell_type` 응답이 id(int)로 변경 (이전: 'FF'/'ICG' 문자열)
 - **2026-05-14** Group 템플릿 도입
   - `chart_preset.group_by`: 단일 string (`"alias"` 등) → CSV 인코딩된 토큰 배열 (`"drive_strength,__tag__"`). 빈 문자열 허용. 컬럼 `VARCHAR2(255)` 권장.
-  - `chart_preset.x_axis`: bar 차트에서 `__group__` 문자열 허용 (`__label__`는 deprecated)
+  - `chart_preset.x_metric`: bar 차트에서 `__group__` 문자열 허용 (`__label__`는 deprecated)
   - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
 
-문서 최종 수정: 2026-05-14
+문서 최종 수정: 2026-05-15

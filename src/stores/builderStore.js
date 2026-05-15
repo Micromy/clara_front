@@ -699,6 +699,11 @@ export const useBuilderStore = defineStore('builder', () => {
   // Derives from the committed search; defaults to 'FF' so early-render getters don't crash.
   const activeCellType = computed(() => appliedSearch.value.cellType ?? 'FF')
 
+  function activeCellTypeId() {
+    const ct = activeCellType.value
+    return cellTypes.value.find(t => t.cellType === ct)?.id ?? null
+  }
+
   const selectedCellsSimulationColumns = computed(() => {
     const cfg = config.value?.selectedCellsSimulationColumns
     return cfg?.[activeCellType.value] ?? []
@@ -1017,10 +1022,11 @@ export const useBuilderStore = defineStore('builder', () => {
     const cfg = activeBuilder.value.chartConfig
     const preset = await apiCreatePreset({
       name,
+      cellType: activeCellTypeId(),
       chartType: cfg.chartType,
-      xAxis: cfg.xAxis,
-      y1Axis: cfg.yAxisPrimary,
-      y2Axis: cfg.yAxisSecondary,
+      xMetric: cfg.xAxis,
+      y1Metric: cfg.yAxisPrimary,
+      y2Metric: cfg.yAxisSecondary,
       groupBy: templateToCsv(activeBuilder.value.groupTemplate),
       isVisible: 'Y',
       createdBy: CURRENT_USER
@@ -1033,9 +1039,9 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!preset || !activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
     cfg.chartType = preset.chartType
-    cfg.xAxis = preset.xAxis
-    cfg.yAxisPrimary = preset.y1Axis
-    cfg.yAxisSecondary = preset.y2Axis
+    cfg.xAxis = preset.xMetric
+    cfg.yAxisPrimary = preset.y1Metric
+    cfg.yAxisSecondary = preset.y2Metric
     activeBuilder.value.groupTemplate = csvToTemplate(preset.groupBy)
   }
 
@@ -1058,10 +1064,11 @@ export const useBuilderStore = defineStore('builder', () => {
       createdBy: CURRENT_USER,
       preset: {
         name: `${name}_${CURRENT_USER}`,
+        cellType: activeCellTypeId(),
         chartType: cfg.chartType,
-        xAxis: cfg.xAxis,
-        y1Axis: cfg.yAxisPrimary,
-        y2Axis: cfg.yAxisSecondary,
+        xMetric: cfg.xAxis,
+        y1Metric: cfg.yAxisPrimary,
+        y2Metric: cfg.yAxisSecondary,
         groupBy: templateToCsv(b.groupTemplate)
       },
       items: b.selectedCellIds.map(cellId => ({
@@ -1089,9 +1096,9 @@ export const useBuilderStore = defineStore('builder', () => {
       chartConfig: preset ? {
         chartType: preset.chartType,
         chartTypeSecondary: null,
-        xAxis: preset.xAxis,
-        yAxisPrimary: preset.y1Axis,
-        yAxisSecondary: preset.y2Axis
+        xAxis: preset.xMetric,
+        yAxisPrimary: preset.y1Metric,
+        yAxisSecondary: preset.y2Metric
       } : createDefaultChartConfig(),
       derivedFormulas: [],
       groupTemplate: csvToTemplate(preset?.groupBy || ''),

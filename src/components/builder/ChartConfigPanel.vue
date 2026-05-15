@@ -227,10 +227,10 @@ function focusGroupBuilder() {
       <el-table :data="store.presetsForCellType" size="small" border stripe max-height="400" empty-text="No presets saved.">
         <el-table-column prop="name" label="Name" min-width="120" show-overflow-tooltip />
         <el-table-column prop="chartType" label="Type" width="80" />
-        <el-table-column prop="xAxis" label="X" width="100" show-overflow-tooltip />
-        <el-table-column prop="yAxisPrimary" label="Y1" width="100" show-overflow-tooltip />
-        <el-table-column prop="yAxisSecondary" label="Y2" width="100" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.yAxisSecondary || '—' }}</template>
+        <el-table-column prop="xMetric" label="X" width="100" show-overflow-tooltip />
+        <el-table-column prop="y1Metric" label="Y1" width="100" show-overflow-tooltip />
+        <el-table-column prop="y2Metric" label="Y2" width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.y2Metric || '—' }}</template>
         </el-table-column>
         <el-table-column label="Created" width="170">
           <template #default="{ row }">{{ row.createdAt ? row.createdAt.replace('T', ' ').slice(0, 19) : '—' }}</template>
