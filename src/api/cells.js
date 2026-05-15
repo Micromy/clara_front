@@ -161,7 +161,7 @@ export async function fetchCellTypes() {
   if (USE_LOCAL_DATA) {
     return [{ id: 1, cellType: 'FF' }, { id: 2, cellType: 'ICG' }]
   }
-  return get('/clara/cell/type/')
+  return get('/clara/cell/type')
 }
 
 export async function fetchPdks() {
