@@ -40,11 +40,11 @@ function toggleColumnMode(colKey) {
   columnModes.value = { ...columnModes.value, [colKey]: cur === 'diff' ? 'ratio' : 'diff' }
 }
 
-// Reference options: show "label (cellName)" when label is present
+// Reference options: show "group (cellName)" when group is present
 const referenceOptions = computed(() =>
   cells.value.map(c => ({
     value: c.id,
-    label: c.label ? `${c.label} (${c.cellName})` : c.cellName
+    label: c.group ? `${c.group} (${c.cellName})` : c.cellName
   }))
 )
 
@@ -224,10 +224,10 @@ function cellInfo(row, col) {
       @cell-mouse-leave="() => emit('row-hover', null)"
     >
       <!-- Group (fixed, 1st) -->
-      <el-table-column label="Group" prop="label" fixed width="160" sortable :show-overflow-tooltip="{ showAfter: 500 }">
+      <el-table-column label="Group" prop="group" fixed width="160" sortable :show-overflow-tooltip="{ showAfter: 500 }">
         <template #default="{ row }">
-          <span v-if="row.label" class="cell-alias">{{ row.label }}</span>
-          <span v-else class="cell-label-empty">—</span>
+          <span v-if="row.group" class="cell-group">{{ row.group }}</span>
+          <span v-else class="cell-group-empty">—</span>
         </template>
       </el-table-column>
 
@@ -305,12 +305,12 @@ function cellInfo(row, col) {
   border-radius: 6px;
 }
 
-.cell-alias {
+.cell-group {
   color: #303133;
   font-weight: 500;
   font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
 }
-.cell-label-empty {
+.cell-group-empty {
   color: #c0c4cc;
 }
 

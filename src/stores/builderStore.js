@@ -59,13 +59,15 @@ export const FORMULA_TYPES = [
   { value: 'std',        label: 'Group Std Dev',       desc: 'σ within group' }
 ]
 
-// Fields available as grouping keys for group-based formulas
+// Fields available as grouping keys for group-based formulas (mean/std).
+// 'group' refers to the computed Group string (cell.group).
 export const GROUP_BY_OPTIONS = [
-  { value: 'alias',         label: 'Alias' },
+  { value: 'group',         label: 'Group' },
   { value: 'cellType',      label: 'Cell Type' },
-  { value: 'driveStrength', label: 'Drive Strength' },
   { value: 'library',       label: 'Library' },
-  { value: 'feol',          label: 'FEOL' }
+  { value: 'feol',          label: 'FEOL' },
+  { value: 'driveStrength', label: 'Drive Strength' },
+  { value: 'nanosheet',     label: 'Nanosheet' }
 ]
 
 export const UNARY_FNS = [
@@ -132,7 +134,7 @@ export function formulaDesc(df, derivedFields = []) {
   const fl = v => derivedFields.find(f => f.value === v)?.label ?? v
   const ol = v => DERIVED_OPS.find(o => o.value === v)?.label ?? v
   const fnl = v => UNARY_FNS.find(f => f.value === v)?.label ?? v
-  const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? (v ?? 'alias')
+  const gl = v => GROUP_BY_OPTIONS.find(g => g.value === v)?.label ?? (v ?? 'Group')
   switch (df.type) {
     case 'binary':     return `${fl(df.field1)} ${ol(df.op)} ${fl(df.field2)}`
     case 'unary':      return `${fnl(df.fn)} of ${fl(df.field)}`
@@ -148,17 +150,17 @@ export function formulaDesc(df, derivedFields = []) {
 
 let nextDerivedId = 1
 
-// ── Label template ────────────────────────────────────────────────────────
-// Each cell's display label is computed from an ordered list of tokens.
+// ── Group template ────────────────────────────────────────────────────────
+// Each cell's Group string is computed from an ordered list of tokens.
 // Token types:
 //   { type: 'field', field: 'driveStrength' } → cell[field]
-//   { type: 'tag' }                         → per-cell user-entered tag
-// Tokens are joined with '_'; empty values are dropped so labels never
+//   { type: 'tag' }                            → per-cell user-entered tag
+// Tokens are joined with '_'; empty values are dropped so groups never
 // carry stray separators.
-export const LABEL_TOKEN_TYPES = ['field', 'tag']
-const LABEL_SEPARATOR = '_'
+export const GROUP_TOKEN_TYPES = ['field', 'tag']
+const GROUP_SEPARATOR = '_'
 
-export function computeLabel(template, cell, tagValue = '') {
+export function computeGroup(template, cell, tagValue = '') {
   if (!Array.isArray(template) || template.length === 0) return ''
   return template.map(tok => {
     if (!tok || typeof tok !== 'object') return ''
@@ -168,17 +170,17 @@ export function computeLabel(template, cell, tagValue = '') {
     }
     if (tok.type === 'tag') return tagValue ?? ''
     return ''
-  }).filter(s => s !== '').join(LABEL_SEPARATOR)
+  }).filter(s => s !== '').join(GROUP_SEPARATOR)
 }
 
-function defaultLabelTemplate() {
+function defaultGroupTemplate() {
   return [{ type: 'tag' }]
 }
 
 // ── CSV serialization for backend group_by VARCHAR ─────────────────────
 // Wire format is snake_case to match DB column names; frontend uses
 // camelCase internally (after API toCamelKey). Round-trip via helpers.
-const LABEL_TAG_SENTINEL = '__tag__'
+const GROUP_TAG_SENTINEL = '__tag__'
 
 const camelToSnake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase())
 const snakeToCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase())
@@ -186,7 +188,7 @@ const snakeToCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase())
 function templateToCsv(template) {
   if (!Array.isArray(template) || template.length === 0) return ''
   return template
-    .map(t => t?.type === 'tag' ? LABEL_TAG_SENTINEL : camelToSnake(t?.field || ''))
+    .map(t => t?.type === 'tag' ? GROUP_TAG_SENTINEL : camelToSnake(t?.field || ''))
     .filter(Boolean)
     .join(',')
 }
@@ -194,7 +196,7 @@ function templateToCsv(template) {
 function csvToTemplate(csv) {
   if (!csv || typeof csv !== 'string') return []
   return csv.split(',').map(s => s.trim()).filter(Boolean).map(s =>
-    s === LABEL_TAG_SENTINEL ? { type: 'tag' } : { type: 'field', field: snakeToCamel(s) }
+    s === GROUP_TAG_SENTINEL ? { type: 'tag' } : { type: 'field', field: snakeToCamel(s) }
   )
 }
 
@@ -240,12 +242,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function ensureBuilderShape(b) {
     if (!b.search) b.search = { pending: createEmptySearch(), applied: createEmptySearch() }
-    if (!Array.isArray(b.labelTemplate)) {
-      b.labelTemplate = defaultLabelTemplate()
+    if (!Array.isArray(b.groupTemplate)) {
+      b.groupTemplate = defaultGroupTemplate()
     } else {
       // Drop legacy literal tokens; rename note → tag and any short-form
       // field names (driveStr / nanoSheet) back to their DB-aligned spellings.
-      b.labelTemplate = b.labelTemplate
+      b.groupTemplate = b.groupTemplate
         .filter(t => t?.type === 'field' || t?.type === 'note' || t?.type === 'tag')
         .map(t => {
           if (t.type === 'note') return { type: 'tag' }
@@ -259,17 +261,27 @@ export const useBuilderStore = defineStore('builder', () => {
       if ('grouping' in b.chartConfig) delete b.chartConfig.grouping
       // Migrate stale categorical xAxis values (only meaningful on bar charts)
       if (b.chartConfig.chartType === 'bar') {
-        if (b.chartConfig.xAxis === 'alias')     b.chartConfig.xAxis = '__label__'
+        if (b.chartConfig.xAxis === 'alias')     b.chartConfig.xAxis = '__group__'
+        if (b.chartConfig.xAxis === '__label__') b.chartConfig.xAxis = '__group__'
         if (b.chartConfig.xAxis === 'driveStr')  b.chartConfig.xAxis = 'driveStrength'
         if (b.chartConfig.xAxis === 'nanoSheet') b.chartConfig.xAxis = 'nanosheet'
       }
+    }
+    // Migrate derived formula groupBy: 'alias' / 'label' / short field names
+    if (Array.isArray(b.derivedFormulas)) {
+      b.derivedFormulas.forEach(df => {
+        if (df?.groupBy === 'alias')     df.groupBy = 'group'
+        if (df?.groupBy === 'label')     df.groupBy = 'group'
+        if (df?.groupBy === 'driveStr')  df.groupBy = 'driveStrength'
+        if (df?.groupBy === 'nanoSheet') df.groupBy = 'nanosheet'
+      })
     }
     return b
   }
 
   const builders = ref(
     (_saved?.builders ?? [
-      { id: 1, name: 'Untitled', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [], labelTemplate: defaultLabelTemplate() }
+      { id: 1, name: 'Untitled', selectedCellIds: [], chartConfig: createDefaultChartConfig(), derivedFormulas: [], groupTemplate: defaultGroupTemplate() }
     ]).map(ensureBuilderShape)
   )
   const activeBuilderIndex = ref(
@@ -423,7 +435,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!activeBuilder.value) return []
     const ids = activeBuilder.value.selectedCellIds
     const formulas = activeBuilder.value.derivedFormulas || []
-    const template = activeBuilder.value.labelTemplate || []
+    const template = activeBuilder.value.groupTemplate || []
     const builderId = activeBuilder.value.id
 
     // Pass 1: merge base + simulation data, then attach computed label
@@ -432,7 +444,7 @@ export const useBuilderStore = defineStore('builder', () => {
       .filter(id => cellMap.has(id))
       .map(id => {
         const merged = { ...cellMap.get(id), ...(simulations.value[id] || {}) }
-        merged.label = computeLabel(template, merged, getCellAlias(builderId, id))
+        merged.group = computeGroup(template, merged, getCellAlias(builderId, id))
         return merged
       })
 
@@ -450,7 +462,7 @@ export const useBuilderStore = defineStore('builder', () => {
     formulas.filter(df => df.type === 'mean' || df.type === 'std').forEach(df => {
       const byGroup = new Map()
       baseCells.forEach(c => {
-        const gKey = String(c[df.groupBy ?? 'label'] ?? '')
+        const gKey = String(c[df.groupBy ?? 'group'] ?? '')
         if (!byGroup.has(gKey)) byGroup.set(gKey, [])
         const v = c[df.field]
         if (typeof v === 'number') byGroup.get(gKey).push(v)
@@ -473,7 +485,7 @@ export const useBuilderStore = defineStore('builder', () => {
       formulas.forEach(df => {
         let stats = groupStats[df.id]
         if (df.type === 'mean' || df.type === 'std') {
-          const gKey = String(c[df.groupBy ?? 'label'] ?? '')
+          const gKey = String(c[df.groupBy ?? 'group'] ?? '')
           stats = groupStatsMap[df.id]?.get(gKey)
         }
         merged[`__df_${df.id}`] = computeDerivedValue(c, df, stats)
@@ -686,7 +698,7 @@ export const useBuilderStore = defineStore('builder', () => {
     return cfg?.[activeCellType.value] ?? []
   })
   const chartOptions = computed(() => config.value?.chartOptions ?? {
-    chartTypes: [], categoricalXAxisOptions: [], labelableFields: []
+    chartTypes: [], categoricalXAxisOptions: [], groupableFields: []
   })
   const metricOptionsForType = computed(() => {
     const ct = activeCellType.value
@@ -701,11 +713,11 @@ export const useBuilderStore = defineStore('builder', () => {
     return raw.map(m => ({ value: m.metricId, label: m.name }))
   })
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
-  const labelableFields = computed(() => chartOptions.value.labelableFields ?? [])
+  const groupableFields = computed(() => chartOptions.value.groupableFields ?? [])
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
     // Bar charts are always grouped on the Group template — no field picker.
-    if (chartType === 'bar') return [{ value: '__label__', label: 'Group (template)' }]
+    if (chartType === 'bar') return [{ value: '__group__', label: 'Group (template)' }]
     return metricOptionsForType.value
   })
   const yAxisOptions = computed(() => metricOptionsForType.value)
@@ -811,7 +823,7 @@ export const useBuilderStore = defineStore('builder', () => {
       selectedCellIds: [],
       chartConfig: createDefaultChartConfig(),
       derivedFormulas: [],
-      labelTemplate: defaultLabelTemplate(),
+      groupTemplate: defaultGroupTemplate(),
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     })
     activeBuilderIndex.value = builders.value.length - 1
@@ -837,7 +849,7 @@ export const useBuilderStore = defineStore('builder', () => {
     builder.selectedCellIds = []
     builder.chartConfig = createDefaultChartConfig()
     builder.derivedFormulas = []
-    builder.labelTemplate = defaultLabelTemplate()
+    builder.groupTemplate = defaultGroupTemplate()
     builder.search = { pending: createEmptySearch(), applied: createEmptySearch() }
 
     if (activeBuilderIndex.value === index) {
@@ -855,7 +867,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (key === 'chartType') {
       const catValues = new Set(categoricalXAxisOptions.value.map(o => o.value))
       if (value === 'bar') {
-        cfg.xAxis = '__label__'
+        cfg.xAxis = '__group__'
       } else if (catValues.has(cfg.xAxis)) {
         const firstMetric = metricOptionsForType.value[0]
         cfg.xAxis = firstMetric?.value || null
@@ -868,28 +880,28 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   // ── Label template helpers ──
-  function setLabelTemplate(template) {
+  function setGroupTemplate(template) {
     if (!activeBuilder.value) return
-    activeBuilder.value.labelTemplate = Array.isArray(template) ? [...template] : []
+    activeBuilder.value.groupTemplate = Array.isArray(template) ? [...template] : []
   }
 
-  function addLabelToken(token) {
+  function addGroupToken(token) {
     if (!activeBuilder.value) return
-    if (!Array.isArray(activeBuilder.value.labelTemplate)) {
-      activeBuilder.value.labelTemplate = []
+    if (!Array.isArray(activeBuilder.value.groupTemplate)) {
+      activeBuilder.value.groupTemplate = []
     }
-    activeBuilder.value.labelTemplate.push({ ...token })
+    activeBuilder.value.groupTemplate.push({ ...token })
   }
 
-  function removeLabelToken(index) {
+  function removeGroupToken(index) {
     if (!activeBuilder.value) return
-    const t = activeBuilder.value.labelTemplate
+    const t = activeBuilder.value.groupTemplate
     if (Array.isArray(t) && index >= 0 && index < t.length) t.splice(index, 1)
   }
 
-  function moveLabelToken(from, to) {
+  function moveGroupToken(from, to) {
     if (!activeBuilder.value) return
-    const t = activeBuilder.value.labelTemplate
+    const t = activeBuilder.value.groupTemplate
     if (!Array.isArray(t)) return
     if (from < 0 || from >= t.length || to < 0 || to >= t.length) return
     const [item] = t.splice(from, 1)
@@ -929,7 +941,7 @@ export const useBuilderStore = defineStore('builder', () => {
     const existingIdx = chartTabs.value.findIndex(t => t.builderId === builderId)
 
     // Build a label map: field name → display label
-    const labelMap = { __label__: 'Group', label: 'Group' }
+    const labelMap = { __group__: 'Group', group: 'Group' }
     metrics.value.forEach(m => { labelMap[m.field1] = m.name; labelMap[m.metricId] = m.name })
     ;(categoricalXAxisOptions.value || []).forEach(o => { labelMap[o.value] = o.label })
     ;(selectedCellsSimulationColumns.value || []).forEach(c => { labelMap[c.prop] = c.label })
@@ -950,7 +962,7 @@ export const useBuilderStore = defineStore('builder', () => {
       cells: selectedCells.value.map(c => ({ ...c })),
       config: resolvedConfig,
       derivedFormulas: [...(activeBuilder.value.derivedFormulas || [])],
-      labelTemplate: [...(activeBuilder.value.labelTemplate || [])],
+      groupTemplate: [...(activeBuilder.value.groupTemplate || [])],
       labelMap,
       simulationColumns: [...(selectedCellsSimulationColumns.value || [])]
     }
@@ -1003,7 +1015,7 @@ export const useBuilderStore = defineStore('builder', () => {
       xAxis: cfg.xAxis,
       y1Axis: cfg.yAxisPrimary,
       y2Axis: cfg.yAxisSecondary,
-      groupBy: templateToCsv(activeBuilder.value.labelTemplate),
+      groupBy: templateToCsv(activeBuilder.value.groupTemplate),
       isVisible: 'Y',
       createdBy: CURRENT_USER
     })
@@ -1018,7 +1030,7 @@ export const useBuilderStore = defineStore('builder', () => {
     cfg.xAxis = preset.xAxis
     cfg.yAxisPrimary = preset.y1Axis
     cfg.yAxisSecondary = preset.y2Axis
-    activeBuilder.value.labelTemplate = csvToTemplate(preset.groupBy)
+    activeBuilder.value.groupTemplate = csvToTemplate(preset.groupBy)
   }
 
   async function deletePreset(presetId) {
@@ -1044,7 +1056,7 @@ export const useBuilderStore = defineStore('builder', () => {
         xAxis: cfg.xAxis,
         y1Axis: cfg.yAxisPrimary,
         y2Axis: cfg.yAxisSecondary,
-        groupBy: templateToCsv(b.labelTemplate)
+        groupBy: templateToCsv(b.groupTemplate)
       },
       items: b.selectedCellIds.map(cellId => ({
         cellId,
@@ -1076,7 +1088,7 @@ export const useBuilderStore = defineStore('builder', () => {
         yAxisSecondary: preset.y2Axis
       } : createDefaultChartConfig(),
       derivedFormulas: [],
-      labelTemplate: csvToTemplate(preset?.groupBy || ''),
+      groupTemplate: csvToTemplate(preset?.groupBy || ''),
       search: { pending: createEmptySearch(), applied: createEmptySearch() }
     }
     builders.value.push(newBuilder)
@@ -1106,13 +1118,13 @@ export const useBuilderStore = defineStore('builder', () => {
   return {
     metaCells, simulations, config, metrics, cellTypes, cellTypeOptions, pdks, libraries, loading, restoringSessionState, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
-    chartOptions, metricOptionsForType, augmentedXAxisOptions, labelableFields, yAxisOptions, derivedFields, activeCellType,
+    chartOptions, metricOptionsForType, augmentedXAxisOptions, groupableFields, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
     builders, activeBuilderIndex, activeSubTab, activeBuilder, selectedCells, cellAliases, chartTabs,
     init, getCellAlias, setCellAlias,
     toggleCellSelection, selectCells, deselectCells, clearSelection,
     addBuilder, removeBuilder, resetBuilder, updateChartConfig,
-    setLabelTemplate, addLabelToken, removeLabelToken, moveLabelToken,
+    setGroupTemplate, addGroupToken, removeGroupToken, moveGroupToken,
     addDerivedFormula, removeDerivedFormula,
     generateChart, removeChartTab,
     // search / filter

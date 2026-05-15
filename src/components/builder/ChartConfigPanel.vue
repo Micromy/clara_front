@@ -76,7 +76,7 @@ const dfOp    = ref('/')
 const dfField2 = ref('')
 const dfField = ref('')        // for unary / stat-based
 const dfFn    = ref('log10')   // for unary
-const dfGroupBy = ref('alias') // for mean/std
+const dfGroupBy = ref('label') // for mean/std (groups by computed Group label)
 
 const isBinary  = computed(() => dfType.value === 'binary')
 const isUnary   = computed(() => dfType.value === 'unary')
@@ -137,7 +137,7 @@ function openDerivedDialog() {
   dfField2.value = second
   dfField.value = first
   dfFn.value = 'log10'
-  dfGroupBy.value = 'alias'
+  dfGroupBy.value = 'label'
   dialogVisible.value = true
 }
 
@@ -164,10 +164,10 @@ function onGenerate() {
 }
 
 // ── Group mirror (read-only view of Label template) ──
-const labelTemplate = computed(() => store.activeBuilder?.labelTemplate || [])
+const groupTemplate = computed(() => store.activeBuilder?.groupTemplate || [])
 const fieldLabelMap = computed(() => {
   const m = {}
-  store.labelableFields.forEach(f => { m[f.value] = f.label })
+  store.groupableFields.forEach(f => { m[f.value] = f.label })
   return m
 })
 const groupTitle = 'Group tokens determine how cells are split into colors. Click to edit.'
@@ -178,12 +178,12 @@ function tokenText(tok) {
   return '?'
 }
 
-function focusLabelBuilder() {
-  const el = document.querySelector('.label-template-builder')
+function focusGroupBuilder() {
+  const el = document.querySelector('.group-template-builder')
   if (!el) return
   el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  el.classList.add('lt-flash')
-  setTimeout(() => el.classList.remove('lt-flash'), 1200)
+  el.classList.add('gt-flash')
+  setTimeout(() => el.classList.remove('gt-flash'), 1200)
 }
 </script>
 
@@ -260,13 +260,13 @@ function focusLabelBuilder() {
           Grouped By
           <span v-if="store.activeBuilder.chartConfig.chartType === 'bar'" class="group-label-suffix">(X-Axis)</span>
         </template>
-        <div class="group-mirror" :title="groupTitle" @click="focusLabelBuilder">
-          <template v-if="labelTemplate.length === 0">
+        <div class="group-mirror" :title="groupTitle" @click="focusGroupBuilder">
+          <template v-if="groupTemplate.length === 0">
             <span class="group-empty">empty — all cells in one group</span>
           </template>
           <template v-else>
             <span
-              v-for="(tok, i) in labelTemplate"
+              v-for="(tok, i) in groupTemplate"
               :key="i"
               class="group-chip"
               :class="{ 'group-chip-tag': tok.type === 'tag' }"

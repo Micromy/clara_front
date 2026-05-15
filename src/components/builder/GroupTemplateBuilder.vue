@@ -5,12 +5,12 @@ import { useBuilderStore } from '../../stores/builderStore.js'
 const store = useBuilderStore()
 const popoverVisible = ref(false)
 
-const template = computed(() => store.activeBuilder?.labelTemplate || [])
+const template = computed(() => store.activeBuilder?.groupTemplate || [])
 const hasTag = computed(() => template.value.some(t => t.type === 'tag'))
 
 const fieldLabelMap = computed(() => {
   const m = {}
-  store.labelableFields.forEach(f => { m[f.value] = f.label })
+  store.groupableFields.forEach(f => { m[f.value] = f.label })
   return m
 })
 
@@ -27,18 +27,18 @@ function tokenDesc(tok) {
 }
 
 function onAddField(value) {
-  store.addLabelToken({ type: 'field', field: value })
+  store.addGroupToken({ type: 'field', field: value })
   popoverVisible.value = false
 }
 
 function onAddTag() {
   if (hasTag.value) return
-  store.addLabelToken({ type: 'tag' })
+  store.addGroupToken({ type: 'tag' })
   popoverVisible.value = false
 }
 
 function onRemove(i) {
-  store.removeLabelToken(i)
+  store.removeGroupToken(i)
 }
 
 // Drag reorder
@@ -56,14 +56,14 @@ function onDrop(i) {
     dragFrom.value = -1
     return
   }
-  store.moveLabelToken(dragFrom.value, i)
+  store.moveGroupToken(dragFrom.value, i)
   dragFrom.value = -1
 }
 function onDragEnd() { dragFrom.value = -1 }
 </script>
 
 <template>
-  <div class="label-template-builder">
+  <div class="group-template-builder">
     <span class="lt-label">Group</span>
 
     <div class="lt-chips">
@@ -98,7 +98,7 @@ function onDragEnd() { dragFrom.value = -1 }
             <div class="lt-section-title">Field</div>
             <div class="lt-field-list">
               <div
-                v-for="f in store.labelableFields"
+                v-for="f in store.groupableFields"
                 :key="f.value"
                 class="lt-add-item"
                 @click="onAddField(f.value)"
@@ -125,7 +125,7 @@ function onDragEnd() { dragFrom.value = -1 }
 </template>
 
 <style scoped>
-.label-template-builder {
+.group-template-builder {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 7px 12px;
   background: #f8fafb;
@@ -134,10 +134,10 @@ function onDragEnd() { dragFrom.value = -1 }
   font-size: 12.5px;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.label-template-builder.lt-flash {
-  animation: lt-flash-anim 1.2s ease;
+.group-template-builder.gt-flash {
+  animation: gt-flash-anim 1.2s ease;
 }
-@keyframes lt-flash-anim {
+@keyframes gt-flash-anim {
   0%, 100% { box-shadow: 0 0 0 0 rgba(64,120,192,0); border-color: #ebeef5; }
   30% { box-shadow: 0 0 0 4px rgba(64,120,192,0.25); border-color: var(--clara-primary, #4078C0); }
 }

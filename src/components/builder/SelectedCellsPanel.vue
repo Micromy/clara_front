@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useBuilderStore } from '../../stores/builderStore.js'
 import { useDragSelect } from '../../composables/useDragSelect.js'
-import LabelTemplateBuilder from './LabelTemplateBuilder.vue'
+import GroupTemplateBuilder from './GroupTemplateBuilder.vue'
 
 const store = useBuilderStore()
 const selectedTableRef = ref(null)
@@ -52,8 +52,8 @@ watch([comparisonMode, () => store.selectedCells], ([mode, cells]) => {
 
 const referenceOptions = computed(() =>
   store.selectedCells.map(c => {
-    const label = c.label
-    return { value: c.id, label: label ? `${label} (${c.cellName})` : c.cellName }
+    const group = c.group
+    return { value: c.id, label: group ? `${group} (${c.cellName})` : c.cellName }
   })
 )
 
@@ -181,7 +181,7 @@ function simCellInfo(row, col) {
       </div>
     </div>
 
-    <LabelTemplateBuilder v-if="store.activeBuilder" class="label-template-row" />
+    <GroupTemplateBuilder v-if="store.activeBuilder" class="group-template-row" />
 
     <el-table
       ref="selectedTableRef"
@@ -214,8 +214,8 @@ function simCellInfo(row, col) {
       <!-- Computed Group (read-only, fixed) -->
       <el-table-column label="Group" width="160" fixed>
         <template #default="{ row }">
-          <span v-if="row.label" class="cell-label">{{ row.label }}</span>
-          <span v-else class="cell-label-empty">—</span>
+          <span v-if="row.group" class="cell-group">{{ row.group }}</span>
+          <span v-else class="cell-group-empty">—</span>
         </template>
       </el-table-column>
 
@@ -324,15 +324,15 @@ function simCellInfo(row, col) {
 .selected-cells-panel :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .selected-cells-panel :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
 
-.label-template-row { margin-bottom: 10px; }
-.cell-label {
+.group-template-row { margin-bottom: 10px; }
+.cell-group {
   font-weight: 500;
   color: #303133;
   font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
   letter-spacing: 0.1px;
   font-size: 12px;
 }
-.cell-label-empty {
+.cell-group-empty {
   color: #c0c4cc;
   font-size: 12px;
 }

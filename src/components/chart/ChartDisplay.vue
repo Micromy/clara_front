@@ -38,7 +38,7 @@ const chartOption = computed(() => {
 
   const isBar = config.chartType === 'bar'
   const isLine = config.chartType === 'line'
-  const isXLabel = config.xAxis === '__label__' || config.xAxis === 'label'
+  const isXGroup = config.xAxis === '__group__' || config.xAxis === 'group'
 
   // Secondary type must be compatible with primary's x-axis type
   const rawSecType = config.chartTypeSecondary || config.chartType
@@ -48,19 +48,19 @@ const chartOption = computed(() => {
   const isBarSec = secType === 'bar'
   const isLineSec = secType === 'line'
 
-  const EMPTY_LABEL = '(no label)'
-  const labelOf = c => c.label || EMPTY_LABEL
-  const xValueOf = c => isXLabel ? labelOf(c) : c[config.xAxis]
+  const EMPTY_GROUP = '(no group)'
+  const groupOf = c => c.group || EMPTY_GROUP
+  const xValueOf = c => isXGroup ? groupOf(c) : c[config.xAxis]
 
   // Series grouping rules:
   //   bar          → single series (X already encodes the grouping dimension)
-  //   scatter/line → group by cell.label (each unique label is a series/color)
+  //   scatter/line → group by cell.group (each unique group is a series/color)
   const groups = new Map()
   if (isBar) {
     groups.set('All', cells)
   } else {
     cells.forEach(cell => {
-      const key = labelOf(cell)
+      const key = groupOf(cell)
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(cell)
     })

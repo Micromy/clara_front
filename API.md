@@ -279,7 +279,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `chart_type` | string | `scatter`, `line`, `bar` |
-| `x_axis` | int / string | scatter/line: metric_id, bar: `__label__` |
+| `x_axis` | int / string | scatter/line: metric_id, bar: `__group__` |
 | `y1_axis` | int | metric_id |
 | `y2_axis` | int / null | secondary y축, 없으면 null |
 | `group_by` | string | Group 템플릿 CSV — 아래 [Group 템플릿 인코딩](#group-템플릿-인코딩) 참조 |
@@ -327,7 +327,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | `preset_id` | ❌ | 자동 채번 |
 | `name` | ✅ 필수 | |
 | `chart_type` | ✅ 필수 | `scatter` / `line` / `bar` |
-| `x_axis` | ✅ 필수 | scatter/line: metric_id, bar: `__label__` |
+| `x_axis` | ✅ 필수 | scatter/line: metric_id, bar: `__group__` |
 | `y1_axis` | ✅ 필수 | metric_id |
 | `y2_axis` | nullable | 미사용 시 null |
 | `group_by` | nullable | Group 템플릿 CSV. 빈 문자열 또는 `null` 허용 |
@@ -557,7 +557,7 @@ GET /clara/preset/
 
 - **2026-05-14** Group 템플릿 도입
   - `chart_preset.group_by`: 단일 string (`"alias"` 등) → CSV 인코딩된 토큰 배열 (`"drive_strength,__tag__"`). 빈 문자열 허용. 컬럼 `VARCHAR2(255)` 권장.
-  - `chart_preset.x_axis`: bar 차트에서 `__label__` 문자열 허용 (이전: metric_id만)
+  - `chart_preset.x_axis`: bar 차트에서 `__group__` 문자열 허용 (`__label__`는 deprecated)
   - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
 
 문서 최종 수정: 2026-05-14
