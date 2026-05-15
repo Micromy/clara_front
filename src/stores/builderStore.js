@@ -697,7 +697,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // Active cell-type context drives which simulation columns / Y-axis options are shown.
   // Derives from the committed search; defaults to 'FF' so early-render getters don't crash.
-  const activeCellType = computed(() => appliedSearch.value.cellType ?? 'FF')
+  const activeCellType = computed(() => appliedSearch.value.cellType ?? null)
 
   function activeCellTypeId() {
     const ct = activeCellType.value
@@ -1006,8 +1006,11 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   const presetsForCellType = computed(() => {
-    const ct = activeCellType.value
-    return chartPresets.value.filter(p => p.isVisible === 'Y')
+    const ctId = activeCellTypeId()
+    if (ctId == null) return []  // no cell type selected → no presets visible
+    return chartPresets.value.filter(p =>
+      p.isVisible === 'Y' && p.cellType === ctId
+    )
   })
 
   async function savePreset(name) {
