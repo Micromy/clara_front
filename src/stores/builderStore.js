@@ -697,7 +697,11 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // Active cell-type context drives which simulation columns / Y-axis options are shown.
   // Derives from the committed search; defaults to 'FF' so early-render getters don't crash.
-  const activeCellType = computed(() => appliedSearch.value.cellType ?? null)
+  // Track what the user has *picked* (pending), not just what's been
+  // applied to a search — applySearch only commits when PDK + libraries are
+  // also picked, but the cell type alone is enough for previewing metrics,
+  // filtering presets, and enabling Save/Load.
+  const activeCellType = computed(() => pendingSearch.value.cellType ?? null)
 
   function activeCellTypeId() {
     const ct = activeCellType.value
