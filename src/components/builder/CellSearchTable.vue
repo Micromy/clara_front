@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick, inject } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
-import { useBuilderStore, CELL_TYPE_OPTIONS } from '../../stores/builderStore.js'
+import { useBuilderStore } from '../../stores/builderStore.js'
 import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
 import { useDragSelect } from '../../composables/useDragSelect.js'
 
@@ -107,9 +107,21 @@ function onLibraryFilterInput(query) {
 }
 
 function applyRegexMatches() {
+  if (regexError.value || matchedIds.value.length === 0) return
   const next = new Set(pendingLibraries.value || [])
   matchedIds.value.forEach(id => next.add(id))
   pendingLibraries.value = [...next]
+  libraryFilter.value = ''
+  librarySelectRef.value?.blur?.()
+}
+
+function onLibrarySelectKeydown(e) {
+  if (e.key !== 'Enter') return
+  if (!libraryFilter.value.trim()) return
+  if (regexError.value || matchedIds.value.length === 0) return
+  e.preventDefault()
+  e.stopPropagation()
+  applyRegexMatches()
 }
 
 function getCheckedIds() {
@@ -189,7 +201,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           :teleported="!inPopup"
         >
           <el-option
-            v-for="opt in CELL_TYPE_OPTIONS"
+            v-for="opt in store.cellTypeOptions"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"
@@ -225,6 +237,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
           :class="{ 'library-regex-error-input': regexError }"
           style="width: 200px"
           :teleported="!inPopup"
+          @keydown.capture="onLibrarySelectKeydown"
         >
           <el-option
             v-for="opt in filteredLibraryOptions"

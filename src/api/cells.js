@@ -159,6 +159,13 @@ function parseLocalPdkString(s) {
   return { process: s, hspice: '', lvs: '', pex: '' }
 }
 
+export async function fetchCellTypes() {
+  if (USE_LOCAL_DATA) {
+    return [{ id: 1, cellType: 'FF' }, { id: 2, cellType: 'ICG' }]
+  }
+  return get('/clara/cell/type/')
+}
+
 export async function fetchPdks() {
   if (USE_LOCAL_DATA) {
     const cells = await loadLocalCells()

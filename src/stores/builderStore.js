@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, nextTick } from 'vue'
 import {
-  fetchColumnConfig, fetchPdks, fetchLibraries, fetchMetrics,
+  fetchColumnConfig, fetchCellTypes, fetchPdks, fetchLibraries, fetchMetrics,
   fetchMeta, fetchSimFF, fetchSimICG,
   fetchPresets as apiFetchPresets, createPreset as apiCreatePreset, deletePreset as apiDeletePreset,
   fetchCharts as apiFetchCharts, createChart as apiCreateChart, deleteChart as apiDeleteChart
@@ -193,12 +193,9 @@ function csvToTemplate(csv) {
   )
 }
 
-// Cell type top-level classification (mutually exclusive).
-// `cellType` on each cell is now 'FF' or 'ICG' directly.
-export const CELL_TYPE_OPTIONS = [
-  { value: 'FF',  label: 'FF' },
-  { value: 'ICG', label: 'ICG' }
-]
+// Cell type options are loaded dynamically from /clara/cell/type/ at init.
+// `cellType` on each cell remains the string ('FF', 'ICG', …) — only the
+// dropdown source changes.
 
 function cellMatchesCategory(cell, category) {
   return cell.cellType === category
@@ -218,6 +215,7 @@ export const useBuilderStore = defineStore('builder', () => {
   const metaCells = ref([])          // 서버 검색 결과 (메타데이터만)
   const simulations = ref({})        // cellId → 시뮬 데이터 (캐시)
   const config = ref(null)           // column-config.json (UI 레이아웃)
+  const cellTypes = ref([])          // GET /clara/cell/type/
   const pdks = ref([])               // GET /clara/pdk/
   const libraries = ref([])          // GET /clara/lib/
   const metrics = ref([])            // GET /clara/metric/
@@ -355,14 +353,16 @@ export const useBuilderStore = defineStore('builder', () => {
     error.value = null
     initPromise = Promise.all([
       fetchColumnConfig(),
+      fetchCellTypes(),
       fetchPdks(),
       fetchLibraries(),
       fetchMetrics(),
       apiFetchPresets(),
       apiFetchCharts()
     ])
-      .then(([cfg, pdkList, libList, metricList, presetList, chartList]) => {
+      .then(([cfg, cellTypeList, pdkList, libList, metricList, presetList, chartList]) => {
         config.value = cfg
+        cellTypes.value = cellTypeList
         pdks.value = pdkList
         libraries.value = libList
         metrics.value = metricList
@@ -548,6 +548,11 @@ export const useBuilderStore = defineStore('builder', () => {
       return a.localeCompare(b)
     })
   }
+
+  // Cell type dropdown options from API
+  const cellTypeOptions = computed(() =>
+    cellTypes.value.map(t => ({ value: t.cellType, label: t.cellType, id: t.id }))
+  )
 
   // PDK dropdown options from API
   const pdkOptions = computed(() =>
@@ -1088,7 +1093,7 @@ export const useBuilderStore = defineStore('builder', () => {
   }
 
   return {
-    metaCells, simulations, config, metrics, pdks, libraries, loading, restoringSessionState, error,
+    metaCells, simulations, config, metrics, cellTypes, cellTypeOptions, pdks, libraries, loading, restoringSessionState, error,
     searchTableColumns, selectedCellsMetadataColumns, selectedCellsSimulationColumns,
     chartOptions, metricOptionsForType, augmentedXAxisOptions, labelableFields, yAxisOptions, derivedFields, activeCellType,
     numericSimFields, derivedSimColumns, allNumericFields, augmentedYAxisOptions,
