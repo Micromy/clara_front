@@ -151,7 +151,7 @@ let nextDerivedId = 1
 // ── Label template ────────────────────────────────────────────────────────
 // Each cell's display label is computed from an ordered list of tokens.
 // Token types:
-//   { type: 'field', field: 'driveStr' }   → cell[field]
+//   { type: 'field', field: 'driveStrength' } → cell[field]
 //   { type: 'tag' }                         → per-cell user-entered tag
 // Tokens are joined with '_'; empty values are dropped so labels never
 // carry stray separators.
@@ -176,12 +176,17 @@ function defaultLabelTemplate() {
 }
 
 // ── CSV serialization for backend group_by VARCHAR ─────────────────────
+// Wire format is snake_case to match DB column names; frontend uses
+// camelCase internally (after API toCamelKey). Round-trip via helpers.
 const LABEL_TAG_SENTINEL = '__tag__'
+
+const camelToSnake = s => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase())
+const snakeToCamel = s => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase())
 
 function templateToCsv(template) {
   if (!Array.isArray(template) || template.length === 0) return ''
   return template
-    .map(t => t?.type === 'tag' ? LABEL_TAG_SENTINEL : (t?.field || ''))
+    .map(t => t?.type === 'tag' ? LABEL_TAG_SENTINEL : camelToSnake(t?.field || ''))
     .filter(Boolean)
     .join(',')
 }
@@ -189,7 +194,7 @@ function templateToCsv(template) {
 function csvToTemplate(csv) {
   if (!csv || typeof csv !== 'string') return []
   return csv.split(',').map(s => s.trim()).filter(Boolean).map(s =>
-    s === LABEL_TAG_SENTINEL ? { type: 'tag' } : { type: 'field', field: s }
+    s === LABEL_TAG_SENTINEL ? { type: 'tag' } : { type: 'field', field: snakeToCamel(s) }
   )
 }
 
@@ -238,19 +243,25 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!Array.isArray(b.labelTemplate)) {
       b.labelTemplate = defaultLabelTemplate()
     } else {
-      // Drop legacy literal tokens; rename note → tag for older payloads.
+      // Drop legacy literal tokens; rename note → tag and any short-form
+      // field names (driveStr / nanoSheet) back to their DB-aligned spellings.
       b.labelTemplate = b.labelTemplate
         .filter(t => t?.type === 'field' || t?.type === 'note' || t?.type === 'tag')
-        .map(t => t.type === 'note' ? { type: 'tag' } : t)
+        .map(t => {
+          if (t.type === 'note') return { type: 'tag' }
+          if (t.type === 'field' && t.field === 'driveStr')  return { type: 'field', field: 'driveStrength' }
+          if (t.type === 'field' && t.field === 'nanoSheet') return { type: 'field', field: 'nanosheet' }
+          return t
+        })
     }
     if (b.chartConfig) {
       // Migrate away from removed `grouping` field
       if ('grouping' in b.chartConfig) delete b.chartConfig.grouping
       // Migrate stale categorical xAxis values (only meaningful on bar charts)
       if (b.chartConfig.chartType === 'bar') {
-        if (b.chartConfig.xAxis === 'alias')         b.chartConfig.xAxis = '__label__'
-        if (b.chartConfig.xAxis === 'driveStrength') b.chartConfig.xAxis = 'driveStr'
-        if (b.chartConfig.xAxis === 'nanosheet')     b.chartConfig.xAxis = 'nanoSheet'
+        if (b.chartConfig.xAxis === 'alias')     b.chartConfig.xAxis = '__label__'
+        if (b.chartConfig.xAxis === 'driveStr')  b.chartConfig.xAxis = 'driveStrength'
+        if (b.chartConfig.xAxis === 'nanoSheet') b.chartConfig.xAxis = 'nanosheet'
       }
     }
     return b

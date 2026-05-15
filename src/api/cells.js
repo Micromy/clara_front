@@ -24,8 +24,6 @@ const USE_LOCAL_DATA = import.meta.env.VITE_USE_LOCAL_DATA === 'true'
 
 // 로컬 JSON의 옛 필드명 → 현재 스키마 매핑
 const LOCAL_FIELD_MAP = {
-  driveStrength: 'driveStr',
-  nanosheet: 'nanoSheet',
   dqWorst: 'dqWst',
   dSetup3SigmaAvg: 'dsetup3sigmaAvg',
   dHoldSohmAvg: 'dholdSohmAvg',

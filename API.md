@@ -267,7 +267,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
     "x_axis": 1,
     "y1_axis": 2,
     "y2_axis": null,
-    "group_by": "drive_str,__tag__",
+    "group_by": "drive_strength,__tag__",
     "is_visible": "Y",
     "created_at": "2026-04-20T15:30:00",
     "created_by": "sh0913.park"
@@ -291,14 +291,14 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 
 | 토큰 종류 | 인코딩 | 예시 |
 |-----------|--------|------|
-| 필드 참조 | 셀 메타 필드명 | `drive_str`, `library`, `vth` |
+| 필드 참조 | 셀 메타 필드명 | `drive_strength`, `library`, `vth` |
 | Per-cell tag | 센티넬 `__tag__` | `__tag__` |
 
 **예시:**
 - `""` (빈 문자열): 템플릿 없음 — 모든 셀이 한 그룹
-- `"drive_str"`: drive_strength로 그룹화
-- `"drive_str,nano_sheet"`: drive_str + nano_sheet 조합
-- `"drive_str,__tag__"`: drive_str + per-cell tag 조합 (예: `X1_fast`, `X2_slow`)
+- `"drive_strength"`: drive_strength로 그룹화
+- `"drive_strength,nanosheet"`: drive_strength + nanosheet 조합
+- `"drive_strength,__tag__"`: drive_strength + per-cell tag 조합 (예: `X1_fast`, `X2_slow`)
 
 **컬럼 권장 길이:** `VARCHAR2(255)` — 현실적 최대 토큰 조합(약 200자)에 여유.
 
@@ -316,7 +316,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
   "x_axis": 1,
   "y1_axis": 2,
   "y2_axis": null,
-  "group_by": "drive_str,__tag__",
+  "group_by": "drive_strength,__tag__",
   "created_by": "sh0913.park"
 }
 ```
@@ -368,7 +368,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
       "x_axis": 1,
       "y1_axis": 2,
       "y2_axis": null,
-      "group_by": "drive_str,__tag__",
+      "group_by": "drive_strength,__tag__",
       "is_visible": "N"
     },
     "items": [
@@ -398,7 +398,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
     "x_axis": 1,
     "y1_axis": 2,
     "y2_axis": null,
-    "group_by": "drive_str,__tag__"
+    "group_by": "drive_strength,__tag__"
   },
   "items": [
     { "cell_id": 101, "cell_tag": "fast" },
@@ -545,7 +545,7 @@ GET /clara/chart/<chart_id>/
 ```
 POST /clara/preset/
   body: { name, chart_type, x_axis, y1_axis, y2_axis, group_by }
-  group_by: Group 템플릿 CSV (예: "drive_str,__tag__")
+  group_by: Group 템플릿 CSV (예: "drive_strength,__tag__")
 
 GET /clara/preset/
   → 저장된 preset 목록에서 사용자가 선택
@@ -556,7 +556,7 @@ GET /clara/preset/
 ## 변경 이력
 
 - **2026-05-14** Group 템플릿 도입
-  - `chart_preset.group_by`: 단일 string (`"alias"` 등) → CSV 인코딩된 토큰 배열 (`"drive_str,__tag__"`). 빈 문자열 허용. 컬럼 `VARCHAR2(255)` 권장.
+  - `chart_preset.group_by`: 단일 string (`"alias"` 등) → CSV 인코딩된 토큰 배열 (`"drive_strength,__tag__"`). 빈 문자열 허용. 컬럼 `VARCHAR2(255)` 권장.
   - `chart_preset.x_axis`: bar 차트에서 `__label__` 문자열 허용 (이전: metric_id만)
   - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
 
