@@ -192,8 +192,18 @@ function focusGroupBuilder() {
     <div class="panel-header">
       <h3 class="panel-title">Chart Configuration</h3>
       <div class="preset-btns">
-        <button class="preset-action-btn" @click="openSavePresetDialog">Save</button>
-        <button class="preset-action-btn" @click="loadDialogVisible = true">Load</button>
+        <button
+          class="preset-action-btn"
+          :disabled="!store.activeCellType"
+          :title="!store.activeCellType ? 'Select a cell type first' : ''"
+          @click="openSavePresetDialog"
+        >Save</button>
+        <button
+          class="preset-action-btn"
+          :disabled="!store.activeCellType"
+          :title="!store.activeCellType ? 'Select a cell type first' : ''"
+          @click="loadDialogVisible = true"
+        >Load</button>
       </div>
     </div>
 
@@ -457,9 +467,14 @@ function focusGroupBuilder() {
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.preset-action-btn:hover {
+.preset-action-btn:hover:not(:disabled) {
   background: rgba(0,0,0,0.04);
   color: #606266;
+}
+.preset-action-btn:disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
+  background: none;
 }
 .preset-hint {
   margin-top: -4px;
