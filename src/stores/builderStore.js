@@ -388,7 +388,13 @@ export const useBuilderStore = defineStore('builder', () => {
         cellTypes.value = cellTypeList
         pdks.value = pdkList
         libraries.value = libList
-        metrics.value = metricList
+        // Backend now returns cell_type as the cellTypes mapping id (number);
+        // resolve to the readable name string used everywhere else.
+        const ctById = new Map(cellTypeList.map(t => [t.id, t.cellType]))
+        metrics.value = metricList.map(m => ({
+          ...m,
+          cellType: typeof m.cellType === 'number' ? ctById.get(m.cellType) || m.cellType : m.cellType
+        }))
         chartPresets.value = presetList
         savedCharts.value = chartList
       })
