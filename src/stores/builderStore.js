@@ -583,17 +583,32 @@ export const useBuilderStore = defineStore('builder', () => {
     cellTypes.value.map(t => ({ value: t.cellType, label: t.cellType, id: t.id }))
   )
 
-  // PDK dropdown options from API
+  // PDK dropdown options from API.
+  // Sort: process number ascending, then P-count descending so the family
+  // reads as [SF2PP], [SF2P], [SF2], [SF3], ...
+  function pdkSortKey(process) {
+    const m = String(process || '').match(/^[A-Z]+(\d+)(P*)/i)
+    if (!m) return [Infinity, 0]
+    return [Number(m[1]), -m[2].length]
+  }
   const pdkOptions = computed(() =>
-    pdks.value.map(p => {
-      const label = `[${p.process}] HSPICE: ${p.hspice} / LVS: ${p.lvs} / PEX: ${p.pex}`
-      return { id: p.id, label }
-    })
+    [...pdks.value]
+      .sort((a, b) => {
+        const ka = pdkSortKey(a.process)
+        const kb = pdkSortKey(b.process)
+        return ka[0] - kb[0] || ka[1] - kb[1] || String(a.process).localeCompare(String(b.process))
+      })
+      .map(p => {
+        const label = `[${p.process}] HSPICE: ${p.hspice} / LVS: ${p.lvs} / PEX: ${p.pex}`
+        return { id: p.id, label }
+      })
   )
 
-  // Library dropdown options from API
+  // Library dropdown options from API (case-insensitive alphabetical)
   const libraryOptions = computed(() =>
-    libraries.value.map(l => ({ id: l.id, label: l.library || l.lib }))
+    libraries.value
+      .map(l => ({ id: l.id, label: l.library || l.lib }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
   )
 
   function batchSetAlias(builderId, cellIds, alias) {
