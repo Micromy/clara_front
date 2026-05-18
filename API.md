@@ -281,7 +281,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 |------|------|------|
 | `cell_type` | int | cellTypes 매핑의 id (`GET /clara/cell/type`) |
 | `chart_type` | string | `scatter`, `line`, `bar` |
-| `x_metric` | int / string | scatter/line: metric_id, bar: `__group__` |
+| `x_metric` | int / null | scatter/line: metric_id, bar: null (X는 group으로 결정) |
 | `y1_metric` | int | metric_id |
 | `y2_metric` | int / null | secondary y축, 없으면 null |
 | `group_by` | string | Group 템플릿 CSV — 아래 [Group 템플릿 인코딩](#group-템플릿-인코딩) 참조 |
@@ -331,7 +331,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | `name` | ✅ 필수 | |
 | `cell_type` | ✅ 필수 | cellTypes 매핑의 id |
 | `chart_type` | ✅ 필수 | `scatter` / `line` / `bar` |
-| `x_metric` | ✅ 필수 | scatter/line: metric_id, bar: `__group__` |
+| `x_metric` | nullable | scatter/line: metric_id, bar: null |
 | `y1_metric` | ✅ 필수 | metric_id |
 | `y2_metric` | nullable | 미사용 시 null |
 | `group_by` | nullable | Group 템플릿 CSV. 빈 문자열 또는 `null` 허용 |

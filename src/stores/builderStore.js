@@ -732,7 +732,7 @@ export const useBuilderStore = defineStore('builder', () => {
   const augmentedXAxisOptions = computed(() => {
     const chartType = activeBuilder.value?.chartConfig?.chartType
     // Bar charts are always grouped on the Group template — no field picker.
-    if (chartType === 'bar') return [{ value: '__group__', label: 'Group (template)' }]
+    if (chartType === 'bar') return [{ value: '__group__', label: 'Group' }]
     return metricOptionsForType.value
   })
   const yAxisOptions = computed(() => metricOptionsForType.value)
@@ -1031,7 +1031,9 @@ export const useBuilderStore = defineStore('builder', () => {
       name,
       cellType: activeCellTypeId(),
       chartType: cfg.chartType,
-      xMetric: cfg.xAxis,
+      // Bar X is always the Group template — backend stores null and we
+      // reconstitute '__group__' on load from chartType === 'bar'.
+      xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
       y1Metric: cfg.yAxisPrimary,
       y2Metric: cfg.yAxisSecondary,
       groupBy: templateToCsv(activeBuilder.value.groupTemplate),
@@ -1046,7 +1048,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!preset || !activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
     cfg.chartType = preset.chartType
-    cfg.xAxis = preset.xMetric
+    cfg.xAxis = preset.chartType === 'bar' ? '__group__' : preset.xMetric
     cfg.yAxisPrimary = preset.y1Metric
     cfg.yAxisSecondary = preset.y2Metric
     activeBuilder.value.groupTemplate = csvToTemplate(preset.groupBy)
@@ -1073,7 +1075,7 @@ export const useBuilderStore = defineStore('builder', () => {
         name: `${name}_${CURRENT_USER}`,
         cellType: activeCellTypeId(),
         chartType: cfg.chartType,
-        xMetric: cfg.xAxis,
+        xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
         y1Metric: cfg.yAxisPrimary,
         y2Metric: cfg.yAxisSecondary,
         groupBy: templateToCsv(b.groupTemplate)
@@ -1103,7 +1105,7 @@ export const useBuilderStore = defineStore('builder', () => {
       chartConfig: preset ? {
         chartType: preset.chartType,
         chartTypeSecondary: null,
-        xAxis: preset.xMetric,
+        xAxis: preset.chartType === 'bar' ? '__group__' : preset.xMetric,
         yAxisPrimary: preset.y1Metric,
         yAxisSecondary: preset.y2Metric
       } : createDefaultChartConfig(),

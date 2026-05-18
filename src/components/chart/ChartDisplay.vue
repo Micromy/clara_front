@@ -96,7 +96,7 @@ const chartOption = computed(() => {
         return ys.reduce((s, v) => s + v, 0) / ys.length
       })
       series.push({
-        name: groupName, type: 'bar', data, itemStyle: { color },
+        name: getAxisLabel(config.yAxisPrimary), type: 'bar', data, itemStyle: { color },
         emphasis: { focus: 'self', itemStyle: { borderWidth: 2, borderColor: '#000' } },
         blur: { itemStyle: { opacity: 0.5 }, lineStyle: { opacity: 0.3 } },
       })
@@ -134,7 +134,7 @@ const chartOption = computed(() => {
           return ys.reduce((s, v) => s + v, 0) / ys.length
         })
         series.push({
-          name: `${groupName} (${getAxisLabel(config.yAxisSecondary)})`,
+          name: getAxisLabel(config.yAxisSecondary),
           type: 'bar',
           yAxisIndex: 1,
           data,
@@ -199,6 +199,9 @@ const chartOption = computed(() => {
       }
     },
     legend: {
+      // Bar with no Y2 = single series → legend would just say the Y axis
+      // name, which is also visible as the Y axis title. Hide it.
+      show: !(isBar && !config.yAxisSecondary),
       type: 'scroll',
       orient: 'vertical',
       top: 50,
@@ -212,9 +215,11 @@ const chartOption = computed(() => {
     },
     grid: {
       left: 60,
-      right: config.yAxisSecondary ? 390 : 370,
+      // Bar with no legend collapses the right gutter; rotated bar X labels
+      // need more bottom space than the value axis case.
+      right: (isBar && !config.yAxisSecondary) ? 40 : (config.yAxisSecondary ? 390 : 370),
       top: 50,
-      bottom: 40
+      bottom: isBar ? 70 : 40
     },
     toolbox: {
       show: true,
@@ -287,7 +292,14 @@ const chartOption = computed(() => {
           data: xCategories,
           name: getAxisLabel(config.xAxis),
           nameLocation: 'center',
-          nameGap: 30
+          nameGap: 36,
+          axisLabel: {
+            rotate: 30,
+            overflow: 'truncate',
+            width: 80,
+            fontSize: 11,
+            interval: 0
+          }
         }
       : {
           type: 'value',

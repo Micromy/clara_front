@@ -16,7 +16,7 @@
  *   DELETE /clara/chart/:id/             Chart 삭제
  */
 
-const API_BASE = 'http://at-django--at-backend-django-dev.khdevpb01.apps.dks.samsungds.net'
+const API_BASE = 'http://at-django--at-backend-django-prod.khprdpb01.apps.dks.samsungds.net'
 
 // ── 임시 로컬 모드: 사내 API 접근 불가 시 public/data/*.json 사용 ──
 // 토글은 프로젝트 루트 .env 파일의 VITE_USE_LOCAL_DATA로 제어.
