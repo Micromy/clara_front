@@ -138,7 +138,7 @@ src/
 
 ### 4-2. 데이터 소스: 사내 Django REST API
 
-`VITE_API_BASE` 환경변수로 endpoint 지정 (빌드 타임 inline). 사내 배포는 ConfigMap → BuildConfig env로 같은 값 주입.
+`VITE_API_BASE_URL` 환경변수로 endpoint 지정 (빌드 타임 inline). 사내 배포는 ConfigMap → BuildConfig env로 같은 값 주입.
 
 **API 엔드포인트** (`/clara/...`) — 자세한 계약은 [API.md](API.md) 참조:
 - `GET /pdk/`, `/lib/`, `/metric/` — 드롭다운/축 옵션
@@ -237,7 +237,7 @@ npm run preview     # 빌드 결과 확인
 
 **환경 변수** (`.env` 파일, gitignored):
 ```
-VITE_API_BASE=http://...-prod...samsungds.net
+VITE_API_BASE_URL=http://...-prod...samsungds.net
 ```
 빌드 타임에 inline. dev server는 env 변경 후 재시작 필요.
 

@@ -19,7 +19,7 @@
 
 import columnConfig from '../config/column-config.json'
 
-const API_BASE = import.meta.env.VITE_API_BASE || ''
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 // ── snake_case ↔ camelCase 변환 ──────────────────────────────────────────
 

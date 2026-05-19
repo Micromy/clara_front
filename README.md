@@ -17,7 +17,7 @@ npm run preview   # 빌드 결과 로컬 확인
 프로젝트 루트에 `.env` 파일 (gitignored):
 
 ```ini
-VITE_API_BASE=http://...-prod...samsungds.net
+VITE_API_BASE_URL=http://...-prod...samsungds.net
 ```
 
 빌드 타임에 inline됨. 사내 배포는 ConfigMap → BuildConfig env로 같은 값을 주입.
