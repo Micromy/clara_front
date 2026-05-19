@@ -741,10 +741,22 @@ export const useBuilderStore = defineStore('builder', () => {
   const chartOptions = computed(() => config.value?.chartOptions ?? {
     chartTypes: [], categoricalXAxisOptions: [], groupableFields: []
   })
+  // Backend keeps a placeholder "group" metric per cell type so that the
+  // bar-chart preset's required x_metric FK has a value to point at. It's
+  // identified structurally (raw formula, no field1) rather than by id so
+  // ids can differ across environments.
+  function isGroupPlaceholderMetric(m) {
+    return m?.formulaType === 'raw' && !m?.field1
+  }
+
+  function barXMetricId(cellType = activeCellType.value) {
+    return metrics.value.find(m => m.cellType === cellType && isGroupPlaceholderMetric(m))?.metricId ?? null
+  }
+
   const metricOptionsForType = computed(() => {
     const ct = activeCellType.value
     const order = config.value?.chartOptions?.metricOrder?.[ct] || []
-    const raw = metrics.value.filter(m => m.cellType === ct && m.formulaType === 'raw')
+    const raw = metrics.value.filter(m => m.cellType === ct && m.formulaType === 'raw' && !isGroupPlaceholderMetric(m))
     const orderMap = new Map(order.map((name, i) => [name, i]))
     raw.sort((a, b) => {
       const ai = orderMap.get(a.name) ?? 999
@@ -1063,19 +1075,18 @@ export const useBuilderStore = defineStore('builder', () => {
     chartPresets.value.push(preset)
   }
 
-  // Bar X is always the Group template; the x_metric FK can't take that,
-  // so we omit the field entirely on bar (rather than sending null, which
-  // the backend rejects). Loaders restore xAxis='__group__' from chartType.
+  // Bar X is always the Group template; the backend's x_metric FK is
+  // required, so we point it at the per-cellType "group" placeholder
+  // metric and reconstitute xAxis='__group__' on load from chartType.
   function buildPresetPayload(cfg, extra) {
-    const base = {
+    return {
       ...extra,
       chartType: cfg.chartType,
       chartTypeSecondary: cfg.chartTypeSecondary,
+      xMetric: cfg.chartType === 'bar' ? barXMetricId() : cfg.xAxis,
       y1Metric: cfg.yAxisPrimary,
       y2Metric: cfg.yAxisSecondary
     }
-    if (cfg.chartType !== 'bar') base.xMetric = cfg.xAxis
-    return base
   }
 
   function loadPreset(presetId) {

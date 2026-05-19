@@ -281,7 +281,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 |------|------|------|
 | `cell_type` | int | cellTypes 매핑의 id (`GET /clara/cell/type`) |
 | `chart_type` | string | `scatter`, `line`, `bar` |
-| `x_metric` | int / null | scatter/line: metric_id, bar: null (X는 group으로 결정) |
+| `x_metric` | int | scatter/line: metric_id, bar: cellType별 group placeholder metric의 id |
 | `y1_metric` | int | metric_id |
 | `y2_metric` | int / null | secondary y축, 없으면 null |
 | `group_by` | string | Group 템플릿 CSV — 아래 [Group 템플릿 인코딩](#group-템플릿-인코딩) 참조 |
@@ -303,6 +303,20 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 - `"drive_strength,__tag__"`: drive_strength + per-cell tag 조합 (예: `X1_fast`, `X2_slow`)
 
 **컬럼 권장 길이:** `VARCHAR2(255)` — 현실적 최대 토큰 조합(약 200자)에 여유.
+
+#### Bar 차트의 `x_metric` — Group Placeholder Metric
+
+`x_metric`은 FK라 null/누락 불가. Bar 차트는 X축이 Group 템플릿으로 결정되므로 실제 metric을 가리킬 수 없는데, 백엔드에서 cellType별로 **placeholder metric row를 만들어** 그것의 id를 가리키게 함.
+
+**Placeholder metric 식별 속성** (예시):
+- `formula_type`: `'raw'`
+- `field1`, `field2`, `op`: `'NONE'`
+- `name`: 임의 (예: `'groupFf'`, `'groupIcg'`)
+- `cell_type`: 각 cellType id
+
+프론트엔드는 metric 응답을 받아서 `formula_type === 'raw'` AND `field1 == null` (정규화 후) 조건으로 자동 lookup해서 사용. id 하드코딩 X.
+
+이 placeholder들은 사용자 metric dropdown에는 노출되지 않음 (필터됨).
 
 ### `GET /clara/preset/<id>/` (Retrieve)
 
@@ -331,7 +345,7 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 | `name` | ✅ 필수 | |
 | `cell_type` | ✅ 필수 | cellTypes 매핑의 id |
 | `chart_type` | ✅ 필수 | `scatter` / `line` / `bar` |
-| `x_metric` | nullable | scatter/line: metric_id, bar: null |
+| `x_metric` | ✅ 필수 | scatter/line: metric_id, bar: group placeholder metric id (아래 참조) |
 | `y1_metric` | ✅ 필수 | metric_id |
 | `y2_metric` | nullable | 미사용 시 null |
 | `group_by` | nullable | Group 템플릿 CSV. 빈 문자열 또는 `null` 허용 |
@@ -561,6 +575,10 @@ GET /clara/preset/
 
 ## 변경 이력
 
+- **2026-05-19** Bar 차트 `x_metric` 처리
+  - `x_metric`을 nullable로 두지 않고 cellType별 "group placeholder metric" row를 백엔드에 추가 (`name: groupFf|groupIcg`, `formula_type: raw`, `field1/field2/op: NONE`)
+  - Bar 차트 preset 저장 시 해당 placeholder id를 `x_metric`에 넣음. 프론트엔드는 metric 응답에서 속성으로 자동 lookup (id 하드코딩 X)
+  - 사용자 metric dropdown에선 placeholder 메트릭 필터링됨
 - **2026-05-15** 필드 리네임
   - `chart_preset.x_axis` → **`x_metric`**, `y1_axis` → **`y1_metric`**, `y2_axis` → **`y2_metric`**
   - `chart_preset.cell_type` 필드 추가 (FK to cell types 매핑 id) — 필수
@@ -571,4 +589,4 @@ GET /clara/preset/
   - `chart_preset.x_metric`: bar 차트에서 `__group__` 문자열 허용 (`__label__`는 deprecated)
   - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
 
-문서 최종 수정: 2026-05-15
+문서 최종 수정: 2026-05-19
