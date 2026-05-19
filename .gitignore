@@ -2,17 +2,13 @@
 logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 node_modules
 dist
 dist-ssr
 *.local
 
-# Environment / secrets (scripts/db_to_json.py)
+# Environment / secrets — VITE_API_BASE_URL 등
 .env
 
 # Local scratch/working area (not for VCS)
@@ -23,8 +19,4 @@ _workspace/
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
