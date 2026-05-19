@@ -32,7 +32,7 @@ const OPERATING_CONDITION_FIELDS = [
 
 // Build DERIVED_FIELDS dynamically from the simulation columns of the given cellType.
 // Falls back to operating-condition fields only if cellType is null/unknown.
-export function buildDerivedFields(cellType, config) {
+function buildDerivedFields(cellType, config) {
   const simCols = config?.selectedCellsSimulationColumns?.[cellType] || []
   const simFields = simCols
     .filter(c => c.numeric)
@@ -157,10 +157,9 @@ let nextDerivedId = 1
 //   { type: 'tag' }                            → per-cell user-entered tag
 // Tokens are joined with '_'; empty values are dropped so groups never
 // carry stray separators.
-export const GROUP_TOKEN_TYPES = ['field', 'tag']
 const GROUP_SEPARATOR = '_'
 
-export function computeGroup(template, cell, tagValue = '') {
+function computeGroup(template, cell, tagValue = '') {
   if (!Array.isArray(template) || template.length === 0) return ''
   return template.map(tok => {
     if (!tok || typeof tok !== 'object') return ''
