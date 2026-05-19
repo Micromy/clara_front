@@ -359,7 +359,7 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
         :total="totalCells"
         :page-sizes="[10, 20, 50, 100]"
         :layout="paginationLayout"
-        small
+        size="small"
       />
     </div>
   </div>

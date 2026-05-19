@@ -400,7 +400,6 @@ export const useBuilderStore = defineStore('builder', () => {
       .then(() => restoreVisibleSessionState())
       .catch((err) => {
         error.value = err
-        console.error('[builderStore] init failed:', err)
         throw err
       })
       .finally(() => {

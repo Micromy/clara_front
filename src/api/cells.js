@@ -66,26 +66,61 @@ function normalizeMetric(m) {
 
 // ── HTTP helpers ─────────────────────────────────────────────────────────
 
-async function get(path) {
-  const res = await fetch(`${API_BASE}${path}`)
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`)
-  return toCamel(await res.json())
+export class ApiError extends Error {
+  constructor({ kind, method, path, status = null, body = null }) {
+    super(formatApiMessage({ kind, method, path, status, body }))
+    this.name = 'ApiError'
+    this.kind = kind          // 'network' | 'http' | 'parse'
+    this.method = method
+    this.path = path
+    this.status = status
+    this.body = body
+  }
 }
 
-async function post(path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toSnake(body))
-  })
-  if (!res.ok) throw new Error(`POST ${path} failed (${res.status})`)
-  return toCamel(await res.json())
+function formatApiMessage({ kind, method, path, status, body }) {
+  if (kind === 'network') return `네트워크 오류: ${method} ${path} 응답 없음. API 주소/네트워크 확인 필요`
+  if (kind === 'parse')   return `응답 파싱 실패: ${method} ${path}. 서버가 JSON이 아닌 응답을 보냄`
+  // http
+  const detail = typeof body === 'object' && body
+    ? (body.detail || body.error || JSON.stringify(body))
+    : (typeof body === 'string' ? body : null)
+  return `${method} ${path} ${status}${detail ? ` — ${detail}` : ''}`
 }
 
-async function del(path) {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' })
-  if (!res.ok && res.status !== 204) throw new Error(`DELETE ${path} failed (${res.status})`)
+async function request(method, path, body) {
+  const url = `${API_BASE}${path}`
+  let res
+  try {
+    res = await fetch(url, {
+      method,
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: body !== undefined ? JSON.stringify(toSnake(body)) : undefined
+    })
+  } catch {
+    throw new ApiError({ kind: 'network', method, path })
+  }
+
+  if (method === 'DELETE' && (res.ok || res.status === 204)) return
+
+  if (!res.ok) {
+    let errBody = null
+    try { errBody = await res.json() } catch {
+      try { errBody = await res.text() } catch {}
+    }
+    throw new ApiError({ kind: 'http', method, path, status: res.status, body: errBody })
+  }
+
+  try {
+    return toCamel(await res.json())
+  } catch {
+    throw new ApiError({ kind: 'parse', method, path, status: res.status })
+  }
 }
+
+const get  = (path)       => request('GET', path)
+const post = (path, body) => request('POST', path, body)
+const del  = (path)       => request('DELETE', path)
 
 // ── Column config (bundled with the frontend) ────────────────────────────
 
