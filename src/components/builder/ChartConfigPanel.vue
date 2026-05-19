@@ -178,6 +178,19 @@ function tokenText(tok) {
   return '?'
 }
 
+// ── Preset list label helpers ──
+function metricNameById(id) {
+  if (id == null) return '—'
+  return store.metrics.find(m => m.metricId === id)?.name ?? `#${id}`
+}
+function presetXLabel(row) {
+  if (row.chartType === 'bar') return 'Group'
+  return metricNameById(row.xMetric)
+}
+function presetYLabel(metricId, chartType) {
+  return `${metricNameById(metricId)}${chartType ? ` (${chartType})` : ''}`
+}
+
 function focusGroupBuilder() {
   const el = document.querySelector('.group-template-builder')
   if (!el) return
@@ -236,11 +249,14 @@ function focusGroupBuilder() {
     <el-dialog v-model="loadDialogVisible" title="Load Preset" width="850px" :close-on-click-modal="true">
       <el-table :data="store.presetsForCellType" size="small" border stripe max-height="400" empty-text="No presets saved.">
         <el-table-column prop="name" label="Name" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="chartType" label="Type" width="80" />
-        <el-table-column prop="xMetric" label="X" width="100" show-overflow-tooltip />
-        <el-table-column prop="y1Metric" label="Y1" width="100" show-overflow-tooltip />
-        <el-table-column prop="y2Metric" label="Y2" width="100" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.y2Metric || '—' }}</template>
+        <el-table-column label="X" width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ presetXLabel(row) }}</template>
+        </el-table-column>
+        <el-table-column label="Y1" width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ presetYLabel(row.y1Metric, row.chartType) }}</template>
+        </el-table-column>
+        <el-table-column label="Y2" width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.y2Metric ? presetYLabel(row.y2Metric, row.chartTypeSecondary || row.chartType) : '—' }}</template>
         </el-table-column>
         <el-table-column label="Created" width="170">
           <template #default="{ row }">{{ row.createdAt ? row.createdAt.replace('T', ' ').slice(0, 19) : '—' }}</template>

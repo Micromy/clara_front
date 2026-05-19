@@ -116,6 +116,13 @@ function applyRegexMatches() {
 }
 
 function onLibrarySelectKeydown(e) {
+  // Backspace on an empty filter would otherwise pop the last selected
+  // library off — block that so previously-selected items stay put.
+  if (e.key === 'Backspace' && libraryFilter.value === '') {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
   if (e.key !== 'Enter') return
   if (!libraryFilter.value.trim()) return
   if (regexError.value || matchedIds.value.length === 0) return

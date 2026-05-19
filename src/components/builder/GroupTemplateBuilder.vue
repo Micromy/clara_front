@@ -106,15 +106,14 @@ function onDragEnd() { dragFrom.value = -1 }
             </div>
           </div>
           <div class="lt-add-section">
-            <button
-              class="lt-note-btn"
-              :class="{ 'lt-note-btn-disabled': hasTag }"
-              :disabled="hasTag"
-              @click="onAddTag"
-            >
-              <span>+ Tag (per-cell)</span>
-              <span v-if="hasTag" class="lt-note-hint">already added</span>
-            </button>
+            <div class="lt-section-title">Per-cell</div>
+            <div class="lt-field-list">
+              <div
+                class="lt-add-item"
+                :class="{ 'lt-add-item-disabled': hasTag }"
+                @click="!hasTag && onAddTag()"
+              >Tag<span v-if="hasTag" class="lt-add-item-hint">already added</span></div>
+            </div>
           </div>
         </div>
       </el-popover>
@@ -227,23 +226,18 @@ function onDragEnd() { dragFrom.value = -1 }
   background: rgba(64,120,192,0.08);
   color: var(--clara-primary, #4078C0);
 }
-.lt-note-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  height: 28px; padding: 0 10px;
-  background: rgba(103,194,58,0.10);
-  color: #5b8a26;
-  border: 1px solid rgba(103,194,58,0.28);
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 12.5px; font-weight: 500;
-  transition: all 0.12s ease;
-}
-.lt-note-btn:hover:not(.lt-note-btn-disabled) { background: rgba(103,194,58,0.18); }
-.lt-note-btn-disabled {
-  background: #f5f7fa;
+.lt-add-item-disabled {
   color: #c0c4cc;
-  border-color: #ebeef5;
   cursor: not-allowed;
 }
-.lt-note-hint { font-size: 10.5px; font-style: italic; }
+.lt-add-item-disabled:hover {
+  background: transparent;
+  color: #c0c4cc;
+}
+.lt-add-item-hint {
+  font-size: 10.5px;
+  font-style: italic;
+  color: #c0c4cc;
+  margin-left: 6px;
+}
 </style>

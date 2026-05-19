@@ -646,10 +646,16 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
-  // Watch appliedSearch to trigger API call
-  watch(appliedSearch, () => {
+  // Only the cellType/pdk/libraries trio drives a server-side fetch.
+  // Cell name query and per-column filters are client-side, so changing
+  // them must NOT re-hit the API.
+  const serverSearchKey = computed(() => {
+    const s = appliedSearch.value
+    return `${s.cellType || ''}|${s.pdk || ''}|${(s.libraries || []).join(',')}`
+  })
+  watch(serverSearchKey, () => {
     if (!restoringSearch.value) performMetaSearch()
-  }, { deep: true })
+  })
 
   // Pre-column-filter stage: current search result set + query filter
   const preColumnFilteredCells = computed(() => {
@@ -1051,6 +1057,7 @@ export const useBuilderStore = defineStore('builder', () => {
       name,
       cellType: activeCellTypeId(),
       chartType: cfg.chartType,
+      chartTypeSecondary: cfg.chartTypeSecondary,
       // Bar X is always the Group template — backend stores null and we
       // reconstitute '__group__' on load from chartType === 'bar'.
       xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
@@ -1068,6 +1075,7 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!preset || !activeBuilder.value) return
     const cfg = activeBuilder.value.chartConfig
     cfg.chartType = preset.chartType
+    cfg.chartTypeSecondary = preset.chartTypeSecondary ?? null
     cfg.xAxis = preset.chartType === 'bar' ? '__group__' : preset.xMetric
     cfg.yAxisPrimary = preset.y1Metric
     cfg.yAxisSecondary = preset.y2Metric
@@ -1095,6 +1103,7 @@ export const useBuilderStore = defineStore('builder', () => {
         name: `${name}_${CURRENT_USER}`,
         cellType: activeCellTypeId(),
         chartType: cfg.chartType,
+        chartTypeSecondary: cfg.chartTypeSecondary,
         xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
         y1Metric: cfg.yAxisPrimary,
         y2Metric: cfg.yAxisSecondary,
@@ -1114,24 +1123,31 @@ export const useBuilderStore = defineStore('builder', () => {
 
     const preset = chart.preset
 
+    // Resolve the preset's cell type id back to its name so the new builder
+    // shows the correct metric options instead of raw ids.
+    const ctName = preset?.cellType != null
+      ? cellTypes.value.find(t => t.id === preset.cellType)?.cellType ?? null
+      : null
+
     // Create new builder
     saveSearchToBuilder()
     const id = nextBuilderId++
     const cellIds = chart.items.map(i => i.cellId)
+    const restoredSearch = { ...createEmptySearch(), cellType: ctName }
     const newBuilder = {
       id,
       name: chart.chartName,
       selectedCellIds: cellIds,
       chartConfig: preset ? {
         chartType: preset.chartType,
-        chartTypeSecondary: null,
+        chartTypeSecondary: preset.chartTypeSecondary ?? null,
         xAxis: preset.chartType === 'bar' ? '__group__' : preset.xMetric,
         yAxisPrimary: preset.y1Metric,
         yAxisSecondary: preset.y2Metric
       } : createDefaultChartConfig(),
       derivedFormulas: [],
       groupTemplate: csvToTemplate(preset?.groupBy || ''),
-      search: { pending: createEmptySearch(), applied: createEmptySearch() }
+      search: { pending: { ...restoredSearch }, applied: { ...restoredSearch } }
     }
     builders.value.push(newBuilder)
     activeBuilderIndex.value = builders.value.length - 1

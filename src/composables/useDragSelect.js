@@ -52,8 +52,12 @@ export function useDragSelect(tableRef, isRowSelectable = () => true) {
     const rowIndex = Array.from(tbody.children).indexOf(tr)
     if (rowIndex < 0) return null
 
-    // Access the table's current data to get the row object
-    const data = tbl.data || []
+    // Use el-table's sorted/filtered view if available — tbl.data is the
+    // raw prop and ignores column sorting, so DOM index ≠ data index once
+    // the user sorts a column.
+    const sortedRef = tbl.store?.states?.data
+    const sorted = sortedRef && 'value' in sortedRef ? sortedRef.value : sortedRef
+    const data = sorted || tbl.data || []
     if (rowIndex >= data.length) return null
     return data[rowIndex]
   }
