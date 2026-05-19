@@ -613,13 +613,19 @@ export const useBuilderStore = defineStore('builder', () => {
     cellIds.forEach(id => { cellAliases.value[`${builderId}-${id}`] = alias })
   }
 
-  // Fetch metadata from API when search conditions change
+  // Fetch metadata from API when search conditions change.
+  //
+  // metaCells is shared between the search results pane and the Selected
+  // Cells pane, so we never overwrite it — new rows merge in. The current
+  // search result set is tracked separately as an id list, and the search
+  // table filters metaCells by that list.
   const searching = ref(false)
+  const searchResultIds = ref([])
   let fetchMetaAbort = null
   async function performMetaSearch() {
     const s = appliedSearch.value
     if (!s.cellType || !s.pdk || s.libraries.length === 0) {
-      metaCells.value = []
+      searchResultIds.value = []
       return
     }
     if (fetchMetaAbort) fetchMetaAbort.abort()
@@ -631,7 +637,8 @@ export const useBuilderStore = defineStore('builder', () => {
         pdkId: s.pdk,
         libIds: s.libraries
       })
-      metaCells.value = data
+      mergeMetaCells(data)
+      searchResultIds.value = data.map(r => r.id)
     } catch (err) {
       if (err.name !== 'AbortError') console.error('[builderStore] fetchMeta failed:', err)
     } finally {
@@ -644,15 +651,15 @@ export const useBuilderStore = defineStore('builder', () => {
     if (!restoringSearch.value) performMetaSearch()
   }, { deep: true })
 
-  // Pre-column-filter stage: metaCells + query filter (client-side)
+  // Pre-column-filter stage: current search result set + query filter
   const preColumnFilteredCells = computed(() => {
     const s = appliedSearch.value
     if (!s.cellType || !s.pdk || s.libraries.length === 0) return []
+    const idSet = new Set(searchResultIds.value)
+    const inSearch = metaCells.value.filter(c => idSet.has(c.id))
     const terms = (s.query || '').toLowerCase().split(/[\s,]+/).filter(Boolean)
-    if (!terms.length) return metaCells.value
-    return metaCells.value.filter(cell => {
-      return terms.every(t => cell.cellName.toLowerCase().includes(t))
-    })
+    if (!terms.length) return inSearch
+    return inSearch.filter(cell => terms.every(t => cell.cellName.toLowerCase().includes(t)))
   })
 
   // Final filtered cells: preColumnFilteredCells + columnFilters

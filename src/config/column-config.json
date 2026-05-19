@@ -68,6 +68,7 @@
     "categoricalXAxisOptions": [
       { "value": "__group__",  "label": "Group" },
       { "value": "cellName",   "label": "Cell Name" },
+      { "value": "cell",       "label": "Cell" },
       { "value": "library",    "label": "Library" },
       { "value": "vendor",     "label": "Vendor" },
       { "value": "feol",       "label": "FEOL" },
@@ -80,6 +81,7 @@
     ],
     "groupableFields": [
       { "value": "cellName",      "label": "Cell Name" },
+      { "value": "cell",          "label": "Cell" },
       { "value": "library",       "label": "Library" },
       { "value": "vendor",        "label": "Vendor" },
       { "value": "version",       "label": "Version" },
