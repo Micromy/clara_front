@@ -246,22 +246,22 @@ function focusGroupBuilder() {
     </el-dialog>
 
     <!-- Load Preset Dialog -->
-    <el-dialog v-model="loadDialogVisible" title="Load Preset" width="850px" :close-on-click-modal="true">
+    <el-dialog v-model="loadDialogVisible" title="Load Preset" width="960px" :close-on-click-modal="true">
       <el-table :data="store.presetsForCellType" size="small" border stripe max-height="400" empty-text="No presets saved.">
         <el-table-column prop="name" label="Name" min-width="120" show-overflow-tooltip />
-        <el-table-column label="X" width="130" show-overflow-tooltip>
+        <el-table-column label="X" width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ presetXLabel(row) }}</template>
         </el-table-column>
-        <el-table-column label="Y1" width="160" show-overflow-tooltip>
+        <el-table-column label="Y1" width="170" show-overflow-tooltip>
           <template #default="{ row }">{{ presetYLabel(row.y1Metric, row.chartType) }}</template>
         </el-table-column>
-        <el-table-column label="Y2" width="160" show-overflow-tooltip>
+        <el-table-column label="Y2" width="170" show-overflow-tooltip>
           <template #default="{ row }">{{ row.y2Metric ? presetYLabel(row.y2Metric, row.chartTypeSecondary || row.chartType) : '—' }}</template>
         </el-table-column>
         <el-table-column label="Created" width="170">
           <template #default="{ row }">{{ row.createdAt ? row.createdAt.replace('T', ' ').slice(0, 19) : '—' }}</template>
         </el-table-column>
-        <el-table-column label="" width="130" fixed="right">
+        <el-table-column label="" width="110" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="onLoadPreset(row.presetId)">Apply</el-button>
             <el-button size="small" type="danger" link @click="onDeletePreset(row)">Delete</el-button>

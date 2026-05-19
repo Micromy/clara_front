@@ -103,11 +103,6 @@ function onDragEnd() { dragFrom.value = -1 }
                 class="lt-add-item"
                 @click="onAddField(f.value)"
               >{{ f.label }}</div>
-            </div>
-          </div>
-          <div class="lt-add-section">
-            <div class="lt-section-title">Per-cell</div>
-            <div class="lt-field-list">
               <div
                 class="lt-add-item"
                 :class="{ 'lt-add-item-disabled': hasTag }"

@@ -1053,21 +1053,29 @@ export const useBuilderStore = defineStore('builder', () => {
       throw err
     }
     const cfg = activeBuilder.value.chartConfig
-    const preset = await apiCreatePreset({
+    const preset = await apiCreatePreset(buildPresetPayload(cfg, {
       name,
       cellType: activeCellTypeId(),
-      chartType: cfg.chartType,
-      chartTypeSecondary: cfg.chartTypeSecondary,
-      // Bar X is always the Group template — backend stores null and we
-      // reconstitute '__group__' on load from chartType === 'bar'.
-      xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
-      y1Metric: cfg.yAxisPrimary,
-      y2Metric: cfg.yAxisSecondary,
       groupBy: templateToCsv(activeBuilder.value.groupTemplate),
       isVisible: 'Y',
       createdBy: CURRENT_USER
-    })
+    }))
     chartPresets.value.push(preset)
+  }
+
+  // Bar X is always the Group template; the x_metric FK can't take that,
+  // so we omit the field entirely on bar (rather than sending null, which
+  // the backend rejects). Loaders restore xAxis='__group__' from chartType.
+  function buildPresetPayload(cfg, extra) {
+    const base = {
+      ...extra,
+      chartType: cfg.chartType,
+      chartTypeSecondary: cfg.chartTypeSecondary,
+      y1Metric: cfg.yAxisPrimary,
+      y2Metric: cfg.yAxisSecondary
+    }
+    if (cfg.chartType !== 'bar') base.xMetric = cfg.xAxis
+    return base
   }
 
   function loadPreset(presetId) {
@@ -1099,16 +1107,11 @@ export const useBuilderStore = defineStore('builder', () => {
     const chart = await apiCreateChart({
       chartName: name,
       createdBy: CURRENT_USER,
-      preset: {
+      preset: buildPresetPayload(cfg, {
         name: `${name}_${CURRENT_USER}`,
         cellType: activeCellTypeId(),
-        chartType: cfg.chartType,
-        chartTypeSecondary: cfg.chartTypeSecondary,
-        xMetric: cfg.chartType === 'bar' ? null : cfg.xAxis,
-        y1Metric: cfg.yAxisPrimary,
-        y2Metric: cfg.yAxisSecondary,
         groupBy: templateToCsv(b.groupTemplate)
-      },
+      }),
       items: b.selectedCellIds.map(cellId => ({
         cellId,
         cellTag: getCellAlias(builderId, cellId) || ''
