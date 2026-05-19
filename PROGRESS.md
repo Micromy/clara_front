@@ -8,7 +8,7 @@
 
 ## 1. 프로젝트 개요
 
-**CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA. 백엔드(Django REST)와 연동하며, 사내 API 접근 불가 시 `public/data/*.json` fallback 사용.
+**CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA. 백엔드(Django REST)와 연동.
 
 ---
 
@@ -117,8 +117,9 @@
 ### 4-1. 파일 구조
 ```
 src/
-  ├── api/cells.js            REST 호출 + snake/camel 변환 + 로컬 fallback
-  ├── stores/builderStore.js  Pinia store (selectedCells, labelTemplate, ...)
+  ├── api/cells.js            REST 호출 + snake/camel 변환
+  ├── config/column-config.json  UI 메타 (chartOptions, groupableFields 등)
+  ├── stores/builderStore.js  Pinia store (selectedCells, groupTemplate, ...)
   ├── views/
   │   ├── AppView.vue         BuilderView/ChartView 조건부 렌더
   │   ├── BuilderView.vue     검색 + Selected Cells + ChartConfig
@@ -126,23 +127,18 @@ src/
   ├── components/
   │   ├── builder/
   │   │   ├── CellSearchTable.vue
-  │   │   ├── LabelTemplateBuilder.vue   ← Group 템플릿 chip builder
+  │   │   ├── GroupTemplateBuilder.vue   ← Group 템플릿 chip builder
   │   │   ├── SelectedCellsPanel.vue
   │   │   └── ChartConfigPanel.vue
   │   └── chart/
   │       ├── ChartDisplay.vue
   │       └── SourceDataTable.vue
   └── layouts/AppLayout.vue
-
-public/data/                  로컬 fallback 데이터 (USE_LOCAL_DATA=true 시 사용)
-  ├── cells.json
-  ├── simulations.json
-  └── column-config.json       UI 메타 (chartOptions, labelableFields)
 ```
 
-### 4-2. 데이터 소스: API ↔ Local fallback
+### 4-2. 데이터 소스: 사내 Django REST API
 
-`.env`의 `VITE_USE_LOCAL_DATA=true` 시 모든 fetch가 `public/data/*.json`으로 분기 (사내 DB 접근 불가 시 검토용). `false`/미설정 시 실제 API 호출. 프로덕션 Docker 빌드는 `.env` 없이 도므로 자동으로 API 모드.
+`VITE_API_BASE` 환경변수로 endpoint 지정 (빌드 타임 inline). 사내 배포는 ConfigMap → BuildConfig env로 같은 값 주입.
 
 **API 엔드포인트** (`/clara/...`) — 자세한 계약은 [API.md](API.md) 참조:
 - `GET /pdk/`, `/lib/`, `/metric/` — 드롭다운/축 옵션
@@ -241,9 +237,9 @@ npm run preview     # 빌드 결과 확인
 
 **환경 변수** (`.env` 파일, gitignored):
 ```
-VITE_USE_LOCAL_DATA=true    # public/data/*.json 사용 (API 우회)
+VITE_API_BASE=http://...-prod...samsungds.net
 ```
-미설정 또는 `false` → 실제 백엔드 API 호출. dev server는 env 변경 후 재시작 필요.
+빌드 타임에 inline. dev server는 env 변경 후 재시작 필요.
 
 ---
 

@@ -1,7 +1,7 @@
 # CLARA Front
 
 Vue 3 + Element Plus + ECharts로 만든 반도체 셀 라이브러리 분석 프론트엔드.
-사내 Django REST API와 연동되며, API 접근 불가 시 로컬 JSON으로 대체 가능.
+사내 Django REST API와 연동.
 
 ## Quickstart
 
@@ -17,10 +17,10 @@ npm run preview   # 빌드 결과 로컬 확인
 프로젝트 루트에 `.env` 파일 (gitignored):
 
 ```ini
-# true 로 두면 사내 API 대신 public/data/*.json 사용
-VITE_USE_LOCAL_DATA=false
+VITE_API_BASE=http://...-prod...samsungds.net
 ```
 
+빌드 타임에 inline됨. 사내 배포는 ConfigMap → BuildConfig env로 같은 값을 주입.
 샘플은 `.env.example` 참고. 값 바꾼 뒤엔 dev server 재시작.
 
 ## 배포
@@ -39,13 +39,11 @@ VITE_USE_LOCAL_DATA=false
 
 ```
 src/
-├── api/           REST 호출 + 로컬 fallback
+├── api/           REST 호출 (snake/camel 변환 포함)
+├── config/        column-config.json (UI 메타)
 ├── stores/        Pinia store
 ├── views/         AppView, BuilderView, ChartView
 ├── components/    builder / chart 하위 컴포넌트
 ├── composables/   드래그 선택, 팝업 윈도우
 └── layouts/       AppLayout
-
-public/data/       로컬 fallback용 mock JSON
-scripts/           DB → JSON 스냅샷 / mock 데이터 생성
 ```
