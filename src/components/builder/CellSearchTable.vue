@@ -42,9 +42,13 @@ const pendingCellType = computed({
       }
     }
 
-    if (prev && prev !== v) {
+    // Run clearSelection on any change including null → cellType so a
+    // fresh builder (with placeholder/empty chartConfig) gets the right
+    // defaults on the first cellType pick. resetSearch only when actually
+    // switching, so first-pick PDK/Library state isn't blown away.
+    if (prev !== v) {
       store.clearSelection(v)
-      store.resetSearch()
+      if (prev) store.resetSearch()
     }
 
     store.setPendingCellType(v)

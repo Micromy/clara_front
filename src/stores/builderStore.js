@@ -357,7 +357,14 @@ export const useBuilderStore = defineStore('builder', () => {
   })
 
   function createDefaultChartConfig(cellType) {
-    const ct = cellType || appliedSearch.value?.cellType || 'FF'
+    // No 'FF' fallback — without an explicit cellType the chartConfig
+    // should be clean (null ids). Otherwise addBuilder would seed every
+    // new builder with FF metric ids even when the user hasn't picked
+    // a cell type yet, leaking stale numbers into the dropdowns.
+    const ct = cellType || appliedSearch.value?.cellType
+    if (!ct) {
+      return { chartType: 'scatter', chartTypeSecondary: null, xAxis: null, yAxisPrimary: null, yAxisSecondary: null }
+    }
     const sorted = rawMetricsForType(ct)
     return {
       chartType: 'scatter',
