@@ -368,6 +368,28 @@ export const useBuilderStore = defineStore('builder', () => {
     }
   }
 
+  // After metrics load, drop any stale metric ids from a builder's
+  // chartConfig (e.g. from an older session that saved a placeholder
+  // id, or a metric that has since been removed). Bar's '__group__'
+  // string stays untouched.
+  function sanitizeBuilderChartConfig(builder) {
+    const ct = builder?.search?.pending?.cellType || builder?.search?.applied?.cellType
+    if (!ct) return
+    const cfg = builder.chartConfig
+    if (!cfg) return
+    const sorted = rawMetricsForType(ct)
+    const validIds = new Set(sorted.map(m => m.metricId))
+    if (typeof cfg.xAxis === 'number' && !validIds.has(cfg.xAxis)) {
+      cfg.xAxis = sorted[0]?.metricId ?? null
+    }
+    if (typeof cfg.yAxisPrimary === 'number' && !validIds.has(cfg.yAxisPrimary)) {
+      cfg.yAxisPrimary = sorted[1]?.metricId ?? sorted[0]?.metricId ?? null
+    }
+    if (typeof cfg.yAxisSecondary === 'number' && !validIds.has(cfg.yAxisSecondary)) {
+      cfg.yAxisSecondary = null
+    }
+  }
+
   async function init() {
     if (initPromise) return initPromise
     loading.value = true
@@ -396,6 +418,7 @@ export const useBuilderStore = defineStore('builder', () => {
         chartPresets.value = presetList
         savedCharts.value = chartList
       })
+      .then(() => builders.value.forEach(sanitizeBuilderChartConfig))
       .then(() => restoreVisibleSessionState())
       .catch((err) => {
         error.value = err
