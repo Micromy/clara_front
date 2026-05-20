@@ -358,17 +358,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function createDefaultChartConfig(cellType) {
     const ct = cellType || appliedSearch.value?.cellType || 'FF'
-    // Skip the per-cellType group placeholder when picking the default
-    // axis — otherwise scatter/line presets default to its id and the
-    // dropdown (which hides the placeholder) renders the raw number.
-    const firstRaw = metrics.value.find(m =>
-      m.cellType === ct && m.formulaType === 'raw' && !isGroupPlaceholderMetric(m)
-    )
+    const sorted = rawMetricsForType(ct)
     return {
       chartType: 'scatter',
       chartTypeSecondary: null,
-      xAxis: firstRaw?.metricId || null,
-      yAxisPrimary: firstRaw?.metricId || null,
+      xAxis: sorted[0]?.metricId ?? null,
+      yAxisPrimary: sorted[1]?.metricId ?? sorted[0]?.metricId ?? null,
       yAxisSecondary: null
     }
   }
@@ -757,18 +752,21 @@ export const useBuilderStore = defineStore('builder', () => {
     return metrics.value.find(m => m.cellType === cellType && isGroupPlaceholderMetric(m))?.metricId ?? null
   }
 
-  const metricOptionsForType = computed(() => {
-    const ct = activeCellType.value
+  // Raw metrics for a cellType, sorted by column-config's metricOrder.
+  // Shared by the axis dropdown and the default-axis picker so both
+  // honor the same display order.
+  function rawMetricsForType(ct) {
+    if (!ct) return []
     const order = config.value?.chartOptions?.metricOrder?.[ct] || []
-    const raw = metrics.value.filter(m => m.cellType === ct && m.formulaType === 'raw' && !isGroupPlaceholderMetric(m))
     const orderMap = new Map(order.map((name, i) => [name, i]))
-    raw.sort((a, b) => {
-      const ai = orderMap.get(a.name) ?? 999
-      const bi = orderMap.get(b.name) ?? 999
-      return ai - bi
-    })
-    return raw.map(m => ({ value: m.metricId, label: m.name }))
-  })
+    return metrics.value
+      .filter(m => m.cellType === ct && m.formulaType === 'raw' && !isGroupPlaceholderMetric(m))
+      .sort((a, b) => (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999))
+  }
+
+  const metricOptionsForType = computed(() =>
+    rawMetricsForType(activeCellType.value).map(m => ({ value: m.metricId, label: m.name }))
+  )
   const categoricalXAxisOptions = computed(() => chartOptions.value.categoricalXAxisOptions ?? [])
   const groupableFields = computed(() => chartOptions.value.groupableFields ?? [])
   const augmentedXAxisOptions = computed(() => {
