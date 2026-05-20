@@ -306,6 +306,8 @@ function focusGroupBuilder() {
         <el-select
           :model-value="store.activeBuilder.chartConfig.xAxis"
           @update:model-value="val => store.updateChartConfig('xAxis', val)"
+          :disabled="!store.activeCellType"
+          :placeholder="!store.activeCellType ? 'Select a cell type first' : ''"
           style="width: 100%"
         >
           <el-option v-for="opt in store.augmentedXAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
@@ -316,6 +318,8 @@ function focusGroupBuilder() {
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisPrimary"
           @update:model-value="val => store.updateChartConfig('yAxisPrimary', val)"
+          :disabled="!store.activeCellType"
+          :placeholder="!store.activeCellType ? 'Select a cell type first' : ''"
           style="width: 100%"
         >
           <el-option v-for="opt in store.augmentedYAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
@@ -326,9 +330,10 @@ function focusGroupBuilder() {
         <el-select
           :model-value="store.activeBuilder.chartConfig.yAxisSecondary"
           @update:model-value="val => store.updateChartConfig('yAxisSecondary', val || null)"
+          :disabled="!store.activeCellType"
           style="width: 100%"
           clearable
-          placeholder="None"
+          :placeholder="!store.activeCellType ? 'Select a cell type first' : 'None'"
         >
           <el-option label="None" :value="null" />
           <el-option v-for="opt in store.augmentedYAxisOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
@@ -356,9 +361,15 @@ function focusGroupBuilder() {
             <span class="derived-formula">{{ formulaDesc(df, derivedFields) }}</span>
             <el-button type="danger" link size="small" @click="store.removeDerivedFormula(df.id)">✕</el-button>
           </div>
-          <el-button type="primary" link size="small" class="add-derived-btn" @click="openDerivedDialog">
-            + Add Derived Metric
-          </el-button>
+          <el-button
+            type="primary"
+            link
+            size="small"
+            class="add-derived-btn"
+            :disabled="!store.activeCellType"
+            :title="!store.activeCellType ? 'Select a cell type first' : ''"
+            @click="openDerivedDialog"
+          >+ Add Derived Metric</el-button>
         </div>
       </el-form-item>
 

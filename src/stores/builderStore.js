@@ -358,8 +358,12 @@ export const useBuilderStore = defineStore('builder', () => {
 
   function createDefaultChartConfig(cellType) {
     const ct = cellType || appliedSearch.value?.cellType || 'FF'
-    const metricOpts = metrics.value.filter(m => m.cellType === ct)
-    const firstRaw = metricOpts.find(m => m.formulaType === 'raw')
+    // Skip the per-cellType group placeholder when picking the default
+    // axis — otherwise scatter/line presets default to its id and the
+    // dropdown (which hides the placeholder) renders the raw number.
+    const firstRaw = metrics.value.find(m =>
+      m.cellType === ct && m.formulaType === 'raw' && !isGroupPlaceholderMetric(m)
+    )
     return {
       chartType: 'scatter',
       chartTypeSecondary: null,
