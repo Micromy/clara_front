@@ -304,7 +304,7 @@ function focusGroupBuilder() {
 
       <el-form-item v-if="store.activeBuilder.chartConfig.chartType !== 'bar'" label="X-Axis">
         <el-select
-          :model-value="store.activeBuilder.chartConfig.xAxis"
+          :model-value="store.activeCellType ? store.activeBuilder.chartConfig.xAxis : ''"
           @update:model-value="val => store.updateChartConfig('xAxis', val)"
           :disabled="!store.activeCellType"
           :placeholder="!store.activeCellType ? 'Select a cell type first' : ''"
@@ -316,7 +316,7 @@ function focusGroupBuilder() {
 
       <el-form-item label="Y-Axis">
         <el-select
-          :model-value="store.activeBuilder.chartConfig.yAxisPrimary"
+          :model-value="store.activeCellType ? store.activeBuilder.chartConfig.yAxisPrimary : ''"
           @update:model-value="val => store.updateChartConfig('yAxisPrimary', val)"
           :disabled="!store.activeCellType"
           :placeholder="!store.activeCellType ? 'Select a cell type first' : ''"
@@ -328,7 +328,7 @@ function focusGroupBuilder() {
 
       <el-form-item label="Y-Axis 2">
         <el-select
-          :model-value="store.activeBuilder.chartConfig.yAxisSecondary"
+          :model-value="store.activeCellType ? store.activeBuilder.chartConfig.yAxisSecondary : ''"
           @update:model-value="val => store.updateChartConfig('yAxisSecondary', val || null)"
           :disabled="!store.activeCellType"
           style="width: 100%"
