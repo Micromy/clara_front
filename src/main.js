@@ -6,8 +6,9 @@ import * as ElementPlusIcons from '@element-plus/icons-vue'
 import App from './App.vue'
 import './assets/styles/global.css'
 
-if (window.location.pathname !== '/') {
-  window.history.replaceState(null, '', '/')
+const base = import.meta.env.BASE_URL
+if (window.location.pathname !== base) {
+  window.history.replaceState(null, '', base)
 }
 
 const app = createApp(App)
