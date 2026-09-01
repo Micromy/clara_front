@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages
+
+# NOTE: micromy.github.io is a PUBLIC site. Only branches whose dummy data has
+# been checked for internal identifiers belong in this trigger list.
+on:
+  push:
+    branches:
+      - library-report
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --base overrides the /clara/ base used by the internal deployment.
+      - name: Build
+        run: npm run build -- --base /clara_front/
+
+      # Pages has no SPA rewrite and honours a 404.html only at the site root,
+      # which is why this deploys to the root rather than a subdirectory:
+      # /clara_front/library-report then resolves through this file.
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: .
+          keep_files: true

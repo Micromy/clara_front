@@ -13,7 +13,7 @@ const service = computed(
 const pages = computed(() => service.value.pages)
 
 function isActive(page) {
-  return route.path === page.to
+  return route.name === page.route
 }
 
 function onDocClick(e) {
@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
         class="plat-page"
         :class="{ active: isActive(p) }"
         :style="isActive(p) ? { borderBottomColor: service.dot } : null"
-        :to="p.to"
+        :to="{ name: p.route }"
         role="tab"
         :aria-selected="isActive(p)"
       >{{ p.label }}</router-link>

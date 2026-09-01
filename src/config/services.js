@@ -5,8 +5,8 @@ export const SERVICES = [
     name: 'CLARA',
     dot: '#2f6fed',
     pages: [
-      { label: 'PPA', to: '/' },
-      { label: 'Library Report', to: '/library-report' },
+      { label: 'PPA', route: 'ppa' },
+      { label: 'Library Report', route: 'library-report' },
     ],
   },
   { name: 'PAVE', dot: '#7a4fd6', pages: [] },
