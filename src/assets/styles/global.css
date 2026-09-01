@@ -1,17 +1,47 @@
 :root {
-  --clara-primary: #4078C0;
-  --clara-bg: #f5f7fa;
-  --clara-header-bg: #1a1a2e;
-  --clara-header-height: 56px;
+  --clara-primary: #2f6fed;
+  --clara-bg: #fbfbfc;
+  --clara-shell-bg: #14181d;
+  --clara-shell-height: 40px;
   --clara-tab-height: 40px;
+  --clara-mono: 'Roboto Mono', monospace;
 
   /* Element Plus primary override */
-  --el-color-primary: #4078C0;
-  --el-color-primary-light-3: #6A9AD4;
-  --el-color-primary-light-5: #93B7E0;
-  --el-color-primary-light-7: #BDD4EC;
-  --el-color-primary-light-9: #E8F0F8;
-  --el-color-primary-dark-2: #3468A8;
+  --el-color-primary: #2f6fed;
+  --el-color-primary-light-3: #6d9af2;
+  --el-color-primary-light-5: #97b7f6;
+  --el-color-primary-light-7: #bcd0f7;
+  --el-color-primary-light-9: #eaf1fd;
+  --el-color-primary-dark-2: #0b4fbf;
+
+  /* Element Plus neutral tokens — keep built-in components on the same
+     palette as the hand-written styles */
+  --el-text-color-primary: #1c1f24;
+  --el-text-color-regular: #4a525c;
+  --el-text-color-secondary: #8a929c;
+  --el-text-color-placeholder: #b6bec8;
+  --el-text-color-disabled: #b6bec8;
+
+  --el-border-color: #e2e5ea;
+  --el-border-color-light: #e2e5ea;
+  --el-border-color-lighter: #eef0f3;
+  --el-border-color-extra-light: #f4f5f7;
+
+  --el-fill-color: #f4f5f7;
+  --el-fill-color-light: #f7f8fa;
+  --el-fill-color-lighter: #f7f8fa;
+  --el-fill-color-blank: #fff;
+  --el-bg-color-page: #fbfbfc;
+  --el-bg-color-overlay: #fff;
+
+  --el-color-danger: #b4451f;
+  --el-color-error: #b4451f;
+  --el-color-success: #2c7a4b;
+  --el-color-warning: #c2632a;
+
+  --el-overlay-color-lighter: rgba(20, 24, 29, 0.38);
+  --el-box-shadow-light: 0 8px 24px rgba(20, 24, 29, 0.16);
+  --el-box-shadow: 0 8px 24px rgba(20, 24, 29, 0.16);
 }
 
 * {
@@ -22,19 +52,55 @@
 
 html, body, #app {
   height: 100%;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Pretendard Variable', Pretendard, system-ui, -apple-system, sans-serif;
   background: var(--clara-bg);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d8dde3;
+  border-radius: 5px;
+  border: 2px solid #fff;
 }
 
 .el-popper.is-dark {
   opacity: 0.75;
 }
 
+/* ── Table density: 26px data rows, 28px headers ──────────────────── */
 .el-table .cell {
-  font-size: 13px;
+  font-size: 11.5px;
+  font-family: var(--clara-mono);
   font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
+.el-table th.el-table__cell {
+  height: 28px;
+  padding: 0;
+  background: #f7f8fa;
+}
+
+.el-table th.el-table__cell .cell {
+  font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8a929c;
+  line-height: 1.25;
+}
+
+.el-table td.el-table__cell {
+  height: 26px;
+  padding: 0;
 }
 
 .el-table .caret-wrapper {

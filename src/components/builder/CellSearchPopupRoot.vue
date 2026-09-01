@@ -10,7 +10,7 @@ import CellSearchTable from './CellSearchTable.vue'
 
 <style scoped>
 .popup-shell {
-  padding: 16px;
+  padding: 10px;
   height: 100vh;
   box-sizing: border-box;
   display: flex;

@@ -105,7 +105,7 @@ export function usePopupWindow() {
     copyStyles(popup.document)
 
     popup.document.body.style.margin = '0'
-    popup.document.body.style.background = '#f5f7fa'
+    popup.document.body.style.background = '#fbfbfc'
     popup.document.body.style.fontFamily = 'inherit'
 
     // Fix el-scrollbar thumb drag in popup — Element Plus binds

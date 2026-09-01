@@ -281,9 +281,9 @@ function cellInfo(row, col) {
 }
 
 .panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1c1f24;
   margin: 0;
 }
 
@@ -293,7 +293,7 @@ function cellInfo(row, col) {
   align-items: center;
 }
 .table-controls :deep(.el-segmented) {
-  border-radius: 8px;
+  border-radius: 6px;
   --el-segmented-item-selected-bg-color: var(--clara-primary);
   --el-segmented-item-selected-color: #fff;
 }
@@ -306,26 +306,26 @@ function cellInfo(row, col) {
 }
 
 .cell-group {
-  color: #303133;
+  color: #1c1f24;
   font-weight: 500;
-  font-family: 'Menlo', 'Consolas', 'Segoe UI', sans-serif;
+  font-family: var(--clara-mono);
 }
 .cell-group-empty {
-  color: #c0c4cc;
+  color: #b6bec8;
 }
 
 .cell-id {
   font-weight: 600;
-  color: #1f2d3d;
+  color: #1c1f24;
 }
 
 .source-data-table :deep(.is-ref-row) td {
-  background-color: #ecf5ff !important;
+  background-color: #eaf1fd !important;
   font-weight: 600;
 }
 
-.source-data-table :deep(.cell-pos) { color: #67c23a; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-.source-data-table :deep(.cell-neg) { color: #f56c6c; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.source-data-table :deep(.cell-pos) { color: #2c7a4b; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.source-data-table :deep(.cell-neg) { color: #b4451f; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 .source-data-table :deep(.cell-num) { font-variant-numeric: tabular-nums; text-align: right; }
 
 .source-data-table :deep(.el-table .cell) {

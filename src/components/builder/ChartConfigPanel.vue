@@ -399,7 +399,7 @@ function focusGroupBuilder() {
               :value="t.value"
             >
               <span>{{ t.label }}</span>
-              <span style="color:#909399;font-size:11px;margin-left:8px">{{ t.desc }}</span>
+              <span style="color:#8a929c;font-size:11px;margin-left:8px">{{ t.desc }}</span>
             </el-option>
           </el-select>
         </el-form-item>
@@ -477,7 +477,7 @@ function focusGroupBuilder() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 32px;
+  min-height: 28px;
   margin-bottom: 12px;
 }
 .preset-btns {
@@ -488,33 +488,33 @@ function focusGroupBuilder() {
   border: none;
   background: none;
   font-size: 12px;
-  color: #909399;
+  color: #8a929c;
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .preset-action-btn:hover:not(:disabled) {
-  background: rgba(0,0,0,0.04);
-  color: #606266;
+  background: rgba(20,24,29,0.05);
+  color: #4a525c;
 }
 .preset-action-btn:disabled {
-  color: #c0c4cc;
+  color: #b6bec8;
   cursor: not-allowed;
   background: none;
 }
 .preset-hint {
   margin-top: -4px;
   font-size: 12px;
-  color: #909399;
+  color: #8a929c;
 }
 .preset-hint-error {
-  color: #f56c6c;
+  color: #b4451f;
 }
 .preset-hint-ok {
-  color: #67c23a;
+  color: #2c7a4b;
 }
-.panel-title { font-size: 14px; font-weight: 600; color: #303133; margin: 0; }
+.panel-title { font-size: 13px; font-weight: 500; color: #1c1f24; margin: 0; }
 .action-row { display: flex; gap: 4px; width: 100%; }
 .action-btn-main { flex: 1; }
 .chart-config-panel :deep(.el-form-item__content) { width: 100%; }
@@ -526,26 +526,26 @@ function focusGroupBuilder() {
   width: 100%;
   overflow: hidden;
   min-height: 36px;
-  background: #fafafa;
-  border: 1px dashed #dcdfe6;
+  background: #f7f8fa;
+  border: 1px dashed #e2e5ea;
   border-radius: 4px;
   padding: 8px;
 }
 .derived-list:empty { display: none; }
-.derived-item { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #ebeef5; border-radius: 4px; padding: 5px 8px; min-width: 0; overflow: hidden; }
+.derived-item { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #eef0f3; border-radius: 4px; padding: 5px 8px; min-width: 0; overflow: hidden; }
 .derived-name { font-weight: 600; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
-.derived-formula { flex: 1; font-size: 11px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.derived-formula { flex: 1; font-size: 11px; color: #8a929c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .add-derived-btn { align-self: flex-start; }
 
 .formula-row { display: flex; gap: 6px; align-items: center; width: 100%; }
 .formula-preview {
-  background: #f5f7fa;
-  border: 1px solid #dcdfe6;
+  background: #fbfbfc;
+  border: 1px solid #e2e5ea;
   border-radius: 4px;
   padding: 6px 10px;
-  font-family: monospace;
-  font-size: 13px;
-  color: #303133;
+  font-family: var(--clara-mono);
+  font-size: 11.5px;
+  color: #1c1f24;
   width: 100%;
 }
 
@@ -556,14 +556,14 @@ function focusGroupBuilder() {
   flex-wrap: wrap;
   width: 100%;
   padding: 6px 8px;
-  background: #f8fafb;
-  border: 1px solid #ebeef5;
+  background: #f7f8fa;
+  border: 1px solid #eef0f3;
   border-radius: 6px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .group-mirror:hover {
-  border-color: var(--clara-primary, #4078C0);
+  border-color: var(--clara-primary, #2f6fed);
   background: #fff;
 }
 .group-chip {
@@ -573,28 +573,28 @@ function focusGroupBuilder() {
   border-radius: 10px;
   font-size: 11.5px;
   background: #fff;
-  border: 1px solid #dcdfe6;
-  color: #303133;
+  border: 1px solid #e2e5ea;
+  color: #1c1f24;
   font-weight: 500;
   line-height: 1.5;
 }
 .group-chip-tag { font-style: italic; }
 .group-label-suffix {
-  color: #909399;
+  color: #8a929c;
   font-weight: 400;
   font-size: 11px;
   margin-left: 4px;
 }
 .group-empty {
-  color: #909399;
+  color: #8a929c;
   font-style: italic;
   font-size: 11.5px;
 }
 .group-edit-hint {
   margin-left: auto;
-  color: #909399;
+  color: #8a929c;
   font-size: 10.5px;
   letter-spacing: 0.3px;
 }
-.group-mirror:hover .group-edit-hint { color: var(--clara-primary, #4078C0); }
+.group-mirror:hover .group-edit-hint { color: var(--clara-primary, #2f6fed); }
 </style>

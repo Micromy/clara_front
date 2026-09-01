@@ -407,21 +407,24 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 
 .selected-count {
   font-size: 13px;
-  color: #606266;
+  color: #4a525c;
 }
 
+.cell-search-table :deep(.el-table th.el-table__cell) {
+  height: 30px;
+}
 .col-header {
   display: flex;
   align-items: center;
   gap: 4px;
   width: 100%;
-  min-height: 36px;
+  min-height: 30px;
 }
 .col-label {
   flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.3;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -463,10 +466,10 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
 }
 .checked-count {
   font-size: 13px;
-  color: #606266;
+  color: #4a525c;
 }
 .checked-count strong {
-  color: #303133;
+  color: #1c1f24;
 }
 
 .cell-search-table :deep(.row-already-selected) td {
@@ -477,18 +480,18 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   border: none;
   background: none;
   font-size: 12px;
-  color: #909399;
+  color: #8a929c;
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .clear-filters-btn:hover {
-  color: #f56c6c;
-  background: rgba(245, 108, 108, 0.06);
+  color: #b4451f;
+  background: rgba(180, 69, 31, 0.06);
 }
 .clear-filters-btn:disabled {
-  color: #c0c4cc;
+  color: #b6bec8;
   cursor: not-allowed;
   background: none;
 }
@@ -502,8 +505,8 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  border-top: 1px solid #ebeef5;
-  background: #fafbfc;
+  border-top: 1px solid #eef0f3;
+  background: #f7f8fa;
   font-size: 12px;
 }
 .library-regex-info,
@@ -511,28 +514,28 @@ const paginationLayout = computed(() => 'total, sizes, prev, pager, next')
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #606266;
+  color: #4a525c;
 }
 .library-regex-hint {
-  color: #909399;
+  color: #8a929c;
   font-style: italic;
 }
 .library-regex-icon {
-  font-family: 'Menlo', 'Consolas', monospace;
+  font-family: var(--clara-mono);
   font-size: 11px;
-  color: var(--clara-primary, #4078C0);
+  color: var(--clara-primary, #2f6fed);
   padding: 0 4px;
   border-radius: 3px;
-  background: rgba(64, 120, 192, 0.1);
+  background: rgba(47, 111, 237, 0.1);
 }
 .library-regex-error {
-  color: #f56c6c;
+  color: #b4451f;
   font-weight: 500;
 }
 
 /* Error state on the select input itself */
 .library-regex-error-input .el-select__wrapper,
 .library-regex-error-input .el-input__wrapper {
-  box-shadow: 0 0 0 1px #f56c6c inset !important;
+  box-shadow: 0 0 0 1px #b4451f inset !important;
 }
 </style>

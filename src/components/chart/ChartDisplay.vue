@@ -15,12 +15,12 @@ let labelDragState = null
 let overlayRaf = 0
 let measureCanvas = null
 
-const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
-const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" fill="#4078C0" stroke="#4078C0" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="#fff"/></svg>')
+const LABEL_ICON_OFF = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
+const LABEL_ICON_ON = 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" fill="#2f6fed" stroke="#2f6fed" stroke-width="2"/><circle cx="7" cy="7" r="1.5" fill="#fff"/></svg>')
 
 const COLORS = [
-  '#2563EB', '#E63946', '#2D9F46', '#E88C1E', '#8B5CF6',
-  '#0891B2', '#DC2626', '#16A34A', '#CA8A04', '#7C3AED'
+  '#2f6fed', '#b4451f', '#2c7a4b', '#c2632a', '#7a4fd6',
+  '#0f8a9c', '#8c2f14', '#4f7a2c', '#a98026', '#5b4fd6'
 ]
 
 function getAxisLabel(key) {
@@ -171,7 +171,7 @@ const chartOption = computed(() => {
       text: props.chartData.builderName,
       left: 0,
       top: 0,
-      textStyle: { fontSize: 14, fontWeight: 600, color: '#303133', fontFamily: 'Segoe UI, system-ui, -apple-system, sans-serif' }
+      textStyle: { fontSize: 14, fontWeight: 600, color: '#1c1f24', fontFamily: 'Pretendard Variable, Pretendard, system-ui, sans-serif' }
     },
     tooltip: {
       trigger: isBar ? 'axis' : 'item',
@@ -210,8 +210,8 @@ const chartOption = computed(() => {
       itemWidth: 14,
       itemHeight: 10,
       pageIconSize: 10,
-      pageTextStyle: { fontSize: 11, color: '#909399' },
-      textStyle: { fontSize: 11, color: '#606266', overflow: 'truncate', width: 320 }
+      pageTextStyle: { fontSize: 11, color: '#8a929c' },
+      textStyle: { fontSize: 11, color: '#4a525c', overflow: 'truncate', width: 320 }
     },
     grid: {
       left: 60,
@@ -253,14 +253,14 @@ const chartOption = computed(() => {
         dataZoom: {
           title: { zoom: 'Box zoom', back: 'Undo zoom' },
           icon: {
-            zoom: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>'),
-            back: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>')
+            zoom: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>'),
+            back: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>')
           }
         },
         myReset: {
           show: true,
           title: 'Reset view',
-          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>'),
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>'),
           onclick: function() {
             if (chartInstance) chartInstance.dispatchAction({ type: 'restore' })
             labelsOn.value = false
@@ -269,7 +269,7 @@ const chartOption = computed(() => {
         mySave: {
           show: true,
           title: 'Save as image',
-          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4078C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'),
+          icon: 'image://data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'),
           onclick: async function() {
             const url = await exportChartImage(2)
             if (!url) return
@@ -437,7 +437,7 @@ function scheduleLabelOverlayRebuild() {
 function measureLabelBox(text) {
   if (!measureCanvas) measureCanvas = document.createElement('canvas')
   const ctx = measureCanvas.getContext('2d')
-  ctx.font = '12px Segoe UI, system-ui, -apple-system, sans-serif'
+  ctx.font = '12px Pretendard Variable, Pretendard, system-ui, sans-serif'
   const textWidth = Math.ceil(ctx.measureText(text).width)
   return {
     width: textWidth + 12,
@@ -465,20 +465,20 @@ function drawOverlayLabels(ctx, pixelRatio) {
     ctx.beginPath()
     ctx.moveTo(label.anchorX, label.anchorY)
     ctx.lineTo(label.x + 8, label.y + 13)
-    ctx.strokeStyle = '#c7cbd4'
+    ctx.strokeStyle = '#b6bec8'
     ctx.lineWidth = 1
     ctx.stroke()
 
     ctx.fillStyle = '#fff'
-    ctx.strokeStyle = '#dcdfe6'
+    ctx.strokeStyle = '#e2e5ea'
     ctx.lineWidth = 1
     ctx.fillRect(label.x, label.y, box.width, box.height)
     ctx.strokeRect(label.x, label.y, box.width, box.height)
 
-    ctx.font = '12px Segoe UI, system-ui, -apple-system, sans-serif'
+    ctx.font = '12px Pretendard Variable, Pretendard, system-ui, sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillStyle = '#303133'
+    ctx.fillStyle = '#1c1f24'
     ctx.fillText(label.text, label.x + box.textX, label.y + (box.height / 2))
   })
 
@@ -705,7 +705,7 @@ defineExpose({
 }
 
 .label-lines line {
-  stroke: #c7cbd4;
+  stroke: #b6bec8;
   stroke-width: 1;
 }
 
@@ -716,9 +716,9 @@ defineExpose({
   cursor: grab;
   white-space: nowrap;
   font-size: 12px;
-  color: #303133;
+  color: #1c1f24;
   background: #fff;
-  border: 1px solid #dcdfe6;
+  border: 1px solid #e2e5ea;
   padding: 3px 6px;
   line-height: 1.3;
   transform-origin: top left;

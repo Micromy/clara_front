@@ -104,9 +104,9 @@ function onDblClick() {
   min-height: 200px;
   transition: height 0.25s ease;
   background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  border: 1px solid #eef0f3;
+  padding: 12px;
   overflow: auto;
 }
 
@@ -117,10 +117,10 @@ function onDblClick() {
   gap: 10px;
   min-height: 120px;
   background: #fff;
-  border: 1px dashed #dcdfe6;
-  border-radius: 8px;
-  padding: 16px;
-  color: #606266;
+  border: 1px dashed #e2e5ea;
+  border-radius: 6px;
+  padding: 12px;
+  color: #4a525c;
   font-size: 13px;
 }
 
@@ -161,7 +161,7 @@ function onDblClick() {
 }
 .splitter:hover .splitter-handle::before,
 .splitter:hover .splitter-handle::after {
-  background: rgba(64,120,192,0.5);
+  background: rgba(47,111,237,0.5);
 }
 .splitter-handle::before { top: 0; }
 .splitter-handle::after { bottom: 0; }
@@ -176,25 +176,25 @@ function onDblClick() {
 
 .action-checked-count {
   font-size: 13px;
-  color: #606266;
+  color: #4a525c;
   margin-left: auto;
 }
 .action-checked-count strong {
-  color: #303133;
+  color: #1c1f24;
 }
 
 .action-icon-btn {
-  color: #909399;
+  color: #8a929c;
   font-size: 16px;
 }
 .action-icon-btn:hover {
-  color: #606266;
-  background: rgba(0, 0, 0, 0.04);
+  color: #4a525c;
+  background: rgba(20, 24, 29, 0.05);
 }
 
 .bottom-section {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   min-height: 200px;
   align-items: stretch;
   overflow: hidden;
@@ -203,21 +203,21 @@ function onDblClick() {
 .bottom-left {
   flex: 1;
   background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  border: 1px solid #eef0f3;
+  padding: 12px;
   overflow: auto;
   display: flex;
   flex-direction: column;
 }
 
 .bottom-right {
-  width: 360px;
+  width: 340px;
   flex-shrink: 0;
   background: #fff;
-  border-radius: 8px;
-  padding: 16px 16px 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  border: 1px solid #eef0f3;
+  padding: 12px 12px 8px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;

@@ -121,10 +121,10 @@ function onDragEnd() { dragFrom.value = -1 }
 <style scoped>
 .group-template-builder {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 7px 12px;
-  background: #f8fafb;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  padding: 6px 10px;
+  background: #f7f8fa;
+  border: 1px solid #eef0f3;
+  border-radius: 4px;
   font-size: 12.5px;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -132,11 +132,11 @@ function onDragEnd() { dragFrom.value = -1 }
   animation: gt-flash-anim 1.2s ease;
 }
 @keyframes gt-flash-anim {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(64,120,192,0); border-color: #ebeef5; }
-  30% { box-shadow: 0 0 0 4px rgba(64,120,192,0.25); border-color: var(--clara-primary, #4078C0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47,111,237,0); border-color: #eef0f3; }
+  30% { box-shadow: 0 0 0 4px rgba(47,111,237,0.25); border-color: var(--clara-primary, #2f6fed); }
 }
 .lt-label {
-  color: #606266;
+  color: #4a525c;
   font-weight: 600;
   letter-spacing: 0.3px;
   font-size: 11.5px;
@@ -153,11 +153,11 @@ function onDragEnd() { dragFrom.value = -1 }
   cursor: grab;
   user-select: none;
   background: #fff;
-  border: 1px solid #dcdfe6;
-  color: #303133;
+  border: 1px solid #e2e5ea;
+  color: #1c1f24;
   transition: opacity 0.15s ease, border-color 0.15s ease;
 }
-.lt-chip:hover { border-color: #c0c4cc; }
+.lt-chip:hover { border-color: #b6bec8; }
 .lt-chip:active, .lt-chip-dragging { cursor: grabbing; opacity: 0.5; }
 .lt-chip-tag .lt-chip-text { font-style: italic; }
 .lt-chip-text { font-weight: 500; line-height: 1; }
@@ -169,14 +169,14 @@ function onDragEnd() { dragFrom.value = -1 }
   transition: opacity 0.15s ease, color 0.15s ease;
   line-height: 1;
 }
-.lt-chip-x:hover { opacity: 1; color: #f56c6c; }
+.lt-chip-x:hover { opacity: 1; color: #b4451f; }
 
 .lt-add-btn {
   width: 22px; height: 22px;
   border-radius: 11px;
-  border: 1px dashed #c0c4cc;
+  border: 1px dashed #b6bec8;
   background: transparent;
-  color: #909399;
+  color: #8a929c;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -185,12 +185,12 @@ function onDragEnd() { dragFrom.value = -1 }
   padding: 0;
 }
 .lt-add-btn:hover {
-  border-color: var(--clara-primary, #4078C0);
-  color: var(--clara-primary, #4078C0);
-  background: rgba(64,120,192,0.06);
+  border-color: var(--clara-primary, #2f6fed);
+  color: var(--clara-primary, #2f6fed);
+  background: rgba(47,111,237,0.06);
 }
 .lt-empty {
-  color: #c0c4cc;
+  color: #b6bec8;
   font-style: italic;
   font-size: 11.5px;
 }
@@ -201,7 +201,7 @@ function onDragEnd() { dragFrom.value = -1 }
 .lt-add-panel { display: flex; flex-direction: column; gap: 10px; }
 .lt-add-section { display: flex; flex-direction: column; gap: 4px; }
 .lt-section-title {
-  font-size: 10.5px; font-weight: 700; color: #909399;
+  font-size: 10.5px; font-weight: 700; color: #8a929c;
   text-transform: uppercase; letter-spacing: 0.6px;
   margin: 0;
 }
@@ -214,25 +214,25 @@ function onDragEnd() { dragFrom.value = -1 }
   border-radius: 4px;
   cursor: pointer;
   font-size: 12.5px;
-  color: #303133;
+  color: #1c1f24;
   transition: background 0.12s ease, color 0.12s ease;
 }
 .lt-add-item:hover {
-  background: rgba(64,120,192,0.08);
-  color: var(--clara-primary, #4078C0);
+  background: rgba(47,111,237,0.07);
+  color: var(--clara-primary, #2f6fed);
 }
 .lt-add-item-disabled {
-  color: #c0c4cc;
+  color: #b6bec8;
   cursor: not-allowed;
 }
 .lt-add-item-disabled:hover {
   background: transparent;
-  color: #c0c4cc;
+  color: #b6bec8;
 }
 .lt-add-item-hint {
   font-size: 10.5px;
   font-style: italic;
-  color: #c0c4cc;
+  color: #b6bec8;
   margin-left: 6px;
 }
 </style>

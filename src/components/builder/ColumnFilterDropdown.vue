@@ -200,13 +200,13 @@ function onTriggerClick(e) {
   margin-left: 4px;
   padding: 2px 4px;
   border-radius: 3px;
-  color: #909399;
+  color: #8a929c;
   cursor: pointer;
   vertical-align: middle;
   line-height: 1;
 }
-.filter-trigger:hover { color: var(--clara-primary, #409eff); background: rgba(64, 158, 255, 0.08); }
-.filter-trigger.active { color: var(--clara-primary, #409eff); background: rgba(64, 158, 255, 0.12); }
+.filter-trigger:hover { color: var(--clara-primary, #2f6fed); background: rgba(47, 111, 237, 0.07); }
+.filter-trigger.active { color: var(--clara-primary, #2f6fed); background: rgba(47, 111, 237, 0.16); }
 .badge {
   font-size: 10px;
   font-weight: 600;
@@ -219,21 +219,21 @@ function onTriggerClick(e) {
   gap: 8px;
 }
 .filter-header { display: flex; flex-direction: column; gap: 6px; }
-.filter-title { font-size: 12px; font-weight: 600; color: #303133; }
+.filter-title { font-size: 12px; font-weight: 600; color: #1c1f24; }
 .filter-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid #eef0f3;
   padding-top: 6px;
 }
-.count-hint { font-size: 11px; color: #909399; }
+.count-hint { font-size: 11px; color: #8a929c; }
 
 .filter-list {
   max-height: 220px;
   overflow-y: auto;
-  border-top: 1px solid #ebeef5;
-  border-bottom: 1px solid #ebeef5;
+  border-top: 1px solid #eef0f3;
+  border-bottom: 1px solid #eef0f3;
   padding: 4px 0;
   user-select: none;
   touch-action: none;
@@ -246,17 +246,17 @@ function onTriggerClick(e) {
   gap: 8px;
   padding: 4px 8px;
   font-size: 13px;
-  color: #303133;
+  color: #1c1f24;
   cursor: pointer;
   border-radius: 2px;
 }
-.filter-item:hover { background: #f5f7fa; }
-.filter-item.selected { background: rgba(64, 158, 255, 0.08); color: var(--clara-primary, #409eff); }
+.filter-item:hover { background: #fbfbfc; }
+.filter-item.selected { background: rgba(47, 111, 237, 0.07); color: var(--clara-primary, #2f6fed); }
 
 .check-box {
   width: 14px;
   height: 14px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid #e2e5ea;
   border-radius: 2px;
   display: inline-flex;
   align-items: center;
@@ -265,8 +265,8 @@ function onTriggerClick(e) {
   flex-shrink: 0;
 }
 .filter-item.selected .check-box {
-  background: var(--clara-primary, #409eff);
-  border-color: var(--clara-primary, #409eff);
+  background: var(--clara-primary, #2f6fed);
+  border-color: var(--clara-primary, #2f6fed);
   color: #fff;
 }
 
@@ -279,14 +279,14 @@ function onTriggerClick(e) {
 
 .empty {
   text-align: center;
-  color: #c0c4cc;
+  color: #b6bec8;
   font-size: 12px;
   padding: 12px 0;
 }
 
 .filter-hint {
   font-size: 11px;
-  color: #c0c4cc;
+  color: #b6bec8;
   text-align: center;
 }
 

@@ -137,9 +137,9 @@ function onRowClick(cellId) {
   top: 0;
   height: 100%;
   background: #fff;
-  border-radius: 8px 0 0 8px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 6px 0 0 6px;
+  border: 1px solid #eef0f3;
+  padding: 12px;
   z-index: 1;
   transition: width 0.3s ease;
 }
@@ -153,8 +153,8 @@ function onRowClick(cellId) {
   height: 100%;
   background: #fff;
   border-radius: 6px 0 0 6px;
-  border-left: 1px solid #e4e7ed;
-  box-shadow: -4px 0 8px rgba(0,0,0,0.06);
+  border-left: 1px solid #e2e5ea;
+  box-shadow: -4px 0 12px rgba(20, 24, 29, 0.06);
   display: flex;
   flex-direction: column;
   z-index: 3;
@@ -188,8 +188,8 @@ function onRowClick(cellId) {
   transition: border-color 0.15s ease;
 }
 .chart-right-edge:hover::after {
-  border-left-color: rgba(64,120,192,0.5);
-  border-right-color: rgba(64,120,192,0.5);
+  border-left-color: rgba(47,111,237,0.5);
+  border-right-color: rgba(47,111,237,0.5);
 }
 
 .table-panel-body {
