@@ -199,12 +199,6 @@ function ctxClose() {
 
 <template>
   <div class="app-layout">
-    <header class="app-header">
-      <div class="header-logo">
-        <h1>CLARA</h1>
-      </div>
-    </header>
-
     <!-- Tab bar: two-level -->
     <div class="tab-bar">
       <div class="set-tabs">
@@ -320,35 +314,13 @@ function ctxClose() {
   flex-direction: column;
 }
 
-.app-header {
-  height: var(--clara-header-height);
-  background: var(--clara-header-bg);
-  display: flex;
-  align-items: center;
-  padding: 0 20px 0 28px;
-  flex-shrink: 0;
-}
-
-.header-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-logo h1 {
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 2px;
-}
-
 /* ── Tab bar: two-level ──────────────────────────────────── */
 .tab-bar {
   display: flex;
   align-items: stretch;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
-  padding: 0 20px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e2e5ea;
+  padding: 0 8px;
   flex-shrink: 0;
 }
 
@@ -363,13 +335,13 @@ function ctxClose() {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #ebeef5;
-  border-left: 1px solid #ebeef5;
+  border-right: 1px solid #eef0f3;
+  border-left: 1px solid #eef0f3;
   margin-left: -1px;
   user-select: none;
   transition: background 0.15s;
 }
-.set-group:hover { background: #f9f9f9; }
+.set-group:hover { background: rgba(20, 24, 29, 0.05); }
 .set-group.active { background: #fff; }
 .set-group.is-dragging { opacity: 0.5; }
 
@@ -391,14 +363,14 @@ function ctxClose() {
   display: flex;
   align-items: center;
   padding: 0 32px 0 14px;
-  height: 30px;
+  height: 26px;
   font-size: 13px;
-  color: #909399;
+  color: #8a929c;
   cursor: pointer;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid #eef0f3;
 }
 .set-group.active .set-name {
-  color: #303133;
+  color: #1c1f24;
   font-weight: 500;
   box-shadow: inset 0 -2px 0 var(--clara-primary);
 }
@@ -411,10 +383,10 @@ function ctxClose() {
   text-align: center;
 }
 .set-sub-hidden .sub-tab {
-  color: #c0c4cc;
+  color: #b6bec8;
 }
 .set-sub-hidden .sub-tab:hover {
-  color: #909399;
+  color: #8a929c;
 }
 
 .set-tab-label {
@@ -437,12 +409,12 @@ function ctxClose() {
   position: absolute;
   right: 10px;
   font-size: 14px;
-  color: #c0c4cc;
+  color: #b6bec8;
   opacity: 0.9;
   cursor: pointer;
   letter-spacing: 1px;
 }
-.set-tab:hover .tab-more { opacity: 1; color: #909399; }
+.set-tab:hover .tab-more { opacity: 1; color: #8a929c; }
 
 .tab-edit-input {
   font: inherit;
@@ -454,7 +426,7 @@ function ctxClose() {
   border-radius: 3px;
   outline: none;
   background: #fff;
-  color: #303133;
+  color: #1c1f24;
 }
 
 .tab-btn-confirm {
@@ -477,23 +449,23 @@ function ctxClose() {
   border: none;
   background: none;
   font-size: 12px;
-  color: #909399;
+  color: #8a929c;
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .tab-action-btn:hover {
-  background: rgba(0,0,0,0.04);
-  color: #606266;
+  background: rgba(20,24,29,0.05);
+  color: #4a525c;
 }
 .tab-action-primary {
-  color: var(--clara-primary, #4078C0);
+  color: var(--clara-primary, #2f6fed);
   font-weight: 600;
 }
 .tab-action-primary:hover {
-  background: rgba(64,120,192,0.08);
-  color: var(--clara-primary, #4078C0);
+  background: rgba(47,111,237,0.07);
+  color: var(--clara-primary, #2f6fed);
 }
 
 .sub-tab {
@@ -501,26 +473,26 @@ function ctxClose() {
   height: 26px;
   line-height: 26px;
   font-size: 11.5px;
-  color: #909399;
+  color: #8a929c;
   cursor: pointer;
   user-select: none;
   transition: color 0.15s;
 }
-.sub-tab:hover { color: #606266; }
+.sub-tab:hover { color: #4a525c; }
 .sub-tab.active {
-  color: #303133;
+  color: #1c1f24;
   font-weight: 500;
   box-shadow: inset 0 -2px 0 var(--clara-primary);
 }
 .sub-tab.disabled {
-  color: #c0c4cc;
+  color: #b6bec8;
   cursor: not-allowed;
 }
 
 .app-main {
   flex: 1;
   overflow: auto;
-  padding: 16px;
+  padding: 10px;
 }
 
 /* ── Context menu ──────────────────────────────────────── */
@@ -528,22 +500,22 @@ function ctxClose() {
   position: fixed;
   z-index: 9999;
   background: #fff;
-  border: 1px solid #dcdfe6;
+  border: 1px solid #e2e5ea;
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(20, 24, 29, 0.16);
   padding: 4px 0;
   min-width: 120px;
 }
 .ctx-item {
   padding: 8px 16px;
   font-size: 13px;
-  color: #303133;
+  color: #1c1f24;
   cursor: pointer;
   user-select: none;
 }
-.ctx-item:hover { background: #f5f7fa; }
-.ctx-item-danger { color: #f56c6c; }
-.ctx-item-danger:hover { background: rgba(245, 108, 108, 0.08); }
-.ctx-item-disabled { color: #c0c4cc; cursor: not-allowed; }
+.ctx-item:hover { background: #fbfbfc; }
+.ctx-item-danger { color: #b4451f; }
+.ctx-item-danger:hover { background: rgba(180, 69, 31, 0.07); }
+.ctx-item-disabled { color: #b6bec8; cursor: not-allowed; }
 .ctx-item-disabled:hover { background: transparent; }
 </style>

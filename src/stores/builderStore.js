@@ -612,7 +612,7 @@ export const useBuilderStore = defineStore('builder', () => {
 
   // PDK dropdown options from API.
   // Sort: process number ascending, then P-count descending so the family
-  // reads as [SF2PP], [SF2P], [SF2], [SF3], ...
+  // reads as [<prefix>2PP], [<prefix>2P], [<prefix>2], [<prefix>3], ...
   function pdkSortKey(process) {
     const m = String(process || '').match(/^[A-Z]+(\d+)(P*)/i)
     if (!m) return [Infinity, 0]
