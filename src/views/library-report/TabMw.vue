@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { PDKS, LIBS, findPdk, mwTable } from './data.js'
+import { PDKS, LIBS, HEIGHTS, MW_TYPES, findPdk, mwTable } from './data.js'
 
 const props = defineProps({
   pdkId: { type: String, required: true },
@@ -12,7 +12,7 @@ const props = defineProps({
 let nextSetId = 2
 let nextTableId = 2
 const sets = ref([
-  { id: 1, label: '', open: true, tables: [{ id: 1, pdkId: props.pdkId, lib: props.lib }] },
+  { id: 1, label: '', open: true, tables: [{ id: 1, pdkId: props.pdkId, lib: props.lib, height: HEIGHTS[0], mwType: MW_TYPES[0] }] },
 ])
 
 const tableCount = computed(() => sets.value.reduce((a, s) => a + s.tables.length, 0))
@@ -29,7 +29,7 @@ function addSet() {
     id: nextSetId++,
     label: '',
     open: true,
-    tables: [{ id: nextTableId++, pdkId: props.pdkId, lib: props.lib }],
+    tables: [{ id: nextTableId++, pdkId: props.pdkId, lib: props.lib, height: HEIGHTS[0], mwType: MW_TYPES[0] }],
   })
 }
 
@@ -53,22 +53,32 @@ function removeTable(set, table) {
 const picking = ref(null)
 const pickPdk = ref(PDKS[0].id)
 const pickLib = ref(LIBS[0])
+const pickHeight = ref(HEIGHTS[0])
+const pickMwType = ref(MW_TYPES[0])
 
 function openPicker(set) {
-  const lastLib = set.tables.length ? set.tables[set.tables.length - 1].lib : props.lib
+  const last = set.tables.length ? set.tables[set.tables.length - 1] : null
   picking.value = set.id
   pickPdk.value = props.pdkId
-  pickLib.value = LIBS[(LIBS.indexOf(lastLib) + 1) % LIBS.length]
+  pickLib.value = LIBS[(LIBS.indexOf(last ? last.lib : props.lib) + 1) % LIBS.length]
+  pickHeight.value = last ? last.height : HEIGHTS[0]
+  pickMwType.value = last ? last.mwType : MW_TYPES[0]
 }
 
 function confirmAdd(set) {
-  set.tables.push({ id: nextTableId++, pdkId: pickPdk.value, lib: pickLib.value })
+  set.tables.push({
+    id: nextTableId++,
+    pdkId: pickPdk.value,
+    lib: pickLib.value,
+    height: pickHeight.value,
+    mwType: pickMwType.value,
+  })
   set.open = true
   picking.value = null
 }
 
 function tableData(t) {
-  return mwTable(t.pdkId, t.lib)
+  return mwTable(t.pdkId, t.lib, t.height, t.mwType)
 }
 
 function gridCols(data) {
@@ -85,7 +95,7 @@ function exportCsv(t, data) {
   })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `mw_${t.lib}_${findPdk(t.pdkId).process}.csv`
+  a.download = `mw_${t.lib}_${findPdk(t.pdkId).process}_${t.height}_${t.mwType}.csv`
   a.click()
   URL.revokeObjectURL(a.href)
 }
@@ -132,6 +142,12 @@ function exportCsv(t, data) {
               </select>
               <select v-model="t.lib" class="mw-sel muted">
                 <option v-for="l in LIBS" :key="l" :value="l">{{ l }}</option>
+              </select>
+              <select v-model="t.height" class="mw-sel muted">
+                <option v-for="h in HEIGHTS" :key="h" :value="h">{{ h }}</option>
+              </select>
+              <select v-model="t.mwType" class="mw-sel muted">
+                <option v-for="m in MW_TYPES" :key="m" :value="m">{{ m }}</option>
               </select>
               <div class="lr-spacer" style="min-width: 8px"></div>
               <span class="mw-csv" @click="exportCsv(t, data)">CSV</span>
@@ -195,6 +211,18 @@ function exportCsv(t, data) {
             <span>Library</span>
             <select v-model="pickLib">
               <option v-for="l in LIBS" :key="l" :value="l">{{ l }}</option>
+            </select>
+          </label>
+          <label class="mw-picker-field">
+            <span>Cell Height</span>
+            <select v-model="pickHeight">
+              <option v-for="h in HEIGHTS" :key="h" :value="h">{{ h }}</option>
+            </select>
+          </label>
+          <label class="mw-picker-field">
+            <span>MW Type</span>
+            <select v-model="pickMwType">
+              <option v-for="m in MW_TYPES" :key="m" :value="m">{{ m }}</option>
             </select>
           </label>
           <div class="lr-spacer"></div>

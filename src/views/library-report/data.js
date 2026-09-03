@@ -14,6 +14,8 @@ export const PDKS = [
 export const LIBS = ['LIBA', 'LIBB']
 export const HEIGHTS = ['CH120', 'CH150', 'CH180']
 export const CK_SLOPES = ['100%', '70%', '40%']
+// mw_type 목록 — 실제로는 DB(PDK/Library 조합별 mw_type 목록) 조회 API로 대체 예정
+export const MW_TYPES = ['MWD', 'MWS']
 
 export const CELLS = [
   'INVD1', 'INVD2', 'INVD4', 'INVD8', 'BUFFD2', 'BUFFD4', 'NAND2D1',
@@ -91,9 +93,9 @@ const VOLTAGES = ['0p42v', '0p45v', '0p50v', '0p55v', '0p60v']
 const MW_BASE = 26      // setup, ps
 const MW_HIGH = 44      // over this, render as a warning
 
-export function mwTable(pdkId, lib) {
+export function mwTable(pdkId, lib, height, mwType) {
   const p = findPdk(pdkId)
-  const key = `${p.process}|${p.hspice}|${p.lvs}|${p.pex}|${lib}`
+  const key = `${p.process}|${p.hspice}|${p.lvs}|${p.pex}|${lib}|${height}|${mwType}`
 
   // Not every CK Slope has data at every voltage — column counts differ per group.
   const groups = CK_SLOPES.map((slope, i) => {
