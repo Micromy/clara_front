@@ -541,8 +541,22 @@ cell을 WHERE에 지정하지 않으므로, 조건에 맞는 **모든 셀**(= �
 | `voltage_value` | number | `spil_mw_fail_count.voltage_value` |
 | `fail_count` | int | 경고 임계값 비교 대상 값. ⚠️ 임계값(프론트 `MW_HIGH` 상당)을 DB에 둘지 프론트 상수로 둘지 미정 |
 
-#### 응답 형태에 대한 설계 메모
-- **Flat/tidy 리스트** — `ck_slope`/`voltage_label` 조합마다 한 행. Cell/CK Slope마다 존재하는 voltage 개수가 다를 수 있어(sparse), 프론트가 실제 존재하는 조합만 받아 2단 헤더로 피벗. 백엔드는 존재하는 조합만 반환하면 됨.
+#### 역할 분담 — 표 조립은 프론트가 한다
+
+**백엔드는 위 쿼리 결과 행을 그대로 직렬화해서 내려주면 끝.** 다음은 하지 않는다:
+- `groups` / `subCols` 같은 중첩 구조 만들기
+- 없는 (ck_slope, voltage) 조합을 null로 채우기 — **존재하는 조합만** 행으로 반환
+- 표시 순서 보장 (`ORDER BY`는 안정적인 출력을 위한 것이고, 최종 열 순서는 프론트가 다시 정함)
+
+**프론트가 flat 배열을 받아 2단 헤더(`{ groups, subCols, rows }`)로 조립한다.** 이유:
+
+1. **여러 테이블 간 열 정렬** (결정적) — MW 탭은 한 비교 셋 안에 테이블 여러 개를 나란히 놓고 본다. 테이블마다 존재하는 voltage 조합이 달라 열 개수가 어긋나는데, 백엔드는 요청 하나당 테이블 하나만 보므로 옆 테이블에 어떤 열이 있는지 알 수 없다. 열을 맞추거나 빈 칸을 채우려면 셋 전체를 아는 프론트여야 한다.
+2. **결합도** — 백엔드가 2단 헤더까지 만들면 UI의 정렬/그룹 기준이 바뀔 때마다 백엔드도 바뀌어야 한다.
+3. **기존 컨벤션** — 이 API의 다른 엔드포인트(`/meta/`, `/cell/ff/`, `/metric/`)도 전부 flat list를 주고 그룹핑은 프론트가 한다.
+
+> 참고: payload 크기가 문제되거나(flat은 행마다 `cell_name`/`meta_id`가 반복됨) 같은 표를 여러 클라이언트가 소비하게 되면 이 판단은 재검토 대상. 현재 규모(셀 수십 × 슬로프 3 × voltage 5 ≈ 수백 행)에서는 무시 가능.
+
+#### 그 외
 - 경고 임계값(프론트 목업의 `MW_HIGH`처럼 특정 값 초과 시 경고 표시)은 아직 프론트 하드코딩 상수. `fail_count`에 spec limit이 DB에 있다면 응답에 포함할지 계속 프론트 상수로 둘지는 별도 확인 필요.
 
 #### Error Response
@@ -671,6 +685,7 @@ GET /clara/preset/
   - 신규 `GET /clara/mw/` — Library Report MW 탭의 cell_height_id × mw_type × pdk_id × library_id 조합 조회
   - 출처 테이블 확정: `spil_mw_meta`(1행=셀 1개) + `spil_mw_fail_count`(ck_slope×voltage별 fail_count, N행), meta에 cell 필터를 걸지 않고 조회해 조건에 맞는 모든 셀을 한 번에 반환
   - flat/tidy 리스트로 설계 (ck_slope/voltage_label 조합마다 한 행); mw_type 값은 `MWD`/`MWS` 2종
+  - 표(2단 헤더) 조립 책임은 **프론트** — 한 비교 셋의 여러 테이블 간 열을 맞추려면 셋 전체를 아는 쪽이어야 하는데, 백엔드는 요청당 테이블 하나만 보므로 불가. 백엔드는 쿼리 결과를 그대로 직렬화만 함 (없는 조합은 행 자체를 생략)
   - `spil_mw_meta.pdk_id`/`library_id`는 CLARA 본 스키마(`PDKVersion`, `Library`)와 동일 FK 공간으로 확인됨
   - 신규 `GET /clara/cell-height/` — `cell_height_id`가 참조하는 lookup 테이블 목록 (기존에 없던 endpoint)
 - **2026-05-19** Bar 차트 `x_metric` 처리
