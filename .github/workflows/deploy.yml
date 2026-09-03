@@ -45,6 +45,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_ROUTER_HASH: 'true'
         run: npm run build -- --base ${{ steps.subdir.outputs.base }}
 
       - name: Deploy to GitHub Pages
