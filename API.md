@@ -18,8 +18,9 @@
 7. [Chart Metric](#6-chart-metric)
 8. [Chart Preset](#7-chart-preset)
 9. [Chart](#8-chart)
-10. [에러 응답 형식](#에러-응답-형식)
-11. [데이터 모델 관계](#데이터-모델-관계)
+10. [MW Table](#9-mw-table)
+11. [에러 응답 형식](#에러-응답-형식)
+12. [데이터 모델 관계](#데이터-모델-관계)
 
 ---
 
@@ -466,6 +467,81 @@ ICG 셀의 시뮬레이션 결과 데이터 조회. 구조는 [FF Cell](#4-ff-ce
 
 ---
 
+## 9. MW Table
+
+Cell × CK Slope/Voltage 조합의 MW(Margin Window) fail count 조회. Library Report 페이지의 MW 탭에서, 테이블 하나(= `cell_height_id` × `mw_type` × `pdk_id` × `library_id` 조합 하나)를 그릴 때 호출.
+
+**출처 테이블**: `spil_mw_meta` (1행 = 셀 1개 characterization run) + `spil_mw_fail_count` (meta 1건당 ck_slope × voltage 조합별 fail count, N행).
+
+### `GET /clara/mw/`
+
+#### Query Parameters
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `pdk_id` | int | ✅ | `spil_mw_meta.pdk_id` |
+| `library_id` | int | ✅ | `spil_mw_meta.library_id` ⚠️ CLARA의 `Library`(`/clara/lib/`)와 같은 FK 공간인지 미확인 |
+| `cell_height_id` | int | ✅ | `spil_mw_meta.cell_height_id` ⚠️ FK — 값 목록을 내려주는 조회 endpoint가 아직 없음 (아래 참고) |
+| `mw_type` | string | ✅ | `MWD` \| `MWS` |
+
+#### 쿼리
+```sql
+SELECT
+  m.id            AS meta_id,
+  m.cell_list     AS cell_name,   -- meta 1행 = 셀 1개이므로 cell_list가 곧 cell 이름
+  f.ck_slope,                     -- NUMBER(3), 예: 100 / 70 / 40
+  f.voltage_label,                -- 예: '0p42v'
+  f.voltage_value,                -- BINARY_DOUBLE 실값
+  f.fail_count                    -- 테이블에 찍히는 값 (경고 임계값 비교 대상)
+FROM spil_mw_meta m
+JOIN spil_mw_fail_count f
+  ON f.meta_id = m.id
+WHERE m.pdk_id         = :pdk_id
+  AND m.cell_height_id = :cell_height_id
+  AND m.library_id     = :library_id
+  AND m.mw_type         = :mw_type
+ORDER BY m.cell_list, f.ck_slope DESC, f.voltage_value
+```
+
+cell을 WHERE에 지정하지 않으므로, 조건에 맞는 **모든 셀**(= 여러 `meta` 행)이 한 번에 나옴 — 이게 테이블의 행(CELL)이 됨.
+
+#### Response 예시
+```json
+[
+  { "meta_id": 5001, "cell_name": "INVD1",   "ck_slope": 100, "voltage_label": "0p42v", "voltage_value": 0.42, "fail_count": 3 },
+  { "meta_id": 5001, "cell_name": "INVD1",   "ck_slope": 100, "voltage_label": "0p45v", "voltage_value": 0.45, "fail_count": 0 },
+  { "meta_id": 5001, "cell_name": "INVD1",   "ck_slope": 70,  "voltage_label": "0p50v", "voltage_value": 0.50, "fail_count": 12 },
+  { "meta_id": 5002, "cell_name": "NAND2D1", "ck_slope": 100, "voltage_label": "0p42v", "voltage_value": 0.42, "fail_count": 1 }
+]
+```
+
+#### 필드 설명
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `meta_id` | int | `spil_mw_meta.id` |
+| `cell_name` | string | `spil_mw_meta.cell_list` (셀 1개당 이름 1개) |
+| `ck_slope` | int | `spil_mw_fail_count.ck_slope` |
+| `voltage_label` | string | `spil_mw_fail_count.voltage_label` |
+| `voltage_value` | number | `spil_mw_fail_count.voltage_value` |
+| `fail_count` | int | 경고 임계값 비교 대상 값. ⚠️ 임계값(프론트 `MW_HIGH` 상당)을 DB에 둘지 프론트 상수로 둘지 미정 |
+
+#### 응답 형태에 대한 설계 메모
+- **Flat/tidy 리스트** — `ck_slope`/`voltage_label` 조합마다 한 행. Cell/CK Slope마다 존재하는 voltage 개수가 다를 수 있어(sparse), 프론트가 실제 존재하는 조합만 받아 2단 헤더로 피벗. 백엔드는 존재하는 조합만 반환하면 됨.
+
+#### 남은 확인 사항
+- `cell_height_id`, `library_id` 값 목록을 프론트 드롭다운에 내려줄 조회 endpoint 필요 (`GET /clara/cell-height/`, 기존 `/clara/lib/`를 그대로 쓸지 별도 테이블인지 확인)
+- `spil_mw_meta.pdk_id`/`library_id`가 CLARA 본 스키마(`PDKVersion`, `Library`)와 같은 FK 공간인지, 아니면 SPIL 쪽 별도 참조 테이블인지
+
+#### Error Response
+```json
+// 400 — 필수 파라미터 누락
+{ "error": "pdk_id, cell_height_id, library_id, mw_type parameters are required" }
+
+// 404 — 데이터 없음
+{ "error": "No data found for selected criteria" }
+```
+
+---
+
 ## 에러 응답 형식
 
 ### 400 Bad Request
@@ -540,6 +616,7 @@ ChartItem.cell_id ──→ FFCell or ICGCell (cell_type에 따라 분기)
 | POST | `/clara/chart/` | chart 생성 (preset+items 일괄) |
 | GET | `/clara/chart/<id>/` | chart 단건 |
 | DELETE | `/clara/chart/<id>/` | chart 삭제 (cascade) |
+| GET | `/clara/mw/` | MW 테이블 (cell_height_id × mw_type × pdk_id × library_id 조합, flat list) |
 
 ### 자주 쓰는 호출 패턴
 
@@ -575,6 +652,11 @@ GET /clara/preset/
 
 ## 변경 이력
 
+- **2026-09-03** MW Table 엔드포인트 추가
+  - 신규 `GET /clara/mw/` — Library Report MW 탭의 cell_height_id × mw_type × pdk_id × library_id 조합 조회
+  - 출처 테이블 확정: `spil_mw_meta`(1행=셀 1개) + `spil_mw_fail_count`(ck_slope×voltage별 fail_count, N행), meta에 cell 필터를 걸지 않고 조회해 조건에 맞는 모든 셀을 한 번에 반환
+  - flat/tidy 리스트로 설계 (ck_slope/voltage_label 조합마다 한 행); mw_type 값은 `MWD`/`MWS` 2종
+  - 남은 확인: cell_height_id/library_id 값 목록 조회 endpoint, pdk_id/library_id가 CLARA 본 스키마와 같은 FK 공간인지
 - **2026-05-19** Bar 차트 `x_metric` 처리
   - `x_metric`을 nullable로 두지 않고 cellType별 "group placeholder metric" row를 백엔드에 추가 (`name: groupFf|groupIcg`, `formula_type: raw`, `field1/field2/op: NONE`)
   - Bar 차트 preset 저장 시 해당 placeholder id를 `x_metric`에 넣음. 프론트엔드는 metric 응답에서 속성으로 자동 lookup (id 하드코딩 X)
