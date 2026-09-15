@@ -96,10 +96,13 @@ const paths = computed(() => releasePaths(props.lib))
 /* Column widths are fixed to comfortably fit the longest value in that
    column (not stretched to fill the box). Header and row divs are separate
    grids sharing the same class, so widths must be fixed px (not max-content)
-   or the header and body columns drift out of alignment with each other. */
+   or the header and body columns drift out of alignment with each other.
+   justify-content: space-between spreads any leftover space (from matching
+   the wider sibling table in .lr-equal-width) across the gaps between
+   columns instead of dumping it all after the last column. */
 .g-pdk    { grid-template-columns: 80px 96px 96px 96px; column-gap: 28px; }
-.g-path   { grid-template-columns: 76px minmax(260px, 460px) 104px; column-gap: 28px; }
-.g-design { grid-template-columns: 76px 200px 210px 190px 64px; column-gap: 24px; }
+.g-path   { grid-template-columns: 72px minmax(230px, 320px) 96px; column-gap: 20px; justify-content: space-between; }
+.g-design { grid-template-columns: 72px 150px 150px 130px 60px; column-gap: 20px; justify-content: space-between; }
 
 /* Box shrinks to its own content instead of stretching to the section width. */
 .pdk-box { width: max-content; }
