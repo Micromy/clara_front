@@ -41,6 +41,11 @@ const paths = computed(() => releasePaths(props.lib))
           <span class="lr-mono">{{ r.gds }}</span>
         </div>
       </div>
+      <p class="lr-note">
+        GDS VERSION은 해당 Release Path에 배포된 레이아웃(GDS) 스냅샷의 버전입니다.
+        <span class="lr-mono">V&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;.&lt;build&gt;</span> 형식이며,
+        값이 높을수록 최신 릴리스입니다. Cell Height마다 릴리스 시점이 달라 버전이 서로 다를 수 있습니다.
+      </p>
     </section>
 
     <!-- Only supported items are listed; rows may wrap -->
@@ -101,6 +106,16 @@ const paths = computed(() => releasePaths(props.lib))
 .spaced {
   word-spacing: 2px;
   padding-right: 12px;
+}
+.lr-note {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #8a929c;
+}
+.lr-note .lr-mono {
+  font-size: 10.5px;
+  color: #6b7480;
 }
 .axis {
   display: flex;
