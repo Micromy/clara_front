@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { findSavedSet, finalReport, CURRENT_USER } from './data.js'
 
 const props = defineProps({
@@ -9,6 +9,7 @@ const props = defineProps({
 })
 
 const route = useRoute()
+const router = useRouter()
 
 // Never generated on entry — the button has to be pressed.
 const state = ref('idle') // idle | loading | ready
@@ -79,28 +80,18 @@ function onDrop(i) {
   onDragEnd()
 }
 
-// AI proposes, the user decides: the report stays a draft until the user
-// confirms it, at which point they become its author.
-const status = ref('draft') // draft | confirmed
-const author = ref('')
-const statusLabel = computed(() => (status.value === 'confirmed' ? '유저 확정' : 'AI 초안'))
-
-// Reviewer check — the same user verifies the confirmed report before it can be
-// saved. Editing invalidates a prior review, so the content is always
-// re-checked after a change.
-const reviewed = ref(false)
-const reviewedBy = ref('')
-
-// Final save opens a 5-day editing window; after it the report locks read-only.
+// Save records who last saved. Final save opens a 5-day editing window; after
+// it the report locks read-only.
 const GRACE_DAYS = 5
 const GRACE_MS = GRACE_DAYS * 24 * 60 * 60 * 1000
-const savedAt = ref(null)
+const savedBy = ref('')
+const savedAt = ref(null)      // any save (regular or final)
+const finalizedAt = ref(null)  // set only by final save; drives grace/lock
 const now = ref(Date.now())
 
-const canSave = computed(() => status.value === 'confirmed' && reviewed.value && !savedAt.value)
-const locked = computed(() => savedAt.value !== null && now.value - savedAt.value > GRACE_MS)
+const locked = computed(() => finalizedAt.value !== null && now.value - finalizedAt.value > GRACE_MS)
 const remainingDays = computed(() =>
-  savedAt.value ? Math.max(0, Math.ceil((savedAt.value + GRACE_MS - now.value) / (24 * 60 * 60 * 1000))) : 0,
+  finalizedAt.value ? Math.max(0, Math.ceil((finalizedAt.value + GRACE_MS - now.value) / (24 * 60 * 60 * 1000))) : 0,
 )
 
 function fmt(ts) {
@@ -109,34 +100,39 @@ function fmt(ts) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 const savedText = computed(() =>
-  savedAt.value
-    ? `저장 ${fmt(savedAt.value)} · ${locked.value ? '수정 불가' : `수정 가능 D-${remainingDays.value}`}`
+  finalizedAt.value
+    ? `저장 ${fmt(finalizedAt.value)} · ${locked.value ? '수정 불가' : `수정 가능 D-${remainingDays.value}`}`
     : '',
 )
-
-function saveFinal() {
-  if (!canSave.value) return
-  now.value = Date.now()
-  savedAt.value = now.value
-}
-
-function confirmReport() {
-  status.value = 'confirmed'
-  author.value = CURRENT_USER
-  editing.value = false
-}
-
-function onReview() {
-  reviewedBy.value = reviewed.value ? CURRENT_USER : ''
-}
 
 function toggleEdit() {
   if (locked.value) return
   editing.value = !editing.value
-  if (editing.value) {
-    reviewed.value = false
-    reviewedBy.value = ''
-  }
+}
+
+function save() {
+  if (locked.value) return
+  now.value = Date.now()
+  savedAt.value = now.value
+  savedBy.value = CURRENT_USER
+  editing.value = false
+}
+
+function finalize() {
+  if (locked.value) return
+  if (!window.confirm(`최종 저장하면 ${GRACE_DAYS}일 후에는 수정할 수 없습니다. 최종 저장하시겠습니까?`)) return
+  now.value = Date.now()
+  savedAt.value = now.value
+  savedBy.value = CURRENT_USER
+  finalizedAt.value = now.value
+  editing.value = false
+}
+
+// Clicking an action jumps to the tab it points at.
+const TAB_KEY = { 'Library Info': 'info', PPA: 'ppa', MW: 'mw' }
+function goToTab(tab) {
+  const key = TAB_KEY[tab]
+  if (key) router.push({ query: { ...route.query, tab: key } })
 }
 
 function loadDraft() {
@@ -150,11 +146,9 @@ function generate() {
   setTimeout(() => {
     state.value = 'ready'
     editing.value = false
-    status.value = 'draft'
-    author.value = ''
-    reviewed.value = false
-    reviewedBy.value = ''
+    savedBy.value = ''
     savedAt.value = null
+    finalizedAt.value = null
     loadDraft()
   }, 700)
 }
@@ -181,37 +175,24 @@ function generate() {
         <span v-else class="fr-title">{{ draft.title }}</span>
         <div class="fr-sub">
           <span class="fr-meta">{{ report.meta }}</span>
-          <span class="fr-badge" :class="status">{{ statusLabel }}</span>
-          <span v-if="reviewed" class="fr-badge reviewed">검수완료 {{ reviewedBy }}</span>
-          <span v-if="status === 'confirmed'" class="fr-author">최종 작성자 {{ author }}</span>
+          <span v-if="savedAt" class="fr-author">저장 {{ savedBy }} · {{ fmt(savedAt) }}</span>
         </div>
       </div>
       <button class="lr-btn" type="button" :disabled="locked" @click="toggleEdit">
         {{ editing ? '편집 완료' : '편집' }}
       </button>
+      <button v-if="!locked" class="lr-btn fr-confirm" type="button" @click="save">저장</button>
       <button
-        v-if="status === 'draft'"
+        v-if="!locked && !finalizedAt"
         class="lr-btn-primary fr-confirm"
         type="button"
-        @click="confirmReport"
-      >확정</button>
-      <template v-else-if="!editing && !savedAt">
-        <label class="fr-review">
-          <input v-model="reviewed" type="checkbox" @change="onReview" />
-          검수완료
-        </label>
-        <button
-          class="lr-btn-primary fr-confirm"
-          type="button"
-          :disabled="!canSave"
-          @click="saveFinal"
-        >최종 저장</button>
-      </template>
+        @click="finalize"
+      >최종 저장</button>
       <button class="lr-btn" type="button" @click="generate">다시 생성</button>
     </header>
 
     <div class="fr-doc">
-      <div v-if="savedAt" class="fr-saved" :class="{ locked }">
+      <div v-if="finalizedAt" class="fr-saved" :class="{ locked }">
         <span class="fr-saved-title">{{ locked ? '수정 기간 만료 · 읽기 전용' : '최종 저장 완료' }}</span>
         <span class="fr-saved-meta">{{ savedText }}</span>
       </div>
@@ -302,12 +283,19 @@ function generate() {
           <span class="lr-subtitle">{{ report.actions.length }} items</span>
         </div>
         <div class="lr-box">
-          <div v-for="a in report.actions" :key="a.text" class="lr-row g-action">
+          <button
+            v-for="a in report.actions"
+            :key="a.text"
+            class="lr-row g-action fr-action-row"
+            type="button"
+            :title="`${a.tab} 탭으로 이동`"
+            @click="goToTab(a.tab)"
+          >
             <span class="fr-sev" :class="a.sev === 'CHECK' ? 'lr-warn' : 'dim'">{{ a.sev }}</span>
             <span class="fr-action-text lr-ellipsis">{{ a.text }}</span>
-            <span class="lr-mono lr-num small dim">{{ a.tab }}</span>
+            <span class="lr-mono lr-num small dim">{{ a.tab }} ↗</span>
             <span class="lr-mono lr-num small">{{ a.owner }}</span>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -394,40 +382,6 @@ function generate() {
   font-size: 11px;
   color: #8a929c;
 }
-.fr-badge {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
-  padding: 1px 7px;
-  border-radius: 10px;
-}
-.fr-badge.draft {
-  color: #8a929c;
-  background: #f1f3f6;
-}
-.fr-badge.confirmed {
-  color: #2c7a4b;
-  background: #e6f4ec;
-}
-.fr-badge.reviewed {
-  color: #2f6fed;
-  background: #e8f0fe;
-}
-.fr-review {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid #e2e5ea;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #6b7480;
-  cursor: pointer;
-  user-select: none;
-}
-.fr-review input { cursor: pointer; }
-
 .lr-btn:disabled,
 .lr-btn-primary:disabled {
   opacity: 0.45;
@@ -678,6 +632,16 @@ function generate() {
   grid-template-columns: 64px minmax(0, 1fr) 92px 108px;
   padding: 0 10px;
 }
+.fr-action-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fr-action-row:hover { background: #f1f6ff; }
+.fr-action-row:hover .fr-action-text { color: #2f6fed; }
 .fr-sev {
   font-family: var(--clara-mono);
   font-size: 10.5px;
