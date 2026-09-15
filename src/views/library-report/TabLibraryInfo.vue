@@ -56,7 +56,7 @@ const paths = computed(() => releasePaths(props.lib))
         <span class="lr-section-title">Cell Design</span>
         <div class="lr-box">
           <div class="lr-thead g-design">
-            <span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span><span class="lr-num">CELLS</span>
+            <span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span><span class="lr-num">CELL COUNT</span>
           </div>
           <div v-for="r in CELL_DESIGN" :key="r.height" class="lr-row g-design wrap">
             <span class="lr-mono strong">{{ r.height }}</span>
@@ -102,7 +102,7 @@ const paths = computed(() => releasePaths(props.lib))
    columns instead of dumping it all after the last column. */
 .g-pdk    { grid-template-columns: 80px 96px 96px 96px; column-gap: 28px; }
 .g-path   { grid-template-columns: 72px minmax(230px, 320px) 96px; column-gap: 20px; justify-content: space-between; }
-.g-design { grid-template-columns: 72px 150px 150px 130px 60px; column-gap: 20px; justify-content: space-between; }
+.g-design { grid-template-columns: 72px 150px 150px 130px 90px; column-gap: 20px; justify-content: space-between; }
 
 /* Box shrinks to its own content instead of stretching to the section width. */
 .pdk-box { width: max-content; }
