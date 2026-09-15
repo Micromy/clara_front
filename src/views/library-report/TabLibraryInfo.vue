@@ -65,8 +65,8 @@ const paths = computed(() => releasePaths(props.lib))
 .info-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 14px 12px 20px;
+  gap: 10px;
+  padding: 10px 12px 16px;
 }
 
 .g-pdk    { grid-template-columns: repeat(4, minmax(120px, 1fr)); min-width: 520px; }
