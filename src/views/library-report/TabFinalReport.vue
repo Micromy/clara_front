@@ -45,6 +45,35 @@ const reviewedBy = ref('')
 // Free-form area for anything the generated report doesn't cover.
 const userNote = ref('')
 
+// Final save opens a 5-day editing window; after it the report locks read-only.
+const GRACE_DAYS = 5
+const GRACE_MS = GRACE_DAYS * 24 * 60 * 60 * 1000
+const savedAt = ref(null)
+const now = ref(Date.now())
+
+const canSave = computed(() => status.value === 'confirmed' && reviewed.value && !savedAt.value)
+const locked = computed(() => savedAt.value !== null && now.value - savedAt.value > GRACE_MS)
+const remainingDays = computed(() =>
+  savedAt.value ? Math.max(0, Math.ceil((savedAt.value + GRACE_MS - now.value) / (24 * 60 * 60 * 1000))) : 0,
+)
+
+function fmt(ts) {
+  const d = new Date(ts)
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+const savedText = computed(() =>
+  savedAt.value
+    ? `저장 ${fmt(savedAt.value)} · ${locked.value ? '수정 불가' : `수정 가능 D-${remainingDays.value}`}`
+    : '',
+)
+
+function saveFinal() {
+  if (!canSave.value) return
+  now.value = Date.now()
+  savedAt.value = now.value
+}
+
 function confirmReport() {
   status.value = 'confirmed'
   author.value = CURRENT_USER
@@ -56,6 +85,7 @@ function onReview() {
 }
 
 function toggleEdit() {
+  if (locked.value) return
   editing.value = !editing.value
   if (editing.value) {
     reviewed.value = false
@@ -79,6 +109,7 @@ function generate() {
     reviewed.value = false
     reviewedBy.value = ''
     userNote.value = ''
+    savedAt.value = null
     loadDraft()
   }, 700)
 }
@@ -110,7 +141,7 @@ function generate() {
           <span v-if="status === 'confirmed'" class="fr-author">최종 작성자 {{ author }}</span>
         </div>
       </div>
-      <button class="lr-btn" type="button" @click="toggleEdit">
+      <button class="lr-btn" type="button" :disabled="locked" @click="toggleEdit">
         {{ editing ? '편집 완료' : '편집' }}
       </button>
       <button
@@ -119,14 +150,27 @@ function generate() {
         type="button"
         @click="confirmReport"
       >확정</button>
-      <label v-else-if="!editing" class="fr-review">
-        <input v-model="reviewed" type="checkbox" @change="onReview" />
-        검수완료
-      </label>
+      <template v-else-if="!editing && !savedAt">
+        <label class="fr-review">
+          <input v-model="reviewed" type="checkbox" @change="onReview" />
+          검수완료
+        </label>
+        <button
+          class="lr-btn-primary fr-confirm"
+          type="button"
+          :disabled="!canSave"
+          @click="saveFinal"
+        >최종 저장</button>
+      </template>
       <button class="lr-btn" type="button" @click="generate">다시 생성</button>
     </header>
 
     <div class="fr-doc">
+      <div v-if="savedAt" class="fr-saved" :class="{ locked }">
+        <span class="fr-saved-title">{{ locked ? '수정 기간 만료 · 읽기 전용' : '최종 저장 완료' }}</span>
+        <span class="fr-saved-meta">{{ savedText }}</span>
+      </div>
+
       <textarea v-if="editing" v-model="draft.body" class="fr-edit fr-edit-lead" rows="4"></textarea>
       <p v-else class="fr-lead">{{ draft.body }}</p>
 
@@ -178,6 +222,7 @@ function generate() {
           v-model="userNote"
           class="fr-edit"
           rows="4"
+          :disabled="locked"
           placeholder="리포트 근거 외에 담당자가 남길 내용을 적으세요."
         ></textarea>
       </section>
@@ -298,6 +343,42 @@ function generate() {
   user-select: none;
 }
 .fr-review input { cursor: pointer; }
+
+.lr-btn:disabled,
+.lr-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.fr-edit:disabled {
+  background: #f7f8fa;
+  color: #8a929c;
+  cursor: not-allowed;
+}
+
+.fr-saved {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #e6f4ec;
+  border: 1px solid #cbe7d6;
+}
+.fr-saved.locked {
+  background: #f5f6f8;
+  border-color: #e2e5ea;
+}
+.fr-saved-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #2c7a4b;
+}
+.fr-saved.locked .fr-saved-title { color: #6b7480; }
+.fr-saved-meta {
+  font-family: var(--clara-mono);
+  font-size: 11px;
+  color: #8a929c;
+}
 .fr-author {
   font-family: var(--clara-mono);
   font-size: 11px;
