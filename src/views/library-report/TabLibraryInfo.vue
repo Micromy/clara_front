@@ -48,13 +48,14 @@ const paths = computed(() => releasePaths(props.lib))
       <span class="lr-section-title">Cell Design</span>
       <div class="lr-box">
         <div class="lr-thead g-design">
-          <span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span>
+          <span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span><span>CELLS</span>
         </div>
         <div v-for="r in CELL_DESIGN" :key="r.height" class="lr-row g-design wrap">
           <span class="lr-mono strong">{{ r.height }}</span>
           <span class="lr-mono spaced">{{ r.drives }}</span>
           <span class="lr-mono spaced">{{ r.vths }}</span>
           <span class="lr-mono spaced">{{ r.nanosheet }}</span>
+          <span class="lr-mono lr-num strong">{{ r.cells }}</span>
         </div>
       </div>
     </section>
@@ -71,7 +72,7 @@ const paths = computed(() => releasePaths(props.lib))
 
 .g-pdk    { grid-template-columns: repeat(4, minmax(120px, 1fr)); min-width: 520px; }
 .g-path   { grid-template-columns: 96px minmax(320px, 1fr) 116px; min-width: 620px; }
-.g-design { grid-template-columns: 96px minmax(200px, 1.2fr) minmax(160px, 0.9fr) minmax(150px, 0.9fr); min-width: 660px; }
+.g-design { grid-template-columns: 96px minmax(200px, 1.2fr) minmax(160px, 0.9fr) minmax(150px, 0.9fr) 72px; min-width: 732px; }
 
 .v-pdk { font-size: 12px; }
 .process { font-weight: 500; }
