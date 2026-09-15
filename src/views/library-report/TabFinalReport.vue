@@ -36,10 +36,28 @@ const status = ref('draft') // draft | confirmed
 const author = ref('')
 const statusLabel = computed(() => (status.value === 'confirmed' ? '유저 확정' : 'AI 초안'))
 
+// Reviewer check — the same user verifies the confirmed report before it can be
+// saved. Editing invalidates a prior review, so the content is always
+// re-checked after a change.
+const reviewed = ref(false)
+const reviewedBy = ref('')
+
 function confirmReport() {
   status.value = 'confirmed'
   author.value = CURRENT_USER
   editing.value = false
+}
+
+function onReview() {
+  reviewedBy.value = reviewed.value ? CURRENT_USER : ''
+}
+
+function toggleEdit() {
+  editing.value = !editing.value
+  if (editing.value) {
+    reviewed.value = false
+    reviewedBy.value = ''
+  }
 }
 
 function loadDraft() {
@@ -55,6 +73,8 @@ function generate() {
     editing.value = false
     status.value = 'draft'
     author.value = ''
+    reviewed.value = false
+    reviewedBy.value = ''
     loadDraft()
   }, 700)
 }
@@ -82,10 +102,11 @@ function generate() {
         <div class="fr-sub">
           <span class="fr-meta">{{ report.meta }}</span>
           <span class="fr-badge" :class="status">{{ statusLabel }}</span>
+          <span v-if="reviewed" class="fr-badge reviewed">검수완료 {{ reviewedBy }}</span>
           <span v-if="status === 'confirmed'" class="fr-author">최종 작성자 {{ author }}</span>
         </div>
       </div>
-      <button class="lr-btn" type="button" @click="editing = !editing">
+      <button class="lr-btn" type="button" @click="toggleEdit">
         {{ editing ? '편집 완료' : '편집' }}
       </button>
       <button
@@ -94,6 +115,10 @@ function generate() {
         type="button"
         @click="confirmReport"
       >확정</button>
+      <label v-else-if="!editing" class="fr-review">
+        <input v-model="reviewed" type="checkbox" @change="onReview" />
+        검수완료
+      </label>
       <button class="lr-btn" type="button" @click="generate">다시 생성</button>
     </header>
 
@@ -238,6 +263,24 @@ function generate() {
   color: #2c7a4b;
   background: #e6f4ec;
 }
+.fr-badge.reviewed {
+  color: #2f6fed;
+  background: #e8f0fe;
+}
+.fr-review {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #6b7480;
+  cursor: pointer;
+  user-select: none;
+}
+.fr-review input { cursor: pointer; }
 .fr-author {
   font-family: var(--clara-mono);
   font-size: 11px;
