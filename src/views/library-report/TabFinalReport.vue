@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { findSavedSet, finalReport } from './data.js'
 
@@ -25,9 +25,24 @@ const inputSummary = computed(
   () => `PDK 4 components · PPA ${savedSet.value ? `${savedSet.value.cells} cells` : '미선택'} · MW ${MW_SETS.length} sets`,
 )
 
+// The AI output is the source; the user edits a draft copied from it so the
+// original generated text can always be regenerated.
+const editing = ref(false)
+const draft = reactive({ title: '', body: '', sectionBodies: {} })
+
+function loadDraft() {
+  draft.title = report.value.title
+  draft.body = report.value.body
+  draft.sectionBodies = Object.fromEntries(report.value.sections.map(s => [s.title, s.body]))
+}
+
 function generate() {
   state.value = 'loading'
-  setTimeout(() => { state.value = 'ready' }, 700)
+  setTimeout(() => {
+    state.value = 'ready'
+    editing.value = false
+    loadDraft()
+  }, 700)
 }
 </script>
 
@@ -48,14 +63,19 @@ function generate() {
   <div v-else class="fr">
     <header class="fr-head">
       <div class="fr-head-main">
-        <span class="fr-title">{{ report.title }}</span>
+        <input v-if="editing" v-model="draft.title" class="fr-title-input" />
+        <span v-else class="fr-title">{{ draft.title }}</span>
         <span class="fr-meta">{{ report.meta }}</span>
       </div>
+      <button class="lr-btn" type="button" @click="editing = !editing">
+        {{ editing ? '편집 완료' : '편집' }}
+      </button>
       <button class="lr-btn" type="button" @click="generate">다시 생성</button>
     </header>
 
     <div class="fr-doc">
-      <p class="fr-lead">{{ report.body }}</p>
+      <textarea v-if="editing" v-model="draft.body" class="fr-edit fr-edit-lead" rows="4"></textarea>
+      <p v-else class="fr-lead">{{ draft.body }}</p>
 
       <section v-for="s in report.sections" :key="s.title" class="fr-card">
         <span class="fr-card-rail" :style="{ background: s.color }"></span>
@@ -64,7 +84,13 @@ function generate() {
             <span class="fr-source" :style="{ color: s.color }">{{ s.source }}</span>
             <span class="fr-card-title">{{ s.title }}</span>
           </div>
-          <p class="fr-prose">{{ s.body }}</p>
+          <textarea
+            v-if="editing"
+            v-model="draft.sectionBodies[s.title]"
+            class="fr-edit"
+            rows="3"
+          ></textarea>
+          <p v-else class="fr-prose">{{ draft.sectionBodies[s.title] }}</p>
           <div class="fr-points">
             <div v-for="p in s.points" :key="p.flag" class="fr-point">
               <span class="fr-flag">{{ p.flag }}</span>
@@ -167,6 +193,30 @@ function generate() {
   font-size: 11px;
   color: #8a929c;
 }
+.fr-title-input {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1c1f24;
+  padding: 2px 6px;
+  border: 1px solid #bcd0f7;
+  border-radius: 4px;
+  outline: none;
+}
+.fr-edit {
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #1c1f24;
+  padding: 6px 8px;
+  border: 1px solid #bcd0f7;
+  border-radius: 4px;
+  outline: none;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+.fr-edit-lead { background: #fbfcfe; }
 
 .fr-doc {
   display: flex;
