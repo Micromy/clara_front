@@ -28,7 +28,56 @@ const inputSummary = computed(
 // The AI output is the source; the user edits a draft copied from it so the
 // original generated text can always be regenerated.
 const editing = ref(false)
-const draft = reactive({ title: '', body: '', sectionBodies: {} })
+const draft = reactive({ title: '', body: '' })
+
+// Document body as an ordered list of blocks: AI-generated sections plus any
+// user-added areas. Editing lets the user insert areas between blocks and
+// drag blocks to reorder them.
+let blockSeq = 0
+const blocks = ref([])
+
+function buildBlocks() {
+  blocks.value = report.value.sections.map(s => ({
+    id: `ai-${blockSeq++}`,
+    kind: 'ai',
+    source: s.source,
+    color: s.color,
+    title: s.title,
+    points: s.points,
+    body: s.body,
+  }))
+}
+
+function addBlockAt(index) {
+  blocks.value.splice(index, 0, { id: `user-${blockSeq++}`, kind: 'user', title: '', body: '' })
+}
+
+function removeBlock(index) {
+  blocks.value.splice(index, 1)
+}
+
+// Native drag-and-drop reorder. The drag handle is the draggable element so it
+// doesn't fight with text selection inside the block's textarea.
+const dragIndex = ref(-1)
+const dragOverIndex = ref(-1)
+
+function onDragStart(i, e) {
+  dragIndex.value = i
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+function onDragEnd() {
+  dragIndex.value = -1
+  dragOverIndex.value = -1
+}
+function onDrop(i) {
+  const from = dragIndex.value
+  if (from < 0 || from === i) return onDragEnd()
+  const arr = [...blocks.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(from < i ? i - 1 : i, 0, moved)
+  blocks.value = arr
+  onDragEnd()
+}
 
 // AI proposes, the user decides: the report stays a draft until the user
 // confirms it, at which point they become its author.
@@ -41,9 +90,6 @@ const statusLabel = computed(() => (status.value === 'confirmed' ? '유저 확�
 // re-checked after a change.
 const reviewed = ref(false)
 const reviewedBy = ref('')
-
-// Free-form area for anything the generated report doesn't cover.
-const userNote = ref('')
 
 // Final save opens a 5-day editing window; after it the report locks read-only.
 const GRACE_DAYS = 5
@@ -96,7 +142,7 @@ function toggleEdit() {
 function loadDraft() {
   draft.title = report.value.title
   draft.body = report.value.body
-  draft.sectionBodies = Object.fromEntries(report.value.sections.map(s => [s.title, s.body]))
+  buildBlocks()
 }
 
 function generate() {
@@ -108,7 +154,6 @@ function generate() {
     author.value = ''
     reviewed.value = false
     reviewedBy.value = ''
-    userNote.value = ''
     savedAt.value = null
     loadDraft()
   }, 700)
@@ -174,29 +219,82 @@ function generate() {
       <textarea v-if="editing" v-model="draft.body" class="fr-edit fr-edit-lead" rows="4"></textarea>
       <p v-else class="fr-lead">{{ draft.body }}</p>
 
-      <section v-for="s in report.sections" :key="s.title" class="fr-card">
-        <span class="fr-card-rail" :style="{ background: s.color }"></span>
-        <div class="fr-card-body">
-          <div class="fr-card-head">
-            <span class="fr-source" :style="{ color: s.color }">{{ s.source }}</span>
-            <span class="fr-card-title">{{ s.title }}</span>
-          </div>
-          <textarea
+      <div class="fr-blocks">
+        <template v-for="(b, i) in blocks" :key="b.id">
+          <button
             v-if="editing"
-            v-model="draft.sectionBodies[s.title]"
-            class="fr-edit"
-            rows="3"
-          ></textarea>
-          <p v-else class="fr-prose">{{ draft.sectionBodies[s.title] }}</p>
-          <div class="fr-points">
-            <div v-for="p in s.points" :key="p.flag" class="fr-point">
-              <span class="fr-flag">{{ p.flag }}</span>
-              <span class="fr-point-text">{{ p.text }}</span>
-              <span class="fr-point-value">{{ p.value }}</span>
+            class="fr-insert"
+            type="button"
+            title="여기에 영역 추가"
+            @click="addBlockAt(i)"
+          ><span class="fr-insert-bar">+</span></button>
+
+          <section
+            class="fr-card"
+            :class="{ dragging: dragIndex === i, 'drop-target': dragOverIndex === i && dragIndex !== -1 && dragIndex !== i, user: b.kind === 'user' }"
+            @dragover.prevent="dragOverIndex = i"
+            @drop="onDrop(i)"
+          >
+            <span
+              v-if="editing"
+              class="fr-drag"
+              draggable="true"
+              title="드래그하여 순서 변경"
+              @dragstart="onDragStart(i, $event)"
+              @dragend="onDragEnd"
+            >⠿</span>
+            <span class="fr-card-rail" :style="{ background: b.kind === 'ai' ? b.color : '#c8d0d9' }"></span>
+            <div class="fr-card-body">
+              <div class="fr-card-head">
+                <template v-if="b.kind === 'ai'">
+                  <span class="fr-source" :style="{ color: b.color }">{{ b.source }}</span>
+                  <span class="fr-card-title">{{ b.title }}</span>
+                </template>
+                <template v-else>
+                  <span class="fr-source fr-source-user">USER</span>
+                  <input
+                    v-if="editing"
+                    v-model="b.title"
+                    class="fr-card-title-input"
+                    placeholder="영역 제목"
+                  />
+                  <span v-else class="fr-card-title">{{ b.title || '제목 없음' }}</span>
+                </template>
+                <div class="lr-spacer"></div>
+                <button
+                  v-if="editing && b.kind === 'user'"
+                  class="fr-block-del"
+                  type="button"
+                  @click="removeBlock(i)"
+                >삭제</button>
+              </div>
+              <textarea
+                v-if="editing"
+                v-model="b.body"
+                class="fr-edit"
+                rows="3"
+                :placeholder="b.kind === 'user' ? '리포트에 없는 내용을 이 영역에 적으세요.' : ''"
+              ></textarea>
+              <p v-else class="fr-prose">{{ b.body }}</p>
+              <div v-if="b.kind === 'ai'" class="fr-points">
+                <div v-for="p in b.points" :key="p.flag" class="fr-point">
+                  <span class="fr-flag">{{ p.flag }}</span>
+                  <span class="fr-point-text">{{ p.text }}</span>
+                  <span class="fr-point-value">{{ p.value }}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </template>
+
+        <button
+          v-if="editing"
+          class="fr-insert"
+          type="button"
+          title="여기에 영역 추가"
+          @click="addBlockAt(blocks.length)"
+        ><span class="fr-insert-bar">+</span></button>
+      </div>
 
       <section class="fr-actions">
         <div class="fr-actions-head">
@@ -211,20 +309,6 @@ function generate() {
             <span class="lr-mono lr-num small">{{ a.owner }}</span>
           </div>
         </div>
-      </section>
-
-      <section class="fr-note-sec">
-        <div class="fr-actions-head">
-          <span class="lr-section-title">추가 코멘트</span>
-          <span class="lr-subtitle">리포트에 없는 내용</span>
-        </div>
-        <textarea
-          v-model="userNote"
-          class="fr-edit"
-          rows="4"
-          :disabled="locked"
-          placeholder="리포트 근거 외에 담당자가 남길 내용을 적으세요."
-        ></textarea>
       </section>
 
       <p class="fr-disclaimer">{{ report.disclaimer }}</p>
@@ -433,14 +517,97 @@ function generate() {
   text-wrap: pretty;
 }
 
-/* ── Section cards ────────────────────────────────────────── */
+/* ── Section blocks ───────────────────────────────────────── */
+.fr-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Thin insert affordance between blocks: a small bar at rest that grows into
+   a "+" button on hover. */
+.fr-insert {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.fr-insert-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 5px;
+  border-radius: 3px;
+  background: #dfe3e8;
+  color: transparent;
+  font-size: 13px;
+  line-height: 1;
+  transition: width 0.12s ease, height 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.fr-insert:hover .fr-insert-bar {
+  width: 46px;
+  height: 18px;
+  background: #2f6fed;
+  color: #fff;
+}
+
 .fr-card {
+  position: relative;
   display: flex;
   gap: 10px;
   padding: 12px;
   border: 1px solid #eef0f3;
   border-radius: 6px;
+  background: #fff;
 }
+.fr-card.user { border-style: dashed; border-color: #d5d9de; }
+.fr-card.dragging { opacity: 0.4; }
+.fr-card.drop-target { box-shadow: 0 -2px 0 #2f6fed; }
+
+.fr-drag {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 0 2px;
+  color: #b6bec8;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: grab;
+  user-select: none;
+}
+.fr-drag:active { cursor: grabbing; }
+
+.fr-source-user { color: #a7afb9; }
+.fr-card-title-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1c1f24;
+  padding: 2px 6px;
+  border: 1px solid #bcd0f7;
+  border-radius: 4px;
+  outline: none;
+}
+.fr-block-del {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid #e2e5ea;
+  border-radius: 4px;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  color: #b4451f;
+  cursor: pointer;
+}
+.fr-block-del:hover { border-color: #e6b8a6; background: #fdf3ef; }
 .fr-card-rail {
   width: 3px;
   border-radius: 2px;
