@@ -26,6 +26,10 @@ export function findPdk(id) {
   return PDKS.find(p => p.id === id) || PDKS[0]
 }
 
+// Mock signed-in user — no auth in this mockup; the Final Report uses it as the
+// author/reviewer identity.
+export const CURRENT_USER = 'demo.user'
+
 // ── Deterministic pseudo-random, seeded by a string ──
 function hash(str) {
   let h = 7

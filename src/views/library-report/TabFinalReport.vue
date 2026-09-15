@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { findSavedSet, finalReport } from './data.js'
+import { findSavedSet, finalReport, CURRENT_USER } from './data.js'
 
 const props = defineProps({
   pdk: { type: Object, required: true },
@@ -30,6 +30,18 @@ const inputSummary = computed(
 const editing = ref(false)
 const draft = reactive({ title: '', body: '', sectionBodies: {} })
 
+// AI proposes, the user decides: the report stays a draft until the user
+// confirms it, at which point they become its author.
+const status = ref('draft') // draft | confirmed
+const author = ref('')
+const statusLabel = computed(() => (status.value === 'confirmed' ? '유저 확정' : 'AI 초안'))
+
+function confirmReport() {
+  status.value = 'confirmed'
+  author.value = CURRENT_USER
+  editing.value = false
+}
+
 function loadDraft() {
   draft.title = report.value.title
   draft.body = report.value.body
@@ -41,6 +53,8 @@ function generate() {
   setTimeout(() => {
     state.value = 'ready'
     editing.value = false
+    status.value = 'draft'
+    author.value = ''
     loadDraft()
   }, 700)
 }
@@ -65,11 +79,21 @@ function generate() {
       <div class="fr-head-main">
         <input v-if="editing" v-model="draft.title" class="fr-title-input" />
         <span v-else class="fr-title">{{ draft.title }}</span>
-        <span class="fr-meta">{{ report.meta }}</span>
+        <div class="fr-sub">
+          <span class="fr-meta">{{ report.meta }}</span>
+          <span class="fr-badge" :class="status">{{ statusLabel }}</span>
+          <span v-if="status === 'confirmed'" class="fr-author">최종 작성자 {{ author }}</span>
+        </div>
       </div>
       <button class="lr-btn" type="button" @click="editing = !editing">
         {{ editing ? '편집 완료' : '편집' }}
       </button>
+      <button
+        v-if="status === 'draft'"
+        class="lr-btn-primary fr-confirm"
+        type="button"
+        @click="confirmReport"
+      >확정</button>
       <button class="lr-btn" type="button" @click="generate">다시 생성</button>
     </header>
 
@@ -188,10 +212,41 @@ function generate() {
   font-weight: 500;
   letter-spacing: -0.1px;
 }
+.fr-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .fr-meta {
   font-family: var(--clara-mono);
   font-size: 11px;
   color: #8a929c;
+}
+.fr-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+.fr-badge.draft {
+  color: #8a929c;
+  background: #f1f3f6;
+}
+.fr-badge.confirmed {
+  color: #2c7a4b;
+  background: #e6f4ec;
+}
+.fr-author {
+  font-family: var(--clara-mono);
+  font-size: 11px;
+  color: #4a525c;
+}
+.fr-confirm {
+  height: 26px;
+  padding: 0 12px;
+  font-size: 11px;
 }
 .fr-title-input {
   font: inherit;
