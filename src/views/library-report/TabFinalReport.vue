@@ -42,6 +42,9 @@ const statusLabel = computed(() => (status.value === 'confirmed' ? '유저 확�
 const reviewed = ref(false)
 const reviewedBy = ref('')
 
+// Free-form area for anything the generated report doesn't cover.
+const userNote = ref('')
+
 function confirmReport() {
   status.value = 'confirmed'
   author.value = CURRENT_USER
@@ -75,6 +78,7 @@ function generate() {
     author.value = ''
     reviewed.value = false
     reviewedBy.value = ''
+    userNote.value = ''
     loadDraft()
   }, 700)
 }
@@ -163,6 +167,19 @@ function generate() {
             <span class="lr-mono lr-num small">{{ a.owner }}</span>
           </div>
         </div>
+      </section>
+
+      <section class="fr-note-sec">
+        <div class="fr-actions-head">
+          <span class="lr-section-title">추가 코멘트</span>
+          <span class="lr-subtitle">리포트에 없는 내용</span>
+        </div>
+        <textarea
+          v-model="userNote"
+          class="fr-edit"
+          rows="4"
+          placeholder="리포트 근거 외에 담당자가 남길 내용을 적으세요."
+        ></textarea>
       </section>
 
       <p class="fr-disclaimer">{{ report.disclaimer }}</p>
