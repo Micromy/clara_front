@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { releasePaths, CELL_DESIGN } from './data.js'
+import { releasePaths, CELL_DESIGN, VTH_ALL, NANOSHEET_ALL } from './data.js'
 
 const props = defineProps({
   pdk: { type: Object, required: true },
@@ -53,8 +53,22 @@ const paths = computed(() => releasePaths(props.lib))
         <div v-for="r in CELL_DESIGN" :key="r.height" class="lr-row g-design wrap">
           <span class="lr-mono strong">{{ r.height }}</span>
           <span class="lr-mono spaced">{{ r.drives }}</span>
-          <span class="lr-mono spaced">{{ r.vths }}</span>
-          <span class="lr-mono spaced">{{ r.nanosheet }}</span>
+          <span class="axis">
+            <span
+              v-for="v in VTH_ALL"
+              :key="v"
+              class="lr-mono chip"
+              :class="{ off: !r.vths.includes(v) }"
+            >{{ v }}</span>
+          </span>
+          <span class="axis">
+            <span
+              v-for="n in NANOSHEET_ALL"
+              :key="n"
+              class="lr-mono chip"
+              :class="{ off: !r.nanosheet.includes(n) }"
+            >{{ n }}</span>
+          </span>
           <span class="lr-mono lr-num strong">{{ r.cells }}</span>
         </div>
       </div>
@@ -87,5 +101,24 @@ const paths = computed(() => releasePaths(props.lib))
 .spaced {
   word-spacing: 2px;
   padding-right: 12px;
+}
+.axis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-right: 12px;
+}
+.chip {
+  min-width: 34px;
+  padding: 1px 6px;
+  text-align: center;
+  border: 1px solid #e2e5ea;
+  border-radius: 3px;
+  color: #1c1f24;
+}
+.chip.off {
+  color: #c8d0d9;
+  border-color: #f0f2f4;
+  background: #fafbfc;
 }
 </style>

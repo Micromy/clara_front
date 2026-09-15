@@ -49,11 +49,15 @@ export function releasePaths(lib) {
   }))
 }
 
-// Only what each Cell Height actually supports is listed — no placeholders.
+// Full axes — the mini tables render every value and grey out the unsupported
+// ones, so a Cell Height's support shows as a fixed-position pattern.
+export const VTH_ALL = ['rvt', 'lvt', 'slvt', 'mvt', 'vlvt']
+export const NANOSHEET_ALL = ['N1', 'N2', 'N3', 'N4', 'N5']
+
 export const CELL_DESIGN = [
-  { height: 'CH120', drives: 'D1 D2 D3 D6 D8 D16', vths: 'rvt lvt slvt vlvt', nanosheet: 'N1 N2 N3 N5', cells: 512 },
-  { height: 'CH150', drives: 'D1 D2 D3 D4 D8',     vths: 'rvt lvt slvt',      nanosheet: 'N1 N2 N3',    cells: 374 },
-  { height: 'CH180', drives: 'D1 D2 D3',           vths: 'rvt lvt slvt mvt',  nanosheet: 'N1 N2 N3 N4', cells: 268 },
+  { height: 'CH120', drives: 'D1 D2 D3 D6 D8 D16', vths: ['rvt', 'lvt', 'slvt', 'vlvt'], nanosheet: ['N1', 'N2', 'N3', 'N5'], cells: 512 },
+  { height: 'CH150', drives: 'D1 D2 D3 D4 D8',     vths: ['rvt', 'lvt', 'slvt'],         nanosheet: ['N1', 'N2', 'N3'],       cells: 374 },
+  { height: 'CH180', drives: 'D1 D2 D3',           vths: ['rvt', 'lvt', 'slvt', 'mvt'],  nanosheet: ['N1', 'N2', 'N3', 'N4'], cells: 268 },
 ]
 
 // ── Tab 2: PPA — sets saved from the PPA page ──
