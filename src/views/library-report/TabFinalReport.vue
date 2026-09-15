@@ -45,48 +45,52 @@ function generate() {
     <span class="fr-loading-sub">{{ inputSummary }}</span>
   </div>
 
-  <div v-else>
-    <div class="lr-bar">
-      <span class="fr-meta">{{ report.meta }}</span>
-      <div class="lr-spacer"></div>
-      <button class="lr-btn" type="button" @click="generate">다시 생성</button>
-    </div>
-
-    <div class="fr-body">
-      <div class="fr-verdict">
-        <span class="fr-verdict-title">{{ report.title }}</span>
-        <span class="fr-prose">{{ report.body }}</span>
+  <div v-else class="fr">
+    <header class="fr-head">
+      <div class="fr-head-main">
+        <span class="fr-title">{{ report.title }}</span>
+        <span class="fr-meta">{{ report.meta }}</span>
       </div>
+      <button class="lr-btn" type="button" @click="generate">다시 생성</button>
+    </header>
 
-      <div v-for="s in report.sections" :key="s.title" class="fr-section">
-        <div class="fr-section-head">
-          <span class="fr-source" :style="{ color: s.color }">{{ s.source }}</span>
-          <span class="lr-section-title">{{ s.title }}</span>
-        </div>
-        <span class="fr-prose">{{ s.body }}</span>
-        <div class="fr-points">
-          <div v-for="p in s.points" :key="p.flag" class="fr-point">
-            <span class="fr-flag">{{ p.flag }}</span>
-            <span class="fr-point-text">{{ p.text }}</span>
-            <span class="fr-point-value">{{ p.value }}</span>
+    <div class="fr-doc">
+      <p class="fr-lead">{{ report.body }}</p>
+
+      <section v-for="s in report.sections" :key="s.title" class="fr-card">
+        <span class="fr-card-rail" :style="{ background: s.color }"></span>
+        <div class="fr-card-body">
+          <div class="fr-card-head">
+            <span class="fr-source" :style="{ color: s.color }">{{ s.source }}</span>
+            <span class="fr-card-title">{{ s.title }}</span>
+          </div>
+          <p class="fr-prose">{{ s.body }}</p>
+          <div class="fr-points">
+            <div v-for="p in s.points" :key="p.flag" class="fr-point">
+              <span class="fr-flag">{{ p.flag }}</span>
+              <span class="fr-point-text">{{ p.text }}</span>
+              <span class="fr-point-value">{{ p.value }}</span>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="fr-actions-head">
-        <span class="lr-section-title">짚어볼 지점</span>
-        <span class="lr-subtitle">{{ report.actions.length }} items</span>
-      </div>
-      <div class="lr-box">
-        <div v-for="a in report.actions" :key="a.text" class="lr-row g-action">
-          <span class="fr-sev" :class="a.sev === 'CHECK' ? 'lr-warn' : 'dim'">{{ a.sev }}</span>
-          <span class="fr-action-text lr-ellipsis">{{ a.text }}</span>
-          <span class="lr-mono lr-num small dim">{{ a.tab }}</span>
-          <span class="lr-mono lr-num small">{{ a.owner }}</span>
+      <section class="fr-actions">
+        <div class="fr-actions-head">
+          <span class="lr-section-title">짚어볼 지점</span>
+          <span class="lr-subtitle">{{ report.actions.length }} items</span>
         </div>
-      </div>
+        <div class="lr-box">
+          <div v-for="a in report.actions" :key="a.text" class="lr-row g-action">
+            <span class="fr-sev" :class="a.sev === 'CHECK' ? 'lr-warn' : 'dim'">{{ a.sev }}</span>
+            <span class="fr-action-text lr-ellipsis">{{ a.text }}</span>
+            <span class="lr-mono lr-num small dim">{{ a.tab }}</span>
+            <span class="lr-mono lr-num small">{{ a.owner }}</span>
+          </div>
+        </div>
+      </section>
 
-      <span class="fr-disclaimer">{{ report.disclaimer }}</span>
+      <p class="fr-disclaimer">{{ report.disclaimer }}</p>
     </div>
   </div>
 </template>
@@ -134,30 +138,47 @@ function generate() {
   color: #c8d0d9;
 }
 
+/* ── Document header ──────────────────────────────────────── */
+.fr {
+  display: flex;
+  flex-direction: column;
+  max-width: 1000px;
+}
+.fr-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px 12px;
+  border-bottom: 1px solid #eef0f3;
+}
+.fr-head-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.fr-title {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
 .fr-meta {
   font-family: var(--clara-mono);
   font-size: 11px;
   color: #8a929c;
 }
 
-.fr-body {
+.fr-doc {
   display: flex;
   flex-direction: column;
-  max-width: 1000px;
-  padding: 4px 12px 24px;
+  gap: 10px;
+  padding: 12px 12px 24px;
 }
-
-.fr-verdict {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 14px 0 12px;
-  border-bottom: 1px solid #eef0f3;
-}
-.fr-verdict-title {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: -0.1px;
+.fr-lead {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #4a525c;
+  text-wrap: pretty;
 }
 .fr-prose {
   font-size: 12.5px;
@@ -166,17 +187,35 @@ function generate() {
   text-wrap: pretty;
 }
 
-.fr-section {
+/* ── Section cards ────────────────────────────────────────── */
+.fr-card {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+}
+.fr-card-rail {
+  width: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.fr-card-body {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 13px 0;
-  border-bottom: 1px solid #f4f5f7;
+  min-width: 0;
+  flex: 1;
 }
-.fr-section-head {
+.fr-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.fr-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1c1f24;
 }
 .fr-source {
   font-family: var(--clara-mono);
