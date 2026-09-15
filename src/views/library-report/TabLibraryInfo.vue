@@ -89,9 +89,12 @@ const paths = computed(() => releasePaths(props.lib))
   padding: 10px 12px 16px;
 }
 
-.g-pdk    { grid-template-columns: repeat(4, minmax(120px, 1fr)); min-width: 520px; }
-.g-path   { grid-template-columns: 96px minmax(320px, 1fr) 116px; min-width: 620px; }
-.g-design { grid-template-columns: 96px minmax(200px, 1.2fr) minmax(160px, 0.9fr) minmax(150px, 0.9fr) 72px; min-width: 732px; }
+/* Column widths are fixed to comfortably fit the longest value in that
+   column (not stretched to fill the box); only Release Path stays flexible
+   since its content is inherently variable-length and already ellipsized. */
+.g-pdk    { grid-template-columns: 80px 96px 96px 96px; column-gap: 28px; }
+.g-path   { grid-template-columns: 76px minmax(260px, 1fr) 104px; column-gap: 28px; min-width: 480px; }
+.g-design { grid-template-columns: 76px 200px max-content max-content 64px; column-gap: 24px; min-width: 640px; }
 
 .v-pdk { font-size: 12px; }
 .process { font-weight: 500; }
@@ -105,7 +108,6 @@ const paths = computed(() => releasePaths(props.lib))
 .wrap .lr-mono { line-height: 20px; }
 .spaced {
   word-spacing: 2px;
-  padding-right: 12px;
 }
 .lr-note {
   margin: 6px 2px 0;
@@ -121,7 +123,6 @@ const paths = computed(() => releasePaths(props.lib))
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding-right: 12px;
 }
 .chip {
   min-width: 34px;
