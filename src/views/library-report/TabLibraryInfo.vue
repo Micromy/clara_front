@@ -45,9 +45,8 @@ const paths = computed(() => releasePaths(props.lib))
           </div>
         </div>
         <p class="lr-note">
-          GDS VERSION은 해당 Release Path에 배포된 레이아웃(GDS) 스냅샷의 버전입니다.
-          <span class="lr-mono">V&lt;major&gt;.&lt;minor&gt;.&lt;patch&gt;.&lt;build&gt;</span> 형식이며,
-          값이 높을수록 최신 릴리스입니다. Cell Height마다 릴리스 시점이 달라 버전이 서로 다를 수 있습니다.
+          <span class="lr-note-tag">PLACEHOLDER</span>
+          GDS VERSION 해석 안내가 들어갈 자리입니다. 실제 설명 문구는 추후 채워질 예정입니다.
         </p>
       </section>
 
@@ -129,14 +128,29 @@ const paths = computed(() => releasePaths(props.lib))
   word-spacing: 2px;
 }
 .lr-note {
-  margin: 6px 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border: 1px dashed #d5d9de;
+  border-radius: 4px;
   font-size: 11px;
-  line-height: 1.6;
-  color: #8a929c;
+  font-style: italic;
+  line-height: 1.5;
+  color: #a7afb9;
 }
-.lr-note .lr-mono {
-  font-size: 10.5px;
-  color: #6b7480;
+.lr-note-tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #f1f3f6;
+  font-family: var(--clara-mono);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #a7afb9;
 }
 .axis {
   display: flex;
