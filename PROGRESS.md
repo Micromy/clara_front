@@ -1,6 +1,6 @@
 # CLARA Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-05-14
+> 마지막 업데이트: 2026-09-21
 > 현재 브랜치: `main` (HEAD: `052a43b`)
 > 리포: `Micromy/clara_front`
 
@@ -278,3 +278,33 @@ VITE_API_BASE_URL=http://...-prod...samsungds.net
 ### 10-3. UX
 - [ ] Cell Name 검색도 always-regex로 통일 (현재 substring + debounce)
 - [ ] Chart 저장 시 labelTemplate도 함께 영속화 (현재 CSV로 호환 완료, JSONField로 확장 시 고려)
+
+### 10-4. Final Report (Library Report) — 2026-09-17 스펙 산정 미팅 확정
+- [ ] Final Report 영역별 유효성 체크 (MW/PPA 변경 여부 확인)
+- [ ] 영역별 AI 초안 생성 로직 분리
+- [ ] Library 이름 convention & gds version 설명 입력 기능
+- [ ] 최종 저장 시 library info/MW/PPA 수정 불가 고정
+- [ ] Comment 기능 추가 (권한: SPiL 전원)
+- [ ] PPA & MW를 F.R.에 작게 요약 표시
+- [ ] PPA 백엔드+프론트 재점검
+- [ ] ETL 재공유
+
+---
+
+## 11. Final Report 기능 스펙 (2026-09-17 확정)
+
+> `src/views/library-report/TabFinalReport.vue` 등 현재 프로토타입에 반영 예정. 아래는 확정된 스펙, 위 10-4가 남은 작업.
+> 데이터 구조 설계는 [docs/final-report-design.md](docs/final-report-design.md) 참조.
+
+- **코멘트 기능** — 리포트 전체에 대한 댓글 형태로 제공
+  - 실무자: 다음 개발 사항, 현재 이슈 위주로 작성 예상
+  - TL/서브TL: 추가 필요사항 등 첨언 형태
+  - 유효기간 없음, 최종 확정 이후에도 열람 가능
+- **F.R. 기본 표시 content**
+  - library info: pdk version / height 종류 등
+  - PPA: chart의 meta 정보
+  - MW: slope 40 포함 셀 중 특정 값 이상인 셀 리스트
+- **gds version**은 각각 표시. Final Report는 PDK & library별 1개씩 생성 (변경점 생기면 library가 추가 생성되므로 무방)
+- **predefined PPA**는 리포트 작성 후 변경되지 않는다고 가정
+- **권한** — 리포트/코멘트 작성 권한은 SPiL 전원에게 부여
+- **Clara data**는 추후 입력 예정 (Vanguard향). 기존 report 기반 인사이트/주요 관심 포인트는 상대방이 공유 예정
