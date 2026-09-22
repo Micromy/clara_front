@@ -128,59 +128,136 @@ export function mwTable(pdkId, lib, height, mwType) {
   return { groups, subCols, rows }
 }
 
-// ── Tab 4: Final Report — dummy copy; replaced by an LLM call later ──
-export function finalReport({ pdk, lib, savedSet, mwSets }) {
-  const tableCount = mwSets.reduce((a, s) => a + s.tables.length, 0)
+// ── Tab 4: Final Report ──
+// 백엔드 GET /clara/report/ response shape을 mock으로 재현 (docs/final-report-design.md 7장).
+// 저장은 참조형이지만 응답 시점에 원본을 조인해 현재 값을 block.data에 inline 확장한 형태.
+
+// MW 임계값 — 시스템 상수 (설계 3-4). 프론트/백엔드가 각자 하드코딩.
+export const MW_THRESHOLD = { MWD: 44, MWS: 40 }
+
+const GEN_AT = '2026-08-31T09:42:00'
+
+function pdkIdInt(pdkId) {
+  return Number(String(pdkId).replace(/\D/g, '')) || 1
+}
+function heightId(height) {
+  return HEIGHTS.indexOf(height) + 1
+}
+function voltageValue(label) {
+  return Number(label.replace('p', '.').replace('v', ''))
+}
+
+// slope 40 고정 + fail_count >= 시스템상수[mw_type] 필터 → MW block data (7-5).
+export function mwFlaggedCells(pdkId, lib, height, mwType) {
+  const p = findPdk(pdkId)
+  const threshold = MW_THRESHOLD[mwType] ?? 44
+  const key = `${p.process}|${lib}|${height}|${mwType}|slope40`
+  const base = { cell_height_id: heightId(height), height, mw_type: mwType, threshold }
+
+  // 일부 조합엔 slope 40 데이터가 없음.
+  if (hash(key) % 5 === 0) return { ...base, slope_present: false, cells: [] }
+
+  const rnd = mk(hash(key))
+  const volts = ['0p42v', '0p45v', '0p50v']
+  const cells = []
+  CELLS.forEach(cell => {
+    const hits = []
+    volts.forEach(v => {
+      const fc = Math.floor(rnd() * 80)
+      if (fc >= threshold) hits.push({ voltage_label: v, voltage_value: voltageValue(v), fail_count: fc })
+    })
+    if (hits.length) cells.push({ cell_name: cell, hits })
+  })
+  return { ...base, slope_present: true, cells }
+}
+
+function libBlock(pdk, lib) {
+  const rp = releasePaths(lib)
+  const gdsSet = [...new Set(rp.map(r => r.gds))]
+  const prose =
+    `PDK는 ${pdk.process} 기준이며 HSPICE ${pdk.hspice} / LVS ${pdk.lvs} / PEX ${pdk.pex}로 구성됩니다. ` +
+    `Release Path는 Cell Height ${rp.length}종에 각각 하나씩 존재하고, GDS version은 ` +
+    `${gdsSet.length > 1 ? '서로 다릅니다' : '동일합니다'}.`
   return {
-    meta: 'generated 2026-08-31 09:42 · Library Info + PPA + MW 3 tabs',
+    block_id: 101, block_type: 'LIB', title: 'PDK 구성과 릴리스 경로',
+    ai_draft: prose, body: prose, ai_generated_at: GEN_AT,
+    chart_id: null, cell_height_id: null, mw_type: null,
+    stale: false, source_saved_at: GEN_AT, source_current_at: GEN_AT,
+    data: {
+      pdk: { process: pdk.process, hspice: pdk.hspice, lvs: pdk.lvs, pex: pdk.pex },
+      release_paths: rp.map((r, i) => ({
+        cell_height_id: i + 1, height: r.height, path: r.path, gds_version: r.gds, gds_desc: '',
+      })),
+      cell_design: CELL_DESIGN.map((r, i) => ({
+        cell_height_id: i + 1, height: r.height, drives: r.drives,
+        vths: r.vths, nanosheet: r.nanosheet, cell_count: r.cells,
+      })),
+      vth_all: VTH_ALL, nanosheet_all: NANOSHEET_ALL,
+    },
+  }
+}
+
+function ppaBlock(set) {
+  const chartId = Number(String(set.id).replace(/\D/g, ''))
+  const prose =
+    `"${set.name}" 셋은 ${set.cells}개 Cell을 ${set.chart} 형태로, Cell × ${set.y} 축으로 저장했습니다. ` +
+    `Derived Metric ${set.derived}개가 포함되어 있습니다.`
+  return {
+    block_id: 102, block_type: 'PPA', title: '저장 셋 렌더 결과',
+    ai_draft: prose, body: prose, ai_generated_at: GEN_AT,
+    chart_id: chartId, cell_height_id: null, mw_type: null,
+    stale: false, source_saved_at: GEN_AT, source_current_at: GEN_AT,
+    data: {
+      chart_id: chartId, chart_name: set.name, chart_type: set.chart.toLowerCase(),
+      cell_type: 1, x_metric: 'Cell', y1_metric: set.y, y2_metric: set.y2 === 'None' ? null : set.y2,
+      cell_count: set.cells, derived_count: set.derived, saved_at: set.saved, owner: set.owner,
+    },
+  }
+}
+
+function mwBlock(pdkId, lib, height, mwType, blockId) {
+  const data = mwFlaggedCells(pdkId, lib, height, mwType)
+  const prose = data.slope_present
+    ? `${height} / ${mwType}에서 CK Slope 40 기준 fail_count ${data.threshold} 이상인 셀이 ${data.cells.length}개 있습니다.`
+    : `${height} / ${mwType}에는 CK Slope 40 데이터가 없어 해당 없음입니다.`
+  return {
+    block_id: blockId, block_type: 'MW', title: `${height} · ${mwType} 경고 셀`,
+    ai_draft: prose, body: prose, ai_generated_at: GEN_AT,
+    chart_id: null, cell_height_id: data.cell_height_id, mw_type: mwType,
+    stale: false, source_saved_at: GEN_AT, source_current_at: GEN_AT,
+    data,
+  }
+}
+
+export function finalReport({ pdkId, lib, savedSetId }) {
+  const pdk = findPdk(pdkId)
+  const set = findSavedSet(savedSetId) || SAVED_SETS[0]
+  const blocks = [
+    libBlock(pdk, lib),
+    ppaBlock(set),
+    mwBlock(pdkId, lib, 'CH120', 'MWD', 103),
+    mwBlock(pdkId, lib, 'CH150', 'MWS', 104),
+  ].map((b, i) => ({ ...b, seq: i }))
+
+  return {
+    report_id: 12,
+    pdk_id: pdkIdInt(pdkId),
+    library_id: LIBS.indexOf(lib) + 1,
     title: `[${pdk.process}] ${lib} 리포트 요약`,
-    body: `Library Info · PPA · MW 세 탭에 담긴 값을 정리했습니다. PPA는 저장 셋 ` +
-      `${savedSet ? `"${savedSet.name}"(${savedSet.cells} cells)` : '미선택'}, ` +
-      `MW는 ${mwSets.length}개 셋 / ${tableCount}개 테이블을 기준으로 했습니다. ` +
-      `아래 항목은 원본 값을 그대로 인용한 것이며 판정이 아닙니다.`,
-    sections: [
-      {
-        source: 'LIBRARY INFO', color: '#8a929c', title: 'PDK 구성과 릴리스 경로',
-        body: `PDK는 ${pdk.process} 기준이며 HSPICE ${pdk.hspice} / LVS ${pdk.lvs} / PEX ${pdk.pex}로 ` +
-          `구성되어 있습니다. Release Path는 Cell Height 세 종(${HEIGHTS.join(' / ')})에 각각 하나씩 존재하고, rev가 서로 다릅니다.`,
-        points: [
-          { flag: 'PATH',   text: `${HEIGHTS.join(' / ')} 경로 릴리스`, value: `${HEIGHTS.length}종` },
-          { flag: 'GDS',    text: 'Cell Height 간 GDS version 상이 (V1.0.0.0 / V0.9.5.0)', value: '차이 있음' },
-          { flag: 'DESIGN', text: 'Cell Height별 Drive Strength / VTH / Nanosheet 지원 범위 상이', value: '확인 필요' },
-        ],
-      },
-      {
-        source: 'PPA', color: '#2f6fed', title: '저장 셋 렌더 결과',
-        body: savedSet
-          ? `"${savedSet.name}" 셋은 ${savedSet.cells}개 Cell을 ${savedSet.chart} 형태로, ` +
-            `Cell × ${savedSet.y} 축으로 저장했습니다. Derived Metric ${savedSet.derived}개가 포함되어 있습니다.`
-          : 'PPA 탭에서 저장 셋을 아직 불러오지 않았습니다. 셋을 선택하면 그 차트와 표가 이 요약에 반영됩니다.',
-        points: savedSet
-          ? [
-              { flag: 'CELLS', text: '저장된 Cell 수', value: String(savedSet.cells) },
-              { flag: 'CHART', text: `${savedSet.chart} · Cell × ${savedSet.y}`, value: savedSet.y2 === 'None' ? '단일 축' : '2축' },
-              { flag: 'DERIVED', text: 'Derived Metric', value: savedSet.derived ? String(savedSet.derived) : '—' },
-            ]
-          : [{ flag: '없음', text: '불러온 저장 셋이 없습니다', value: '—' }],
-      },
-      {
-        source: 'MW', color: '#8a929c', title: '비교 셋 구성',
-        body: `각 테이블은 행이 Cell, 열이 CK Slope(${CK_SLOPES.join(' / ')}) 아래 voltage로 구성됩니다. ` +
-          `slope마다 데이터가 존재하는 voltage가 달라 테이블 간 열 수가 일치하지 않으므로, ` +
-          `비교 시 동일 slope·voltage 열끼리 대응시켜 읽어야 합니다.`,
-        points: mwSets.map((s, i) => ({
-          flag: `SET ${i + 1}`,
-          text: `${s.label || '이름 없음'} · ${s.tables.map(t => `${findPdk(t.pdkId).process}/${t.lib}`).join(' vs ')}`,
-          value: `${s.tables.length} tables`,
-        })),
-      },
-    ],
-    actions: [
-      { sev: 'CHECK', text: 'Cell Height 간 GDS version 차이 — 비교 전 기준 통일', tab: 'Library Info', owner: 'lib.owner' },
-      { sev: 'CHECK', text: 'Cell Height별 미지원 Drive Strength / VTH / Nanosheet 확인', tab: 'Library Info', owner: 'lib.design' },
-      { sev: 'INFO',  text: savedSet ? '저장 셋의 Derived Metric 정의 확인' : 'PPA 저장 셋 불러오기', tab: 'PPA', owner: 'demo.user' },
-      { sev: 'INFO',  text: 'MW 테이블 간 CK Slope·voltage 열 대응 확인', tab: 'MW', owner: 'char.team' },
-    ],
-    disclaimer: '요약은 위 세 탭에 표시된 값만 인용해 생성되며, 합격·불합격 판정을 하지 않습니다. 근거 값은 각 탭에서 직접 확인하세요.',
+    lead_body:
+      `Library Info · PPA · MW 세 탭에 담긴 값을 정리했습니다. ` +
+      `아래 각 영역은 원본을 그대로 인용한 것이며 합격·불합격 판정이 아닙니다.`,
+    status: 'DRAFT',
+    generated_at: GEN_AT,
+    finalized_at: null, finalized_by: null,
+    locked: false, editable_until: null,
+    created_by: CURRENT_USER, created_at: GEN_AT,
+    updated_by: CURRENT_USER, updated_at: GEN_AT,
+    release_paths: releasePaths(lib).map((r, i) => ({
+      cell_height_id: i + 1, height: r.height, path: r.path, gds_desc: '',
+    })),
+    release_updated_at: GEN_AT,
+    blocks,
+    comment_count: 0,
   }
 }

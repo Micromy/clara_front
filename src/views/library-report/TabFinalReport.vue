@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { findSavedSet, finalReport, CURRENT_USER } from './data.js'
+import { useRoute } from 'vue-router'
+import { finalReport, CURRENT_USER } from './data.js'
 
 const props = defineProps({
   pdk: { type: Object, required: true },
@@ -9,22 +9,58 @@ const props = defineProps({
 })
 
 const route = useRoute()
-const router = useRouter()
 
 // Never generated on entry — the button has to be pressed.
 const state = ref('idle') // idle | loading | ready
 
-// MW sets live in the MW tab's local state; the summary quotes a fixed shape
-// until the two tabs share a store.
-const MW_SETS = [{ label: '', tables: [{ pdkId: 'p1', lib: 'LIBA' }] }]
-
-const savedSet = computed(() => findSavedSet(route.query.set))
+// Mock of GET /clara/report/ — backend inline-expands each block's `data`.
 const report = computed(() =>
-  finalReport({ pdk: props.pdk, lib: props.lib, savedSet: savedSet.value, mwSets: MW_SETS }),
+  finalReport({ pdkId: props.pdk.id, lib: props.lib, savedSetId: route.query.set }),
 )
-const inputSummary = computed(
-  () => `PDK 4 components · PPA ${savedSet.value ? `${savedSet.value.cells} cells` : '미선택'} · MW ${MW_SETS.length} sets`,
-)
+const inputSummary = computed(() => {
+  const b = report.value.blocks
+  const mw = b.filter(x => x.block_type === 'MW').length
+  return `PDK ${props.pdk.process} · PPA ${b.filter(x => x.block_type === 'PPA').length} chart · MW ${mw} sets`
+})
+const metaText = computed(() => `generated ${report.value.generated_at} · ${report.value.blocks.length} areas`)
+
+// The disclaimer is boilerplate, not part of the report contract.
+const DISCLAIMER =
+  '요약은 각 탭에 표시된 값만 인용해 생성되며, 합격·불합격 판정을 하지 않습니다. 근거 값은 각 탭에서 직접 확인하세요.'
+
+const SOURCE_LABEL = { LIB: 'LIBRARY INFO', PPA: 'PPA', MW: 'MW' }
+const BLOCK_COLOR = { LIB: '#8a929c', PPA: '#2f6fed', MW: '#8a929c' }
+
+// TODO #6 "작게 요약 표시" — block.data에서 프론트가 파생 (설계 7-9, points 출처 미확정).
+function blockSummary(b) {
+  const d = b.data
+  if (!d) return []
+  if (b.blockType === 'LIB') {
+    const gds = [...new Set(d.release_paths.map(r => r.gds_version))]
+    return [
+      { flag: 'PATH', text: `Cell Height ${d.release_paths.length}종 릴리스 경로`, value: `${d.release_paths.length}종` },
+      { flag: 'GDS', text: `GDS version ${gds.join(' / ')}`, value: gds.length > 1 ? '차이 있음' : '동일' },
+      { flag: 'DESIGN', text: 'Cell Height별 Drive/VTH/Nanosheet 지원 범위', value: `${d.cell_design.length} heights` },
+    ]
+  }
+  if (b.blockType === 'PPA') {
+    return [
+      { flag: 'CELLS', text: '저장된 Cell 수', value: String(d.cell_count) },
+      { flag: 'CHART', text: `${d.chart_type} · Cell × ${d.y1_metric}`, value: d.y2_metric ? '2축' : '단일 축' },
+      { flag: 'DERIVED', text: 'Derived Metric', value: d.derived_count ? String(d.derived_count) : '—' },
+    ]
+  }
+  if (b.blockType === 'MW') {
+    if (!d.slope_present) return [{ flag: 'SLOPE40', text: 'CK Slope 40 데이터', value: '해당 없음' }]
+    const head = { flag: 'THRESHOLD', text: `fail_count ≥ ${d.threshold} (${d.mw_type})`, value: `${d.cells.length}개 셀` }
+    const rows = d.cells.map(c => {
+      const worst = c.hits.reduce((a, h) => (h.fail_count > a.fail_count ? h : a), c.hits[0])
+      return { flag: c.cell_name, text: `${worst.voltage_label} 등 ${c.hits.length} volt`, value: String(worst.fail_count) }
+    })
+    return [head, ...rows]
+  }
+  return []
+}
 
 // The AI output is the source; the user edits a draft copied from it so the
 // original generated text can always be regenerated.
@@ -38,15 +74,21 @@ let blockSeq = 0
 const blocks = ref([])
 
 function buildBlocks() {
-  blocks.value = report.value.sections.map(s => ({
-    id: `ai-${blockSeq++}`,
-    kind: 'ai',
-    source: s.source,
-    color: s.color,
-    title: s.title,
-    points: s.points,
-    body: s.body,
-  }))
+  blocks.value = report.value.blocks.map(b =>
+    b.block_type === 'USER'
+      ? { id: `b-${blockSeq++}`, kind: 'user', title: b.title || '', body: b.body || '' }
+      : {
+          id: `b-${blockSeq++}`,
+          kind: 'ai',
+          blockType: b.block_type,
+          source: SOURCE_LABEL[b.block_type],
+          color: BLOCK_COLOR[b.block_type],
+          title: b.title,
+          body: b.body,
+          stale: b.stale,
+          data: b.data,
+        },
+  )
 }
 
 function addBlockAt(index) {
@@ -128,16 +170,9 @@ function finalize() {
   editing.value = false
 }
 
-// Clicking an action jumps to the tab it points at.
-const TAB_KEY = { 'Library Info': 'info', PPA: 'ppa', MW: 'mw' }
-function goToTab(tab) {
-  const key = TAB_KEY[tab]
-  if (key) router.push({ query: { ...route.query, tab: key } })
-}
-
 function loadDraft() {
   draft.title = report.value.title
-  draft.body = report.value.body
+  draft.body = report.value.lead_body
   buildBlocks()
 }
 
@@ -174,7 +209,7 @@ function generate() {
         <input v-if="editing" v-model="draft.title" class="fr-title-input" />
         <span v-else class="fr-title">{{ draft.title }}</span>
         <div class="fr-sub">
-          <span class="fr-meta">{{ report.meta }}</span>
+          <span class="fr-meta">{{ metaText }}</span>
           <span v-if="savedAt" class="fr-author">저장 {{ savedBy }} · {{ fmt(savedAt) }}</span>
         </div>
       </div>
@@ -230,6 +265,7 @@ function generate() {
                 <template v-if="b.kind === 'ai'">
                   <span class="fr-source" :style="{ color: b.color }">{{ b.source }}</span>
                   <span class="fr-card-title">{{ b.title }}</span>
+                  <span v-if="b.stale" class="fr-stale">본문 낡음</span>
                 </template>
                 <template v-else>
                   <span class="fr-source fr-source-user">USER</span>
@@ -258,7 +294,7 @@ function generate() {
               ></textarea>
               <p v-else class="fr-prose">{{ b.body }}</p>
               <div v-if="b.kind === 'ai'" class="fr-points">
-                <div v-for="p in b.points" :key="p.flag" class="fr-point">
+                <div v-for="p in blockSummary(b)" :key="p.flag" class="fr-point">
                   <span class="fr-flag">{{ p.flag }}</span>
                   <span class="fr-point-text">{{ p.text }}</span>
                   <span class="fr-point-value">{{ p.value }}</span>
@@ -277,29 +313,7 @@ function generate() {
         ><span class="fr-insert-bar">+</span></button>
       </div>
 
-      <section class="fr-actions">
-        <div class="fr-actions-head">
-          <span class="lr-section-title">짚어볼 지점</span>
-          <span class="lr-subtitle">{{ report.actions.length }} items</span>
-        </div>
-        <div class="lr-box">
-          <button
-            v-for="a in report.actions"
-            :key="a.text"
-            class="lr-row g-action fr-action-row"
-            type="button"
-            :title="`${a.tab} 탭으로 이동`"
-            @click="goToTab(a.tab)"
-          >
-            <span class="fr-sev" :class="a.sev === 'CHECK' ? 'lr-warn' : 'dim'">{{ a.sev }}</span>
-            <span class="fr-action-text lr-ellipsis">{{ a.text }}</span>
-            <span class="lr-mono lr-num small dim">{{ a.tab }} ↗</span>
-            <span class="lr-mono lr-num small">{{ a.owner }}</span>
-          </button>
-        </div>
-      </section>
-
-      <p class="fr-disclaimer">{{ report.disclaimer }}</p>
+      <p class="fr-disclaimer">{{ DISCLAIMER }}</p>
     </div>
   </div>
 </template>
@@ -538,6 +552,16 @@ function generate() {
 .fr-drag:active { cursor: grabbing; }
 
 .fr-source-user { color: #a7afb9; }
+.fr-stale {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #b4451f;
+  background: #fdeee7;
+  border: 1px solid #f3d3c4;
+  border-radius: 3px;
+  padding: 1px 5px;
+}
 .fr-card-title-input {
   flex: 1;
   min-width: 0;
@@ -622,35 +646,6 @@ function generate() {
   flex-shrink: 0;
 }
 
-.fr-actions-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 0 6px;
-}
-.g-action {
-  grid-template-columns: 64px minmax(0, 1fr) 92px 108px;
-  padding: 0 10px;
-}
-.fr-action-row {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.fr-action-row:hover { background: #f1f6ff; }
-.fr-action-row:hover .fr-action-text { color: #2f6fed; }
-.fr-sev {
-  font-family: var(--clara-mono);
-  font-size: 10.5px;
-}
-.fr-action-text {
-  font-size: 11.5px;
-  color: #1c1f24;
-  padding-right: 10px;
-}
 .dim { color: #8a929c; }
 .small { font-size: 11px; }
 
