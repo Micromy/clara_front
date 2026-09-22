@@ -20,7 +20,7 @@ Library Info / PPA / MW 세 탭은 **원본 데이터의 소유자이며 이 설
 
 Final Report는 원본 값을 복사해 보관하지 않는다. **참조 메타데이터만 저장하고, 열람할 때마다 원본을 조회해 렌더한다.**
 
-이 테이블 그룹이 소유하는 데이터는 **AI 초안과 사람이 작성한 글뿐이다.**
+이 테이블 그룹이 소유하는 데이터는 **AI 초안, 사람이 작성한 글, 그리고 지금까지 어디에도 저장되지 않던 참조용 설정값**이다. `fr_mw_threshold` / `fr_lib_release`가 후자에 해당한다 — MW 탭·Library Info 탭이 이 값을 렌더에 재사용하더라도, 이 값을 처음 저장·관리하는 주체는 Final Report다.
 
 ### 2-2. "최종 저장 시 고정"의 의미 = 참조 고정
 
@@ -131,7 +131,7 @@ INDEX (report_id, created_at)
 - 유효기간이 없다. **최종 확정(FINAL) 이후에도 열람과 신규 작성이 모두 가능하다** — `fr_report.status`와 무관하게 동작한다.
 - 수정/삭제(`is_deleted`, `updated_at`), 대댓글(`parent_comment_id`)은 **미정이며 나중에 컬럼 추가로 흡수 가능**하므로 지금 넣지 않는다.
 
-### 3-4. `spil_mw_threshold` — MW 임계값 config
+### 3-4. `fr_mw_threshold` — MW 임계값 config
 
 ```sql
 mw_type     VARCHAR2(10)  PK    -- MWD | MWS
@@ -154,10 +154,10 @@ updated_by  VARCHAR2(100)
 | cell design 지원 범위 | **쿼리 집계** | Drive Strength / VTH / Nanosheet |
 | release path | **사용자 입력** | 원천 데이터가 없다 |
 
-release path는 사용자가 입력해야 하지만, **입력 위치는 Final Report가 아니라 library 마스터 쪽이다.** 리포트에 두면 같은 library의 경로를 리포트마다 다시 입력하게 되고, 참조형 원칙(이 테이블 그룹은 AI 초안과 사람 글만 소유)도 깨진다.
+release path는 지금까지 어느 백엔드 테이블에도 저장된 적 없는 값이다. library 마스터 쪽에 이미 그런 테이블이 있다면 거기에 얹는 게 맞겠지만, **없으므로 이 값을 처음 저장하는 주체는 Final Report다.** `fr_` 그룹에 둔다.
 
 ```sql
-lib_release  (가칭)
+fr_lib_release  (가칭)
   library_id      NUMBER          FK -> library(id)
   cell_height_id  NUMBER          FK -> cell_height(id)
   release_path    VARCHAR2(1000)  -- 사용자 입력
@@ -166,8 +166,9 @@ lib_release  (가칭)
   PK (library_id, cell_height_id)
 ```
 
-- library 이름 convention 설명(TODO #3)은 library 단위이므로 `library` 테이블 쪽에 둔다.
-- `LIB` 블록의 `source_updated_at`은 **집계 원천의 갱신시각과 `lib_release.updated_at` 중 `MAX`** 로 잡는다. 사용자가 release path만 고쳐도 본문이 낡을 수 있으므로 둘 다 봐야 한다.
+- **library 이름 convention 설명**(TODO #3의 나머지 절반)은 library 단위로 1건이라 여기 들어가지 않는다. `library` 테이블에 실제 마스터 컬럼이 있으면 거기, 없으면 `fr_library_naming`류로 별도 검토가 필요하다 — 이건 아직 열려 있다.
+- `LIB` 블록의 `source_updated_at`은 **집계 원천의 갱신시각과 `fr_lib_release.updated_at` 중 `MAX`** 로 잡는다. 사용자가 release path만 고쳐도 본문이 낡을 수 있으므로 둘 다 봐야 한다.
+- MW 탭·Library Info 탭이 이 값을 자기 화면에도 보여주고 싶어지면, **그쪽이 `fr_mw_threshold` / `fr_lib_release`를 참조**하면 된다. 최초 저장 주체가 바뀌는 게 아니라 소비자가 늘어나는 것뿐이라 구조에 영향이 없다.
 
 ---
 
@@ -178,7 +179,7 @@ F.R.에 표시되는 MW는 전체 테이블이 아니라 **필터된 셀 리스�
 | 항목 | 규칙 | 근거 |
 |---|---|---|
 | slope | `ck_slope = 40` **고정** | 라이브러리 간 비교가 목적이므로 "가장 낮은 slope"로 두면 기준이 달라져 비교가 깨진다 |
-| 임계값 | `spil_mw_threshold`의 `mw_type`별 값 | 서버에서 배포 없이 변경 가능, 전사 통일 유지 |
+| 임계값 | `fr_mw_threshold`의 `mw_type`별 값 | 서버에서 배포 없이 변경 가능, 전사 통일 유지 |
 | 셀 판정 | slope 40 아래 voltage 중 **하나라도** `fail_count >= threshold`면 리스트에 포함 | 목적이 문제 셀을 눈에 띄게 하는 것 |
 | 표시 | 셀 이름 + 걸린 voltage + 값 | 셀 이름만으로는 요약의 정보량이 없다 |
 | 예외 | slope 40이 없는 조합은 "해당 없음"을 명시 | `ck_slope`는 `NUMBER(3)`이라 조합마다 slope 집합이 다를 수 있다 |
@@ -255,7 +256,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 | 최종 확정 후 코멘트 작성 | **허용** |
 | 최종 저장 후 5일 유예 | **유지** (이후 수정 불가) |
 | SPiL 소속 판정 | 외부 시스템 연동 필요 → **당분간 전체 허용**, 템플릿 수준으로만 구성 |
-| Library Info 원천 | gds version·cell design은 **쿼리 집계**, release path는 **사용자 입력** → `lib_release`에 저장 (3-5) |
+| Library Info 원천 | gds version·cell design은 **쿼리 집계**, release path는 **사용자 입력** → `fr_lib_release`에 저장 (3-5) |
 | MW 갱신 감지 방식 | **ETL을 MERGE(upsert)로 전환** — 값이 바뀐 행만 갱신, `updated_at` 그대로 사용 (9장) |
 
 ---
