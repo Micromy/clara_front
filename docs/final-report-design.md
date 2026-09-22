@@ -203,20 +203,154 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 ---
 
-## 7. API 초안
+## 7. API 초안 — 엔드포인트와 Response shape
 
-기존 컨벤션(flat 직렬화, 조립은 프론트)을 따른다.
+기존 컨벤션을 따른다: **와이어는 snake_case**(프론트 `toCamel()` `src/api/client.js:20`이 camel로 변환), list는 페이지네이션 없이 배열, 없는 값은 `null`, 시각은 ISO8601.
 
 | Method | 엔드포인트 | 용도 |
 |---|---|---|
-| GET | `/clara/report/?pdk_id=&library_id=` | 리포트 조회 (blocks 포함) |
-| POST | `/clara/report/` | 생성 |
-| PUT | `/clara/report/<id>/` | 저장 (blocks 전량 교체) |
+| GET | `/clara/report/?pdk_id=&library_id=` | 리포트 조회 (blocks inline 확장 + staleness 포함) |
+| POST | `/clara/report/` | 생성(요약 생성) |
+| PUT | `/clara/report/<id>/` | 저장 / 재생성 (blocks 전량 교체) |
 | POST | `/clara/report/<id>/finalize/` | 최종 저장 |
-| GET | `/clara/report/<id>/validate/` | 영역별 유효성 체크 |
 | GET/POST | `/clara/report/<id>/comment/` | 코멘트 |
 
-- 임계값 lookup 엔드포인트는 없다. DB/config가 없으므로 내려줄 것이 없다 — 프론트와 백엔드가 각자 코드 상수로 값을 맞춘다(3-4 참조).
+두 가지 결정:
+- **블록 데이터는 백엔드 inline 확장.** 저장은 참조형(값 미복사)이나, GET 응답 시점에 백엔드가 원본(chart/mw/library 집계)을 조인해 **현재 값**을 블록 `data`에 실어 보낸다. 프론트는 추가 호출 없이 렌더.
+- **유효성(본문 낡음)은 GET 응답 블록별 플래그(`stale`)로 포함.** 별도 `/validate/` 호출 없음.
+- 임계값 lookup 엔드포인트는 없다 — DB/config가 없으므로 내려줄 것이 없다. 프론트·백엔드가 각자 코드 상수로 맞춘다(3-4). MW 블록 `data.threshold`에 사용값을 명시해 표시용으로만 노출.
+
+### 7-1. `GET /clara/report/?pdk_id=&library_id=`
+
+없으면 `404`(프론트는 "요약 생성" idle). 블록은 seq 순.
+
+```json
+{
+  "report_id": 12, "pdk_id": 3, "library_id": 1,
+  "title": "[AX5] LIBA 리포트 요약",
+  "lead_body": "Library Info · PPA · MW 세 탭에 담긴 값을 정리했습니다. ...",
+  "status": "DRAFT",
+  "generated_at": "2026-08-31T09:42:00",
+  "finalized_at": null, "finalized_by": null,
+  "locked": false, "editable_until": null,
+  "created_by": "demo.user", "created_at": "2026-08-31T09:42:00",
+  "updated_by": "demo.user", "updated_at": "2026-09-02T14:05:00",
+  "release_paths": [
+    { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/liba/ch120/release/r4", "gds_desc": "..." }
+  ],
+  "release_updated_at": "2026-09-02T14:05:00",
+  "blocks": [ /* 7-2 */ ],
+  "comment_count": 4
+}
+```
+
+- `locked`: 백엔드가 `finalized_at` + 정책(5일)으로 계산한 파생 bool. 프론트는 그대로 사용(현재 `TabFinalReport.vue:92` 로컬 계산 대체).
+- `editable_until`: `finalized_at + 5일`. "수정 가능 D-n" 표시용. FINAL 아니면 null.
+
+### 7-2. 블록 shape (`blocks[]`)
+
+공통 필드 + `block_type`별 `data` + staleness. `USER`는 `data`/staleness 없음.
+
+```json
+{
+  "block_id": 101, "seq": 0,
+  "block_type": "LIB",                     // LIB | PPA | MW | USER
+  "title": "PDK 구성과 릴리스 경로",
+  "ai_draft": "PDK는 AX5 기준이며 ...",       // AI 생성 원문(보존)
+  "body": "PDK는 AX5 기준이며 ...",           // 사람 편집본 (미편집 시 ai_draft와 동일)
+  "ai_generated_at": "2026-08-31T09:42:00",
+  "chart_id": null, "cell_height_id": null, "mw_type": null,  // 참조키 (해당 타입만)
+  "stale": false,                          // 본문 낡음 여부
+  "source_saved_at": "2026-08-30T...",     // 초안 시점 원본 갱신시각
+  "source_current_at": "2026-08-30T...",   // 현재 원본 MAX(updated_at). 다르면 stale=true
+  "data": { /* 7-3 ~ 7-5, block_type별 */ }
+}
+```
+
+### 7-3. `LIB` block `data`
+
+`TabLibraryInfo.vue`의 세 표에 대응. gds version·cell design은 **쿼리 집계**, release는 `fr_report.release_paths` 재노출.
+
+```json
+{
+  "pdk": { "process": "AX5", "hspice": "V1.2.0.0", "lvs": "V1.2.0.0", "pex": "V1.2.0.0" },
+  "release_paths": [
+    { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/.../r4", "gds_version": "V1.0.0.0", "gds_desc": "..." }
+  ],
+  "cell_design": [
+    { "cell_height_id": 1, "height": "CH120", "drives": "D1 D2 D3 D6 D8 D16",
+      "vths": ["rvt","lvt","slvt","vlvt"], "nanosheet": ["N1","N2","N3","N5"], "cell_count": 512 }
+  ],
+  "vth_all": ["rvt","lvt","slvt","mvt","vlvt"],
+  "nanosheet_all": ["N1","N2","N3","N4","N5"]
+}
+```
+
+- `gds_version` 집계값 / `gds_desc`·`path`는 사용자 입력.
+- `vth_all`/`nanosheet_all`: 미지원 항목 회색 처리용 전체 축(`TabLibraryInfo.vue:58-59`). 응답에 실을지 프론트 상수로 둘지 — **미확정**(8장).
+
+### 7-4. `PPA` block `data`
+
+"PPA는 chart의 meta 정보"(확정). `/clara/chart/<id>/`(API.md 8장) meta 추출. 차트 rows는 PPA 탭 소유이므로 미포함.
+
+```json
+{
+  "chart_id": 12, "chart_name": "hd_inv_buf_sweep", "chart_type": "bar",
+  "cell_type": 1, "x_metric": "Cell", "y1_metric": "Area", "y2_metric": null,
+  "cell_count": 14, "derived_count": 1,
+  "saved_at": "2026-08-30T17:22:00", "owner": "demo.user"
+}
+```
+
+### 7-5. `MW` block `data`
+
+"slope 40 포함 셀 중 특정 값 이상인 셀 리스트"(확정). 백엔드가 `/clara/mw/`(API.md 10장) 원천에서 **slope 40 고정 + `fail_count >= 시스템상수[mw_type]`** 필터.
+
+```json
+{
+  "cell_height_id": 1, "height": "CH120", "mw_type": "MWD",
+  "threshold": 44, "slope_present": true,
+  "cells": [
+    { "cell_name": "INVD8", "hits": [ { "voltage_label": "0p42v", "voltage_value": 0.42, "fail_count": 51 } ] }
+  ]
+}
+```
+
+- `slope_present:false` + `cells:[]` → "해당 없음" 표시.
+- 셀 판정 = voltage 중 하나라도 `>=` threshold, `hits`엔 초과분만.
+
+### 7-6. `USER` block `data`
+
+없음. `title` + `body`만. `ai_draft`/`data`/staleness 필드 `null` 또는 미포함.
+
+### 7-7. 나머지 엔드포인트
+
+| 엔드포인트 | Request | Response |
+|---|---|---|
+| `POST /clara/report/` | `{ pdk_id, library_id, created_by }` | `201`, 7-1과 동일 shape(AI 초안 블록 채워진 상태). 중복 시 `409` vs 기존 반환 **미확정** |
+| `PUT /clara/report/<id>/` | `title`, `lead_body`, `release_paths`, `blocks`(seq/title/body/참조키) 전량 | `200`, 7-1 재확장 결과. LOCKED면 `403` |
+| `POST /clara/report/<id>/finalize/` | `{ finalized_by }` | `200`, `status:"FINAL"` + `finalized_at`/`editable_until` 채워짐, `locked:false`(유예 중) |
+| `GET /clara/report/<id>/comment/` | — | `created_at` 순 배열. 상태 무관 항상 반환 |
+| `POST /clara/report/<id>/comment/` | `{ body, created_by }` | `201`, 코멘트 단건. FINAL/LOCKED에서도 허용 |
+
+코멘트 원소 shape:
+```json
+{ "comment_id": 501, "report_id": 12, "body": "다음 개발 때 CH180 확인 필요",
+  "created_by": "eng.user", "created_at": "2026-09-01T10:00:00" }
+```
+
+### 7-8. 확장의 원천이 되는 기존 탭 엔드포인트
+
+LIB/PPA/MW **탭 자체**는 계속 자기 엔드포인트를 직접 호출(백엔드는 report 확장 시 내부적으로 같은 원천 조인).
+- MW 탭 → `GET /clara/mw/`(flat 행, 프론트가 2단 헤더 조립, API.md 10장) — `src/api/cells.js`에 클라이언트 신규 추가 필요.
+- PPA 탭 → `GET /clara/chart/<id>/`(API.md 8장, 기존).
+- Library Info 집계 → 신규 쿼리(원천 테이블 미확인, 8장).
+
+### 7-9. 스키마에 없는 mock 산출물 — 처리 미정
+
+현재 mock(`data.js` `finalReport()`, `TabFinalReport.vue`)엔 있으나 `fr_report`/`fr_block` 스키마엔 없는 것:
+- **`actions`("짚어볼 지점")·`disclaimer`** — 리포트 레벨 AI 산출물로 저장/응답할지 폐기할지 미정.
+- **`points`(flag/text/value 요약 bullet)** — 위 shape는 "블록 `data`에서 프론트 파생"을 전제(TODO #6 "작게 요약 표시"와 정합). AI 생성·저장으로 갈지 미정.
 
 ---
 
@@ -227,6 +361,10 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 | 1 | **MW ETL의 MERGE 전환 작업 자체** — 9장에서 방향은 정했지만 실제 구현·배포는 아직 | 전환 전까지 유효성 오탐 가능 (값이 안 바뀌어도 경고) |
 | 2 | **ETL에서 사라진 조합의 처리 정책** — soft delete 컬럼을 둘지, 행을 그냥 남겨둘지 | `MAX(updated_at)` 집계 시 죽은 행이 섞여 들어갈 수 있음 |
 | 3 | **MW 임계값 상수의 단일 출처** — 프론트(`data.js`의 `MW_HIGH`)와 백엔드가 각자 하드코딩하면 어긋날 수 있음 | 두 값이 다르면 MW 탭 하이라이트와 Final Report 셀 리스트가 서로 다르게 보임 |
+| 4 | **POST 중복 시 정책** — 이미 `(pdk_id, library_id)` 리포트가 있을 때 `409`로 막을지 기존 반환할지 | 재생성=덮어쓰기이므로 PUT로 유도가 자연스러움 (7-7) |
+| 5 | **`actions`·`disclaimer` 저장 여부** — mock에만 있고 스키마에 없음 (7-9) | 리포트 레벨 AI 산출물로 승격할지 폐기할지 |
+| 6 | **`points` 요약 bullet 출처** — 블록 `data` 프론트 파생 vs AI 생성·저장 (7-9) | 현재 shape는 프론트 파생 전제 |
+| 7 | **`vth_all`/`nanosheet_all`** — 응답에 실을지 프론트 상수로 둘지 (7-3) | 미지원 항목 회색 처리용 전체 축 |
 
 ### 해결된 항목
 
