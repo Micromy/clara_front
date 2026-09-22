@@ -20,7 +20,7 @@ Library Info / PPA / MW 세 탭은 **원본 데이터의 소유자이며 이 설
 
 Final Report는 원본 값을 복사해 보관하지 않는다. **참조 메타데이터만 저장하고, 열람할 때마다 원본을 조회해 렌더한다.**
 
-이 테이블 그룹이 소유하는 데이터는 **AI 초안, 사람이 작성한 글, 그리고 지금까지 어디에도 저장되지 않던 참조용 설정값**이다. `fr_mw_threshold` / `fr_lib_release`가 후자에 해당한다 — MW 탭·Library Info 탭이 이 값을 렌더에 재사용하더라도, 이 값을 처음 저장·관리하는 주체는 Final Report다.
+이 테이블 그룹이 소유하는 데이터는 **AI 초안, 사람이 작성한 글, 그리고 지금까지 어디에도 저장되지 않던 사용자 입력값(release path)** 이다. MW 임계값은 DB에 두지 않고 **시스템 코드 상수**로 고정한다 — 값이 자주 바뀔 이유가 없다는 판단이라 config 테이블 없이 하드코딩으로 충분하다.
 
 ### 2-2. "최종 저장 시 고정"의 의미 = 참조 고정
 
@@ -33,10 +33,9 @@ Final Report는 원본 값을 복사해 보관하지 않는다. **참조 메타�
 
 ### 2-3. 유효성 경고
 
-참조형에서 본문이 낡는 원인은 두 가지이며, 둘 다 감지해야 한다.
+참조형에서 본문이 낡는 원인은 **원본 데이터 변경**이다 → 블록에 기록해 둔 `source_updated_at`과 현재 원본 갱신시각을 비교한다.
 
-1. **원본 데이터 변경** → 블록에 기록해 둔 `source_updated_at`과 현재 원본 갱신시각 비교
-2. **MW 임계값 변경** → 블록에 기록해 둔 `threshold_at_draft`와 현재 config 값 비교
+(MW 임계값은 시스템 상수로 고정했으므로 별도 변경 감지 대상이 아니다 — slope 40과 같은 층위로 취급한다.)
 
 경고의 의미는 "데이터가 변경됨"이 아니라 **"이 영역의 본문이 낡음"** 이다. 해소 수단은 영역별 AI 초안 재생성.
 
@@ -61,9 +60,11 @@ Oracle 기준. 기존 CLARA 컨벤션(`<table>_id` PK, `created_at`/`created_by`
 report_id      NUMBER          PK
 pdk_id         NUMBER          NOT NULL  FK -> pdk_version(id)
 library_id     NUMBER          NOT NULL  FK -> library(id)
-title          VARCHAR2(400)   NOT NULL
-lead_body      CLOB            NULL      -- 리드 문단
-status         VARCHAR2(10)    NOT NULL  -- DRAFT | FINAL
+title              VARCHAR2(400)   NOT NULL
+lead_body          CLOB            NULL      -- 리드 문단
+release_paths      CLOB            NULL      -- [{cell_height_id, path, gds_desc}, ...] JSON, 사용자 입력
+release_updated_at TIMESTAMP       NULL      -- release_paths 마지막 수정 시각
+status             VARCHAR2(10)    NOT NULL  -- DRAFT | FINAL
 created_by     VARCHAR2(100)
 created_at     TIMESTAMP
 updated_by     VARCHAR2(100)
@@ -76,6 +77,7 @@ UNIQUE (pdk_id, library_id)
 
 - **PDK & library 조합당 1건.** 변경점이 생기면 library가 새로 생성되므로 리포트에 별도 버전 축이 필요 없다 — 버저닝은 library 테이블이 이미 갖고 있다.
 - 재생성은 `report_id`를 유지한 채 블록을 전량 교체한다.
+- **`release_paths`는 별도 테이블로 빼지 않는다.** 리포트가 이미 (pdk, library)당 1건이라 join 없이 컬럼으로 둬도 중복 저장이 생기지 않는다 (3-5 참조).
 
 ### 3-2. `fr_block` — 영역
 
@@ -94,7 +96,6 @@ chart_id            NUMBER          NULL  FK -> chart(chart_id)        -- PPA
 cell_height_id      NUMBER          NULL  FK -> cell_height(id)        -- MW
 mw_type             VARCHAR2(10)    NULL                               -- MW
 source_updated_at   TIMESTAMP       NULL  -- 참조 시점 원본 갱신시각 (MAX 집계, 2-3 참조)
-threshold_at_draft  NUMBER          NULL  -- MW 전용, 초안 시점 임계값
 
 INDEX (report_id, seq)
 CHECK (block_type별 필수 참조키가 채워졌는지)
@@ -111,7 +112,7 @@ CHECK (block_type별 필수 참조키가 채워졌는지)
 |---|---|---|
 | `LIB` | `report.library_id` | `source_updated_at` (3-5 참조) |
 | `PPA` | `chart_id` | `source_updated_at` |
-| `MW` | `report.pdk_id`, `report.library_id`, `cell_height_id`, `mw_type` | `source_updated_at`, `threshold_at_draft` |
+| `MW` | `report.pdk_id`, `report.library_id`, `cell_height_id`, `mw_type` | `source_updated_at` |
 | `USER` | — | — (경고 없음) |
 
 ### 3-3. `fr_comment` — 코멘트
@@ -131,18 +132,12 @@ INDEX (report_id, created_at)
 - 유효기간이 없다. **최종 확정(FINAL) 이후에도 열람과 신규 작성이 모두 가능하다** — `fr_report.status`와 무관하게 동작한다.
 - 수정/삭제(`is_deleted`, `updated_at`), 대댓글(`parent_comment_id`)은 **미정이며 나중에 컬럼 추가로 흡수 가능**하므로 지금 넣지 않는다.
 
-### 3-4. `fr_mw_threshold` — MW 임계값 config
+### 3-4. MW 임계값 — 테이블 없음, 시스템 상수
 
-```sql
-mw_type     VARCHAR2(10)  PK    -- MWD | MWS
-threshold   NUMBER        NOT NULL
-updated_at  TIMESTAMP
-updated_by  VARCHAR2(100)
-```
+DB config 테이블을 두지 않는다. **코드 상수로 고정**한다. MWD/MWS는 물리적으로 다른 측정이므로 상수는 `mw_type`별로 둔다 (예: 백엔드 설정에 `{MWD: 44, MWS: ...}`).
 
-- MWD/MWS는 물리적으로 다른 측정이므로 임계값을 공유할 이유가 없다.
-- `pdk_id`는 **지금 넣지 않는다.** 요구가 없고, 넣는 순간 모든 PDK에 행을 채워야 한다. 필요해지면 복합 PK로 확장한다.
-- `updated_at`은 운영 추적용이며 **유효성 판정 로직에서는 쓰지 않는다**(2-3 참조).
+- 배포 없이 바꿀 수 있는 유연성은 포기한다 — 값이 자주 바뀔 이유가 없다는 판단.
+- ⚠️ **프론트(`data.js`의 `MW_HIGH`)와 백엔드가 각자 상수를 들고 있게 된다.** 두 곳이 어긋나면 MW 탭 하이라이트와 Final Report 셀 리스트가 서로 다르게 보일 수 있다. 어느 한쪽을 단일 출처로 삼을지는 8장에 열어둔다.
 
 ### 3-5. Library Info의 원천
 
@@ -152,23 +147,12 @@ updated_by  VARCHAR2(100)
 |---|---|---|
 | gds version | **쿼리 집계** | 저장하지 않는다 |
 | cell design 지원 범위 | **쿼리 집계** | Drive Strength / VTH / Nanosheet |
-| release path | **사용자 입력** | 원천 데이터가 없다 |
+| release path | **사용자 입력** | `fr_report.release_paths`(3-1)에 저장 |
 
-release path는 지금까지 어느 백엔드 테이블에도 저장된 적 없는 값이다. library 마스터 쪽에 이미 그런 테이블이 있다면 거기에 얹는 게 맞겠지만, **없으므로 이 값을 처음 저장하는 주체는 Final Report다.** `fr_` 그룹에 둔다.
+release path는 지금까지 어느 백엔드 테이블에도 저장된 적 없는 값이다. 별도 테이블을 두는 대신, **리포트가 PDK & library 조합당 1건**이라는 3-1의 UNIQUE 제약을 그대로 살려 `fr_report`에 JSON 컬럼으로 둔다 — 조인할 이유가 없다.
 
-```sql
-fr_lib_release  (가칭)
-  library_id      NUMBER          FK -> library(id)
-  cell_height_id  NUMBER          FK -> cell_height(id)
-  release_path    VARCHAR2(1000)  -- 사용자 입력
-  gds_desc        VARCHAR2(1000)  -- 사용자 입력 (gds version 설명, 10-4 TODO #3)
-  updated_at / updated_by
-  PK (library_id, cell_height_id)
-```
-
-- **library 이름 convention 설명**(TODO #3의 나머지 절반)은 library 단위로 1건이라 여기 들어가지 않는다. `library` 테이블에 실제 마스터 컬럼이 있으면 거기, 없으면 `fr_library_naming`류로 별도 검토가 필요하다 — 이건 아직 열려 있다.
-- `LIB` 블록의 `source_updated_at`은 **집계 원천의 갱신시각과 `fr_lib_release.updated_at` 중 `MAX`** 로 잡는다. 사용자가 release path만 고쳐도 본문이 낡을 수 있으므로 둘 다 봐야 한다.
-- MW 탭·Library Info 탭이 이 값을 자기 화면에도 보여주고 싶어지면, **그쪽이 `fr_mw_threshold` / `fr_lib_release`를 참조**하면 된다. 최초 저장 주체가 바뀌는 게 아니라 소비자가 늘어나는 것뿐이라 구조에 영향이 없다.
+- **library 이름 convention 설명**(TODO #3의 나머지 절반)은 library 단위로 1건이라 `fr_report`(리포트별)에 두면 리포트마다 같은 내용을 다시 입력하게 된다. `library` 테이블에 실제 마스터 컬럼이 있으면 거기, 없으면 별도 검토가 필요하다 — 이건 아직 열려 있다.
+- `LIB` 블록의 `source_updated_at`은 **집계 원천의 갱신시각과 `fr_report.release_updated_at` 중 `MAX`** 로 잡는다. 사용자가 release path만 고쳐도 본문이 낡을 수 있으므로 둘 다 봐야 한다.
 
 ---
 
@@ -179,7 +163,7 @@ F.R.에 표시되는 MW는 전체 테이블이 아니라 **필터된 셀 리스�
 | 항목 | 규칙 | 근거 |
 |---|---|---|
 | slope | `ck_slope = 40` **고정** | 라이브러리 간 비교가 목적이므로 "가장 낮은 slope"로 두면 기준이 달라져 비교가 깨진다 |
-| 임계값 | `fr_mw_threshold`의 `mw_type`별 값 | 서버에서 배포 없이 변경 가능, 전사 통일 유지 |
+| 임계값 | **시스템 상수** (`mw_type`별 고정값, 3-4 참조) | 값이 자주 바뀔 이유가 없다는 판단 — config 테이블 대신 코드 상수 |
 | 셀 판정 | slope 40 아래 voltage 중 **하나라도** `fail_count >= threshold`면 리스트에 포함 | 목적이 문제 셀을 눈에 띄게 하는 것 |
 | 표시 | 셀 이름 + 걸린 voltage + 값 | 셀 이름만으로는 요약의 정보량이 없다 |
 | 예외 | slope 40이 없는 조합은 "해당 없음"을 명시 | `ck_slope`는 `NUMBER(3)`이라 조합마다 slope 집합이 다를 수 있다 |
@@ -231,9 +215,8 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 | POST | `/clara/report/<id>/finalize/` | 최종 저장 |
 | GET | `/clara/report/<id>/validate/` | 영역별 유효성 체크 |
 | GET/POST | `/clara/report/<id>/comment/` | 코멘트 |
-| GET | `/clara/mw/threshold/` | 임계값 lookup |
 
-- `/clara/mw/threshold/`를 **별도 엔드포인트로 분리**한다. 기존 `/clara/mw/` 응답은 순수 배열이라, 여기에 임계값을 끼워 넣으면 `{threshold, rows}` 객체로 바뀌는 breaking change가 된다. 분리하면 `/clara/cell-height/`, `/clara/metric/`과 같은 lookup 성격이 되어 앱 초기화 때 1회 로드 후 캐시할 수 있다.
+- 임계값 lookup 엔드포인트는 없다. DB/config가 없으므로 내려줄 것이 없다 — 프론트와 백엔드가 각자 코드 상수로 값을 맞춘다(3-4 참조).
 
 ---
 
@@ -243,6 +226,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 |---|---|---|
 | 1 | **MW ETL의 MERGE 전환 작업 자체** — 9장에서 방향은 정했지만 실제 구현·배포는 아직 | 전환 전까지 유효성 오탐 가능 (값이 안 바뀌어도 경고) |
 | 2 | **ETL에서 사라진 조합의 처리 정책** — soft delete 컬럼을 둘지, 행을 그냥 남겨둘지 | `MAX(updated_at)` 집계 시 죽은 행이 섞여 들어갈 수 있음 |
+| 3 | **MW 임계값 상수의 단일 출처** — 프론트(`data.js`의 `MW_HIGH`)와 백엔드가 각자 하드코딩하면 어긋날 수 있음 | 두 값이 다르면 MW 탭 하이라이트와 Final Report 셀 리스트가 서로 다르게 보임 |
 
 ### 해결된 항목
 
@@ -256,7 +240,8 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 | 최종 확정 후 코멘트 작성 | **허용** |
 | 최종 저장 후 5일 유예 | **유지** (이후 수정 불가) |
 | SPiL 소속 판정 | 외부 시스템 연동 필요 → **당분간 전체 허용**, 템플릿 수준으로만 구성 |
-| Library Info 원천 | gds version·cell design은 **쿼리 집계**, release path는 **사용자 입력** → `fr_lib_release`에 저장 (3-5) |
+| Library Info 원천 | gds version·cell design은 **쿼리 집계**, release path는 **사용자 입력** → `fr_report.release_paths`에 저장 (3-1, 3-5) |
+| MW 임계값 저장 방식 | **DB 테이블 대신 시스템(코드) 상수**로 고정 — `fr_mw_threshold` 폐기 (3-4) |
 | MW 갱신 감지 방식 | **ETL을 MERGE(upsert)로 전환** — 값이 바뀐 행만 갱신, `updated_at` 그대로 사용 (9장) |
 
 ---
