@@ -96,6 +96,39 @@ export function cellDesign(library) {
   })
 }
 
+// ── Cell Design "by representative cell" view ──
+// A representative cell (e.g. JSDFF) stands in for a whole bit-width family
+// (JSDFF/JSDFF2X/JSDFF3X/...). Each Cell Height supports its OWN bit set —
+// CH120 might carry 1/2/3bit, CH150 only 1/4bit, CH180 just 1bit. Mock only;
+// swap for a real per-(rep,height) bit-width lookup once the API exists.
+export const REP_CELLS = ['JSDFF', 'JSDFFR', 'JSLATCH', 'JSMUX']
+const BIT_POOL = ['1bit', '2bit', '3bit', '4bit', '6bit']
+const DRIVE_AXIS = ['D1', 'D2', 'D3', 'D4']
+const NS_AXIS = ['N1', 'N1P5', 'N2', 'N3']
+export const CELL_DESIGN_VTH_AXIS = ['RVT', 'LVT', 'SLVT', 'MVT', 'VLVT']
+
+export function cellDesignByHeight(rep) {
+  return HEIGHTS.map(height => {
+    const hkey = `${rep}|${height}`
+    const extra = BIT_POOL.slice(1).filter(b => hash(hkey + b) % 3 === 0)
+    const bitList = ['1bit', ...extra].slice(0, 3)
+    const bits = bitList.map(bit => {
+      const bkey = `${hkey}|${bit}`
+      const on = (tag, v, i) => i === 0 || hash(`${bkey}|${tag}|${v}`) % 4 !== 0
+      const drives = DRIVE_AXIS.map((v, i) => ({ label: v, on: on('d', v, i) }))
+      const nanosheets = NS_AXIS.map((v, i) => ({ label: v, on: on('n', v, i) }))
+      const vth = CELL_DESIGN_VTH_AXIS.map(v => {
+        const key = `${bkey}|${v}`
+        const present = hash(key) % 6 !== 0
+        const rnd = mk(hash(key + '|c'))
+        return { label: v, count: present ? 60 * (1 + Math.floor(rnd() * 4)) : null, present }
+      })
+      return { bit, drives, nanosheets, vth }
+    })
+    return { height, bits }
+  })
+}
+
 // ── Library Info 집계 ──
 // GET /clara/library-info/?pdk_id=&family= 응답 shape을 mock으로 재현 (API.md §12).
 // releasePaths(library)/cellDesign(library)는 library 단위로 남겨두고(libBlock이 쓴다),

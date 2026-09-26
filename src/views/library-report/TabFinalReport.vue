@@ -1,683 +1,291 @@
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { finalReport, CURRENT_USER } from './data.js'
+import { inject, computed } from 'vue'
+import { libraryInfo, findSavedSet, mwTable, HEIGHTS } from './data.js'
+import { fmt } from './useReportStore.js'
 
-const props = defineProps({
-  pdk: { type: Object, required: true },
-  family: { type: Object, required: true },
-})
+const { state, actions, pdk, family } = inject('report')
+const p = computed(() => pdk())
+const fam = computed(() => family())
 
-const route = useRoute()
+const AREA_META = {
+  LIB: { source: 'LIBRARY INFO', color: '#8a929c', title: 'Library Info 요약' },
+  PPA: { source: 'PPA', color: '#2f6fed', title: 'PPA 요약' },
+  MW: { source: 'MW', color: '#8a929c', title: 'MW 요약' },
+}
 
-// Never generated on entry — the button has to be pressed.
-const state = ref('idle') // idle | loading | ready
+const mwTableTotal = computed(() => state.mwSets.reduce((a, s) => a + s.tables.length, 0))
 
-// Mock of GET /clara/report/ — backend inline-expands each block's `data`.
-const report = computed(() =>
-  finalReport({ pdkId: props.pdk.id, family: props.family, savedSetId: route.query.set }),
-)
-const inputSummary = computed(() => {
-  const b = report.value.blocks
-  const mw = b.filter(x => x.block_type === 'MW').length
-  const ppa = b.filter(x => x.block_type === 'PPA').length
-  return `PDK ${props.pdk.process} · ${props.family.family} (library ${props.family.libraries.length}종) · ` +
-    `PPA ${ppa} chart · MW ${mw} blocks`
-})
-const metaText = computed(() => `generated ${report.value.generated_at} · ${report.value.blocks.length} areas`)
+const areaDisabled = computed(() => ({
+  LIB: null,
+  PPA: state.ppaLinkedId ? null : '선택되지 않았습니다 — PPA 탭에서 셋을 저장하세요',
+  MW: mwTableTotal.value > 0 ? null : '선택되지 않았습니다 — MW 탭에 테이블을 추가하세요',
+}))
 
-// The disclaimer is boilerplate, not part of the report contract.
-const DISCLAIMER =
-  '요약은 각 탭에 표시된 값만 인용해 생성되며, 합격·불합격 판정을 하지 않습니다. 근거 값은 각 탭에서 직접 확인하세요.'
+const areaSignature = computed(() => ({
+  LIB: JSON.stringify({ pdkId: state.pdkId, rows: state.releaseRows, gdsDesc: state.gdsDesc, libDesc: state.libDesc }),
+  PPA: JSON.stringify({ linked: state.ppaLinkedId }),
+  MW: JSON.stringify(state.mwSets.map(s => ({ tables: s.tables.map(t => ({ pdkId: t.pdkId, lib: t.lib, height: t.height, mwType: t.mwType })) }))),
+}))
 
-const SOURCE_LABEL = { LIB: 'LIBRARY INFO', PPA: 'PPA', MW: 'MW' }
-const BLOCK_COLOR = { LIB: '#8a929c', PPA: '#2f6fed', MW: '#8a929c' }
-
-// TODO #6 "작게 요약 표시" — block.data에서 프론트가 파생 (설계 7-9, points 출처 미확정).
-function blockSummary(b) {
-  const d = b.data
-  if (!d) return []
-  if (b.blockType === 'LIB') {
-    const gds = [...new Set(d.release_paths.map(r => r.gds_version))]
-    return [
-      { flag: 'PATH', text: `Cell Height ${d.release_paths.length}종 릴리스 경로`, value: `${d.release_paths.length}종` },
-      { flag: 'GDS', text: `GDS version ${gds.join(' / ')}`, value: gds.length > 1 ? '차이 있음' : '동일' },
-      { flag: 'DESIGN', text: 'Cell Height별 Drive/VTH/Nanosheet 지원 범위', value: `${d.cell_design.length} heights` },
+function buildArea(type) {
+  let body, points
+  if (type === 'LIB') {
+    const info = libraryInfo(state.pdkId, fam.value)
+    const gdsSet = [...new Set(info.libraries.flatMap(l => l.release_paths.map(r => r.gds_version)))]
+    body = `PDK는 ${p.value.process} 기준이며 HSPICE ${p.value.hspice} / LVS ${p.value.lvs} / PEX ${p.value.pex}로 구성됩니다. family ${fam.value.family}의 library ${info.libraries.length}종에 걸쳐 Release Path와 Cell Design을 정리했습니다.`
+    points = [
+      { flag: 'LIBS', text: 'family 내 library', value: `${info.libraries.length}종` },
+      { flag: 'GDS', text: `GDS version ${gdsSet.join(' / ')}`, value: gdsSet.length > 1 ? '차이 있음' : '동일' },
+      { flag: 'DESIGN', text: 'Cell Height별 Drive/VTH/Nanosheet 지원 범위', value: `${HEIGHTS.length} heights` },
+    ]
+  } else if (type === 'PPA') {
+    const s = findSavedSet(state.ppaLinkedId)
+    body = `"${s.name}" 셋은 ${s.cells}개 Cell을 ${s.chart} 형태로, Cell × ${s.y} 축으로 저장했습니다. family ${fam.value.family}의 library ${fam.value.libraries.length}종을 비교합니다.`
+    points = [
+      { flag: 'LIBS', text: 'family 내 비교 library', value: `${fam.value.libraries.length}종` },
+      { flag: 'CELLS', text: '저장된 Cell 수', value: String(s.cells) },
+      { flag: 'CHART', text: `${s.chart} · Cell × ${s.y}`, value: s.y2 === 'None' ? '단일 축' : '2축' },
+      { flag: 'DERIVED', text: 'Derived Metric', value: s.derived ? String(s.derived) : '—' },
+    ]
+  } else {
+    const overCount = state.mwSets.reduce((a, set) => a + set.tables.reduce((b, t) => {
+      const d = mwTable(t.pdkId, t.lib, t.height, t.mwType)
+      return b + d.rows.reduce((c, r) => c + r.values.filter(v => v.over).length, 0)
+    }, 0), 0)
+    body = `${state.mwSets.length}개 비교 셋, ${mwTableTotal.value}개 테이블을 기준으로 CK Slope별 setup 값을 비교했습니다. 임계값을 초과한 셀이 ${overCount}건 있습니다.`
+    points = [
+      { flag: 'SETS', text: '비교 셋', value: `${state.mwSets.length}개` },
+      { flag: 'TABLES', text: '테이블', value: `${mwTableTotal.value}개` },
+      { flag: 'OVER', text: '임계값 초과 값', value: `${overCount}건` },
     ]
   }
-  if (b.blockType === 'PPA') {
-    return [
-      { flag: 'LIBS', text: 'family 내 비교 library', value: `${d.library_count}종` },
-      { flag: 'CELLS', text: '저장된 Cell 수', value: String(d.cell_count) },
-      { flag: 'CHART', text: `${d.chart_type} · Cell × ${d.y1_metric}`, value: d.y2_metric ? '2축' : '단일 축' },
-      { flag: 'DERIVED', text: 'Derived Metric', value: d.derived_count ? String(d.derived_count) : '—' },
-    ]
-  }
-  if (b.blockType === 'MW') {
-    if (!d.slope_present) return [{ flag: 'SLOPE40', text: 'CK Slope 40 데이터', value: '해당 없음' }]
-    const head = { flag: 'THRESHOLD', text: `fail_count ≥ ${d.threshold} (${d.mw_type})`, value: `${d.cells.length}개 셀` }
-    const rows = d.cells.map(c => {
-      const worst = c.hits.reduce((a, h) => (h.fail_count > a.fail_count ? h : a), c.hits[0])
-      return { flag: c.cell_name, text: `${worst.voltage_label} 등 ${c.hits.length} volt`, value: String(worst.fail_count) }
-    })
-    return [head, ...rows]
-  }
-  return []
+  return { body, points, signature: areaSignature.value[type] }
 }
 
-// The AI output is the source; the user edits a draft copied from it so the
-// original generated text can always be regenerated.
-const editing = ref(false)
-const draft = reactive({ title: '', body: '' })
+function generate(type) { actions.genArea(type, { areaDisabled: areaDisabled.value, build: buildArea }) }
 
-// Document body as an ordered list of blocks: AI-generated sections plus any
-// user-added areas. Editing lets the user insert areas between blocks and
-// drag blocks to reorder them.
-let blockSeq = 0
-const blocks = ref([])
-
-function buildBlocks() {
-  blocks.value = report.value.blocks.map(b =>
-    b.block_type === 'USER'
-      ? { id: `b-${blockSeq++}`, kind: 'user', title: b.title || '', body: b.body || '' }
-      : {
-          id: `b-${blockSeq++}`,
-          kind: 'ai',
-          blockType: b.block_type,
-          source: SOURCE_LABEL[b.block_type],
-          color: BLOCK_COLOR[b.block_type],
-          // LIB/MW blocks are library-scoped; PPA is family-scoped (no chip).
-          library: b.data?.library ?? null,
-          title: b.title,
-          body: b.body,
-          stale: b.stale,
-          data: b.data,
-        },
-  )
-}
-
-function addBlockAt(index) {
-  blocks.value.splice(index, 0, { id: `user-${blockSeq++}`, kind: 'user', title: '', body: '' })
-}
-
-function removeBlock(index) {
-  blocks.value.splice(index, 1)
-}
-
-// Native drag-and-drop reorder. The drag handle is the draggable element so it
-// doesn't fight with text selection inside the block's textarea.
-const dragIndex = ref(-1)
-const dragOverIndex = ref(-1)
-
-function onDragStart(i, e) {
-  dragIndex.value = i
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-}
-function onDragEnd() {
-  dragIndex.value = -1
-  dragOverIndex.value = -1
-}
-function onDrop(i) {
-  const from = dragIndex.value
-  if (from < 0 || from === i) return onDragEnd()
-  const arr = [...blocks.value]
-  const [moved] = arr.splice(from, 1)
-  arr.splice(from < i ? i - 1 : i, 0, moved)
-  blocks.value = arr
-  onDragEnd()
-}
-
-// Save records who last saved. Final save opens a 5-day editing window; after
-// it the report locks read-only.
-const GRACE_DAYS = 5
-const GRACE_MS = GRACE_DAYS * 24 * 60 * 60 * 1000
-const savedBy = ref('')
-const savedAt = ref(null)      // any save (regular or final)
-const finalizedAt = ref(null)  // set only by final save; drives grace/lock
-const now = ref(Date.now())
-
-const locked = computed(() => finalizedAt.value !== null && now.value - finalizedAt.value > GRACE_MS)
-const remainingDays = computed(() =>
-  finalizedAt.value ? Math.max(0, Math.ceil((finalizedAt.value + GRACE_MS - now.value) / (24 * 60 * 60 * 1000))) : 0,
-)
-
-function fmt(ts) {
-  const d = new Date(ts)
-  const p = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-const savedText = computed(() =>
-  finalizedAt.value
-    ? `저장 ${fmt(finalizedAt.value)} · ${locked.value ? '수정 불가' : `수정 가능 D-${remainingDays.value}`}`
-    : '',
-)
-
-function toggleEdit() {
-  if (locked.value) return
-  editing.value = !editing.value
-}
-
-function save() {
-  if (locked.value) return
-  now.value = Date.now()
-  savedAt.value = now.value
-  savedBy.value = CURRENT_USER
-  editing.value = false
-}
-
-function finalize() {
-  if (locked.value) return
-  if (!window.confirm(`최종 저장하면 ${GRACE_DAYS}일 후에는 수정할 수 없습니다. 최종 저장하시겠습니까?`)) return
-  now.value = Date.now()
-  savedAt.value = now.value
-  savedBy.value = CURRENT_USER
-  finalizedAt.value = now.value
-  editing.value = false
-}
-
-function loadDraft() {
-  draft.title = report.value.title
-  draft.body = report.value.lead_body
-  buildBlocks()
-}
-
-function generate() {
-  state.value = 'loading'
-  setTimeout(() => {
-    state.value = 'ready'
-    editing.value = false
-    savedBy.value = ''
-    savedAt.value = null
-    finalizedAt.value = null
-    loadDraft()
-  }, 700)
-}
-
-// family는 리포트의 UNIQUE 키다 — 바뀌면 다른 문서이므로 생성 전 상태로 되돌린다.
-// (report가 computed라 그냥 두면 'ready'인 채로 본문만 조용히 뒤바뀐다.)
-watch(() => props.family, () => {
-  state.value = 'idle'
-  editing.value = false
-  savedBy.value = ''
-  savedAt.value = null
-  finalizedAt.value = null
+const areaBlocksByType = computed(() => {
+  const out = {}
+  ;['LIB', 'PPA', 'MW'].forEach(type => {
+    const meta = AREA_META[type]
+    const area = state.frAreas[type] || { status: 'empty' }
+    const disabled = !!areaDisabled.value[type]
+    const ready = area.status === 'ready'
+    const stale = ready && area.signature !== areaSignature.value[type]
+    out[type] = {
+      kind: 'ai', ai: true, areaType: type,
+      source: meta.source, color: meta.color, title: meta.title,
+      body: ready ? area.body : '', points: ready ? area.points : [],
+      ready, showOverlay: !ready, disabled, disabledReason: areaDisabled.value[type],
+      enabledEmpty: !disabled && area.status === 'empty', generating: area.status === 'generating',
+      stale, showStatus: ready, staleLabel: stale ? '유효하지 않음 · 재생성 필요' : '유효',
+      staleColor: stale ? '#b4451f' : '#2c7a4b', staleBg: stale ? '#fdeee7' : '#e6f4ec', staleBorder: stale ? '#f3d3c4' : '#cbe7d6',
+      removable: false, borderColor: '#eef0f3', borderStyle: 'solid',
+    }
+  })
+  return out
 })
+
+const docAreas = computed(() => state.areaOrder.map((key, i) => {
+  const base = areaBlocksByType.value[key] || (() => {
+    const u = state.userAreas.find(a => a.id === key)
+    if (!u) return null
+    return { kind: 'user', ai: false, areaType: key, source: 'USER', color: '#a7afb9', title: u.title, body: u.body,
+      ready: true, showOverlay: false, points: [], stale: false, showStatus: false,
+      removable: true, borderColor: '#d5d9de', borderStyle: 'dashed', userRef: u }
+  })()
+  if (!base) return null
+  return { ...base, index: i }
+}).filter(Boolean))
+
+function onBodyInput(area, e) {
+  if (area.kind === 'user') actions.updateUserArea(area.userRef.id, { body: e.target.value })
+  else state.frAreas = { ...state.frAreas, [area.areaType]: { ...state.frAreas[area.areaType], body: e.target.value } }
+}
+function onTitleInput(area, e) {
+  if (area.kind === 'user') actions.updateUserArea(area.userRef.id, { title: e.target.value })
+}
+
+const finalizeSummary = computed(() => {
+  const releaseFilled = state.releaseRows.filter(r => r.path && r.gds).length
+  const gdsDescText = state.gdsDesc ? '작성됨' : '미작성'
+  const ppaText = state.ppaLinkedId ? `"${findSavedSet(state.ppaLinkedId).name}" 연결됨` : '연결 안 됨'
+  return [
+    `PPA: ${ppaText}`,
+    `MW: 비교 셋 ${state.mwSets.length}개 · 테이블 ${mwTableTotal.value}개`,
+    `Library Info: Release Path ${releaseFilled}/${state.releaseRows.length}행 입력 · GDS 설명 ${gdsDescText}`,
+  ]
+})
+
+const frTitle = computed(() => state.draftTitle || `[${p.value.process}] ${fam.value.family} 리포트 요약`)
+const frLead = computed(() => state.draftLead || 'Library Info · PPA · MW 세 탭의 값을 영역별로 요약합니다. 각 영역은 독립적으로 생성되며, 원본 값을 그대로 인용한 것이고 합격·불합격 판정이 아닙니다.')
+
+function finalize() { actions.frFinalize(finalizeSummary.value) }
 </script>
 
 <template>
-  <div v-if="state === 'idle'" class="fr-idle">
-    <div class="fr-idle-copy">
-      <span class="fr-idle-title">Library Info · PPA · MW 세 탭의 데이터를 요약합니다</span>
-      <span class="fr-idle-sub">{{ inputSummary }}</span>
-    </div>
-    <button class="lr-btn-primary" type="button" @click="generate">요약 생성</button>
-  </div>
-
-  <div v-else-if="state === 'loading'" class="fr-loading">
-    <span class="fr-loading-text">요약 생성 중…</span>
-    <span class="fr-loading-sub">{{ inputSummary }}</span>
-  </div>
-
-  <div v-else class="fr">
-    <header class="fr-head">
-      <div class="fr-head-main">
-        <input v-if="editing" v-model="draft.title" class="fr-title-input" />
-        <span v-else class="fr-title">{{ draft.title }}</span>
-        <div class="fr-sub">
-          <span class="fr-meta">{{ metaText }}</span>
-          <span v-if="savedAt" class="fr-author">저장 {{ savedBy }} · {{ fmt(savedAt) }}</span>
+  <div class="tab-final">
+    <div class="doc">
+      <header class="doc-header">
+        <div class="head-main">
+          <input v-if="state.frEditing" class="title-input" :value="frTitle" @input="state.draftTitle = $event.target.value" />
+          <span v-else class="doc-title">{{ frTitle }}</span>
+          <span class="mono sub">PDK {{ p.process }} · {{ fam.family }} · library {{ fam.libraries.length }}종</span>
         </div>
-      </div>
-      <button class="lr-btn" type="button" :disabled="locked" @click="toggleEdit">
-        {{ editing ? '편집 완료' : '편집' }}
-      </button>
-      <button v-if="!locked" class="lr-btn fr-confirm" type="button" @click="save">저장</button>
-      <button
-        v-if="!locked && !finalizedAt"
-        class="lr-btn-primary fr-confirm"
-        type="button"
-        @click="finalize"
-      >최종 저장</button>
-      <button class="lr-btn" type="button" @click="generate">다시 생성</button>
-    </header>
+        <button class="btn" @click="actions.toggleFrEdit()">{{ state.frEditing ? '편집 완료' : '편집' }}</button>
+        <template v-if="!state.finalizedAt">
+          <button class="btn" @click="actions.frSave()">저장</button>
+          <button class="btn-primary" @click="finalize()">최종 저장</button>
+        </template>
+      </header>
 
-    <div class="fr-doc">
-      <div v-if="finalizedAt" class="fr-saved" :class="{ locked }">
-        <span class="fr-saved-title">{{ locked ? '수정 기간 만료 · 읽기 전용' : '최종 저장 완료' }}</span>
-        <span class="fr-saved-meta">{{ savedText }}</span>
-      </div>
+      <div class="doc-body">
+        <div v-if="state.finalizedAt" class="finalized-banner">
+          <span>최종 저장 완료 — PPA 연결·MW 테이블 구성·Library Info가 모두 확정되었습니다</span>
+          <span class="mono sub">저장 {{ fmt(state.finalizedAt) }} · 수정 가능 D-5</span>
+        </div>
+        <div v-else class="summary-box">
+          <span class="summary-title">최종 저장 시 확정되는 내용</span>
+          <span v-for="s in finalizeSummary" :key="s" class="summary-line">· {{ s }}</span>
+        </div>
 
-      <textarea v-if="editing" v-model="draft.body" class="fr-edit fr-edit-lead" rows="4"></textarea>
-      <p v-else class="fr-lead">{{ draft.body }}</p>
+        <textarea v-if="state.frEditing" class="lead-input" rows="3" :value="frLead" @input="state.draftLead = $event.target.value"></textarea>
+        <p v-else class="lead-text">{{ frLead }}</p>
 
-      <div class="fr-blocks">
-        <template v-for="(b, i) in blocks" :key="b.id">
-          <button
-            v-if="editing"
-            class="fr-insert"
-            type="button"
-            title="여기에 영역 추가"
-            @click="addBlockAt(i)"
-          ><span class="fr-insert-bar">+</span></button>
-
-          <section
-            class="fr-card"
-            :class="{ dragging: dragIndex === i, 'drop-target': dragOverIndex === i && dragIndex !== -1 && dragIndex !== i, user: b.kind === 'user' }"
-            @dragover.prevent="dragOverIndex = i"
-            @drop="onDrop(i)"
-          >
-            <span
-              v-if="editing"
-              class="fr-drag"
-              draggable="true"
-              title="드래그하여 순서 변경"
-              @dragstart="onDragStart(i, $event)"
-              @dragend="onDragEnd"
-            >⠿</span>
-            <span class="fr-card-rail" :style="{ background: b.kind === 'ai' ? b.color : '#c8d0d9' }"></span>
-            <div class="fr-card-body">
-              <div class="fr-card-head">
-                <template v-if="b.kind === 'ai'">
-                  <span class="fr-source" :style="{ color: b.color }">{{ b.source }}</span>
-                  <span v-if="b.library" class="fr-lib">{{ b.library }}</span>
-                  <span class="fr-card-title">{{ b.title }}</span>
-                  <span v-if="b.stale" class="fr-stale">본문 낡음</span>
-                </template>
-                <template v-else>
-                  <span class="fr-source fr-source-user">USER</span>
-                  <input
-                    v-if="editing"
-                    v-model="b.title"
-                    class="fr-card-title-input"
-                    placeholder="영역 제목"
-                  />
-                  <span v-else class="fr-card-title">{{ b.title || '제목 없음' }}</span>
-                </template>
-                <div class="lr-spacer"></div>
-                <button
-                  v-if="editing && b.kind === 'user'"
-                  class="fr-block-del"
-                  type="button"
-                  @click="removeBlock(i)"
-                >삭제</button>
-              </div>
-              <textarea
-                v-if="editing"
-                v-model="b.body"
-                class="fr-edit"
-                rows="3"
-                :placeholder="b.kind === 'user' ? '리포트에 없는 내용을 이 영역에 적으세요.' : ''"
-              ></textarea>
-              <p v-else class="fr-prose">{{ b.body }}</p>
-              <div v-if="b.kind === 'ai'" class="fr-points">
-                <div v-for="p in blockSummary(b)" :key="p.flag" class="fr-point">
-                  <span class="fr-flag">{{ p.flag }}</span>
-                  <span class="fr-point-text">{{ p.text }}</span>
-                  <span class="fr-point-value">{{ p.value }}</span>
+        <div class="areas">
+          <template v-for="(a, i) in docAreas" :key="a.areaType">
+            <button v-if="state.frEditing" class="insert-btn" @click="actions.addUserArea(i)"><span class="insert-mark">+</span></button>
+            <section class="area"
+              :style="{ borderStyle: a.borderStyle, borderColor: a.borderColor, opacity: state.dragIndex === i ? 0.4 : 1, boxShadow: (state.dragOverIndex === i && state.dragIndex !== -1 && state.dragIndex !== i) ? '0 -2px 0 #2f6fed' : 'none' }"
+              @dragover.prevent="actions.onAreaDragOver(i)" @drop="actions.onAreaDrop(i)">
+              <span v-if="state.frEditing" class="drag-handle" draggable="true" @dragstart="actions.onAreaDragStart(i)" @dragend="actions.onAreaDragEnd()">⠿</span>
+              <span class="rail" :style="{ background: a.color }"></span>
+              <div class="area-body" :style="{ filter: a.showOverlay ? 'blur(3px)' : 'none', pointerEvents: a.showOverlay ? 'none' : 'auto' }">
+                <div class="area-head">
+                  <span class="mono area-source" :style="{ color: a.color }">{{ a.source }}</span>
+                  <input v-if="a.removable && state.frEditing" class="area-title-input" placeholder="영역 제목" :value="a.title" @input="onTitleInput(a, $event)" />
+                  <span v-else class="area-title">{{ a.title }}</span>
+                  <span v-if="a.showStatus" class="status-badge" :style="{ background: a.staleBg, borderColor: a.staleBorder, color: a.staleColor }">{{ a.staleLabel }}</span>
+                  <div class="spacer"></div>
+                  <button v-if="a.ready && a.ai" class="btn-mini" @click="generate(a.areaType)">다시 생성</button>
+                  <button v-if="a.removable && state.frEditing" class="btn-mini danger" @click="actions.removeUserArea(a.userRef.id)">삭제</button>
+                </div>
+                <textarea v-if="a.ready && state.frEditing" class="area-body-input" rows="3" :value="a.body" @input="onBodyInput(a, $event)" placeholder="내용을 입력하세요."></textarea>
+                <p v-else class="area-body-text">{{ a.body }}</p>
+                <div class="points">
+                  <div v-for="pt in a.points" :key="pt.flag" class="point-row">
+                    <span class="mono point-flag">{{ pt.flag }}</span>
+                    <span class="point-text">{{ pt.text }}</span>
+                    <span class="mono point-value">{{ pt.value }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
-        </template>
+              <div v-if="a.showOverlay" class="overlay">
+                <span v-if="a.disabled" class="disabled-msg">{{ a.disabledReason }}</span>
+                <button v-else-if="a.enabledEmpty" class="btn-primary" @click="generate(a.areaType)">AI 초안 생성</button>
+                <span v-else-if="a.generating" class="mono generating">생성 중…</span>
+              </div>
+            </section>
+          </template>
+          <button v-if="state.frEditing" class="insert-btn" @click="actions.addUserArea(docAreas.length - 1)"><span class="insert-mark">+</span></button>
+        </div>
 
-        <button
-          v-if="editing"
-          class="fr-insert"
-          type="button"
-          title="여기에 영역 추가"
-          @click="addBlockAt(blocks.length)"
-        ><span class="fr-insert-bar">+</span></button>
+        <p class="disclaimer">요약은 각 탭에 표시된 값만 인용해 생성되며, 합격·불합격 판정을 하지 않습니다. 근거 값은 각 탭에서 직접 확인하세요.</p>
       </div>
+    </div>
 
-      <p class="fr-disclaimer">{{ DISCLAIMER }}</p>
+    <div v-if="state.finalizedAt" class="comments-widget">
+      <div v-if="state.commentsOpen" class="comments-panel">
+        <div class="comments-head"><span class="strong">댓글</span><span class="mono sub">{{ state.comments.length }}</span></div>
+        <div class="comments-list">
+          <div v-for="c in state.comments" :key="c.id" class="comment">
+            <div class="comment-head">
+              <span class="strong">{{ c.author }}</span>
+              <span class="mono sub">{{ fmt(c.at) }}</span>
+              <div class="spacer"></div>
+              <template v-if="state.commentEditId === c.id">
+                <button class="btn-mini primary" @click="actions.saveEditComment(c.id)">저장</button>
+                <button class="btn-mini" @click="actions.cancelEditComment()">취소</button>
+              </template>
+              <template v-else>
+                <button class="btn-mini" @click="actions.startEditComment(c.id, c.text)">수정</button>
+                <button class="btn-mini danger" @click="actions.removeComment(c.id)">삭제</button>
+              </template>
+            </div>
+            <textarea v-if="state.commentEditId === c.id" class="comment-edit" rows="2" :value="state.commentEditDraft" @input="state.commentEditDraft = $event.target.value"></textarea>
+            <p v-else class="comment-text">{{ c.text }}</p>
+          </div>
+        </div>
+        <div class="comment-input-row">
+          <textarea rows="2" placeholder="댓글을 입력하세요." :value="state.commentDraft" @input="state.commentDraft = $event.target.value"></textarea>
+          <button class="btn-primary" @click="actions.addComment()">등록</button>
+        </div>
+      </div>
+      <button class="comments-toggle" @click="actions.toggleComments()">
+        <span>댓글</span><span class="count-badge">{{ state.comments.length }}</span>
+        <span class="mono sub">{{ state.commentsOpen ? '▴ 접기' : '▾ 펼치기' }}</span>
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.fr-idle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 70px 20px;
-}
-.fr-idle-copy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.fr-idle-title {
-  font-size: 13.5px;
-  color: #4a525c;
-}
-.fr-idle-sub {
-  font-family: var(--clara-mono);
-  font-size: 11px;
-  color: #a7afb9;
-}
+.tab-final { position:relative; height:100%; }
+.mono { font-family:'Roboto Mono',monospace; }
+.strong { font-weight:500; }
+.sub { font-size:10.5px; color:#8a929c; }
+.spacer { flex:1; }
+.doc { display:flex; flex-direction:column; max-width:1000px; }
+.doc-header { display:flex; align-items:flex-start; gap:12px; padding:14px 12px 12px; border-bottom:1px solid #eef0f3; }
+.head-main { display:flex; flex-direction:column; gap:5px; flex:1; }
+.doc-title { font-size:15px; font-weight:500; letter-spacing:-0.1px; }
+.title-input { font:inherit; font-size:15px; font-weight:500; color:#1c1f24; padding:2px 6px; border:1px solid #bcd0f7; border-radius:4px; outline:none; }
+.btn { display:flex; align-items:center; height:26px; padding:0 10px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
+.btn-primary { display:flex; align-items:center; justify-content:center; height:26px; padding:0 12px; border:0; border-radius:4px; background:#2f6fed; font:inherit; font-size:11px; font-weight:500; color:#fff; cursor:pointer; }
+.doc-body { display:flex; flex-direction:column; gap:10px; padding:12px 12px 24px; }
+.finalized-banner { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:#e6f4ec; border:1px solid #cbe7d6; font-size:12px; font-weight:500; color:#2c7a4b; }
+.summary-box { display:flex; flex-direction:column; gap:3px; padding:9px 12px; border-radius:6px; background:#f7f8fa; border:1px solid #eef0f3; }
+.summary-title { font-size:10px; font-weight:600; letter-spacing:0.4px; text-transform:uppercase; color:#a7afb9; }
+.summary-line { font-size:11.5px; color:#4a525c; }
+.lead-input { font:inherit; font-size:12.5px; line-height:1.65; color:#1c1f24; padding:6px 8px; border:1px solid #bcd0f7; border-radius:4px; outline:none; resize:vertical; width:100%; background:#fbfcfe; }
+.lead-text { font-size:12.5px; line-height:1.65; color:#4a525c; }
+.areas { display:flex; flex-direction:column; gap:6px; }
+.insert-btn { display:flex; align-items:center; justify-content:center; width:100%; height:14px; padding:0; border:0; background:transparent; cursor:pointer; }
+.insert-mark { display:flex; align-items:center; justify-content:center; width:30px; height:5px; border-radius:3px; background:#dfe3e8; color:transparent; }
+.area { position:relative; display:flex; gap:10px; padding:12px; border-width:1px; border-radius:6px; background:#fff; overflow:hidden; }
+.drag-handle { flex-shrink:0; align-self:flex-start; margin-top:1px; padding:0 2px; color:#b6bec8; font-size:13px; line-height:1.2; cursor:grab; user-select:none; }
+.rail { width:3px; border-radius:2px; flex-shrink:0; }
+.area-body { display:flex; flex-direction:column; gap:7px; min-width:0; flex:1; }
+.area-head { display:flex; align-items:center; gap:8px; }
+.area-source { font-size:10px; font-weight:600; letter-spacing:0.6px; }
+.area-title { font-size:13px; font-weight:500; color:#1c1f24; }
+.area-title-input { flex:1; min-width:0; font:inherit; font-size:13px; font-weight:500; color:#1c1f24; padding:2px 6px; border:1px solid #bcd0f7; border-radius:4px; outline:none; }
+.status-badge { flex-shrink:0; font-size:10px; font-weight:600; letter-spacing:0.2px; padding:2px 7px; border-radius:10px; border-width:1px; border-style:solid; }
+.btn-mini { flex-shrink:0; padding:2px 8px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
+.btn-mini.danger { color:#b4451f; }
+.btn-mini.primary { border:0; background:#2f6fed; color:#fff; font-weight:500; }
+.area-body-input { font:inherit; font-size:12.5px; line-height:1.65; color:#1c1f24; padding:6px 8px; border:1px solid #bcd0f7; border-radius:4px; outline:none; resize:vertical; width:100%; }
+.area-body-text { font-size:12.5px; line-height:1.65; color:#4a525c; }
+.points { display:flex; flex-direction:column; gap:3px; padding-top:2px; }
+.point-row { display:flex; align-items:baseline; gap:8px; }
+.point-flag { font-size:10.5px; color:#8a929c; width:52px; flex-shrink:0; }
+.point-text { flex:1; font-size:12px; line-height:1.6; color:#4a525c; }
+.point-value { font-size:11px; color:#8a929c; flex-shrink:0; }
+.overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:rgba(255,255,255,0.55); }
+.disabled-msg { font-size:12px; font-weight:500; color:#b4451f; }
+.generating { font-size:11px; color:#8a929c; }
+.disclaimer { font-size:11px; line-height:1.6; color:#a7afb9; padding-top:10px; }
 
-.fr-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 220px;
-}
-.fr-loading-text {
-  font-family: var(--clara-mono);
-  font-size: 11.5px;
-  color: #a7afb9;
-}
-.fr-loading-sub {
-  font-size: 11px;
-  color: #c8d0d9;
-}
-
-/* ── Document header ──────────────────────────────────────── */
-.fr {
-  display: flex;
-  flex-direction: column;
-  max-width: 1000px;
-}
-.fr-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 12px 12px;
-  border-bottom: 1px solid #eef0f3;
-}
-.fr-head-main {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-.fr-title {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: -0.1px;
-}
-.fr-sub {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.fr-meta {
-  font-family: var(--clara-mono);
-  font-size: 11px;
-  color: #8a929c;
-}
-.lr-btn:disabled,
-.lr-btn-primary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.fr-edit:disabled {
-  background: #f7f8fa;
-  color: #8a929c;
-  cursor: not-allowed;
-}
-
-.fr-saved {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #e6f4ec;
-  border: 1px solid #cbe7d6;
-}
-.fr-saved.locked {
-  background: #f5f6f8;
-  border-color: #e2e5ea;
-}
-.fr-saved-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: #2c7a4b;
-}
-.fr-saved.locked .fr-saved-title { color: #6b7480; }
-.fr-saved-meta {
-  font-family: var(--clara-mono);
-  font-size: 11px;
-  color: #8a929c;
-}
-.fr-author {
-  font-family: var(--clara-mono);
-  font-size: 11px;
-  color: #4a525c;
-}
-.fr-confirm {
-  height: 26px;
-  padding: 0 12px;
-  font-size: 11px;
-}
-.fr-title-input {
-  font: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  color: #1c1f24;
-  padding: 2px 6px;
-  border: 1px solid #bcd0f7;
-  border-radius: 4px;
-  outline: none;
-}
-.fr-edit {
-  font: inherit;
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: #1c1f24;
-  padding: 6px 8px;
-  border: 1px solid #bcd0f7;
-  border-radius: 4px;
-  outline: none;
-  resize: vertical;
-  width: 100%;
-  box-sizing: border-box;
-}
-.fr-edit-lead { background: #fbfcfe; }
-
-.fr-doc {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 12px 24px;
-}
-.fr-lead {
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: #4a525c;
-  text-wrap: pretty;
-}
-.fr-prose {
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: #4a525c;
-  text-wrap: pretty;
-}
-
-/* ── Section blocks ───────────────────────────────────────── */
-.fr-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Thin insert affordance between blocks: a small bar at rest that grows into
-   a "+" button on hover. */
-.fr-insert {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 14px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.fr-insert-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 5px;
-  border-radius: 3px;
-  background: #dfe3e8;
-  color: transparent;
-  font-size: 13px;
-  line-height: 1;
-  transition: width 0.12s ease, height 0.12s ease, background 0.12s ease, color 0.12s ease;
-}
-.fr-insert:hover .fr-insert-bar {
-  width: 46px;
-  height: 18px;
-  background: #2f6fed;
-  color: #fff;
-}
-
-.fr-card {
-  position: relative;
-  display: flex;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #eef0f3;
-  border-radius: 6px;
-  background: #fff;
-}
-.fr-card.user { border-style: dashed; border-color: #d5d9de; }
-.fr-card.dragging { opacity: 0.4; }
-.fr-card.drop-target { box-shadow: 0 -2px 0 #2f6fed; }
-
-.fr-drag {
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 1px;
-  padding: 0 2px;
-  color: #b6bec8;
-  font-size: 13px;
-  line-height: 1.2;
-  cursor: grab;
-  user-select: none;
-}
-.fr-drag:active { cursor: grabbing; }
-
-.fr-source-user { color: #a7afb9; }
-/* Library scope of the block — LIB/MW only; PPA is family-scoped. */
-.fr-lib {
-  font-family: var(--clara-mono);
-  font-size: 10px;
-  color: #8a929c;
-  padding: 1px 5px;
-  border: 1px solid #eef0f3;
-  border-radius: 3px;
-}
-.fr-stale {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  color: #b4451f;
-  background: #fdeee7;
-  border: 1px solid #f3d3c4;
-  border-radius: 3px;
-  padding: 1px 5px;
-}
-.fr-card-title-input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: #1c1f24;
-  padding: 2px 6px;
-  border: 1px solid #bcd0f7;
-  border-radius: 4px;
-  outline: none;
-}
-.fr-block-del {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border: 1px solid #e2e5ea;
-  border-radius: 4px;
-  background: #fff;
-  font: inherit;
-  font-size: 11px;
-  color: #b4451f;
-  cursor: pointer;
-}
-.fr-block-del:hover { border-color: #e6b8a6; background: #fdf3ef; }
-.fr-card-rail {
-  width: 3px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.fr-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-  flex: 1;
-}
-.fr-card-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.fr-card-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1c1f24;
-}
-.fr-source {
-  font-family: var(--clara-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-}
-
-.fr-points {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-top: 2px;
-}
-.fr-point {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.fr-flag {
-  font-family: var(--clara-mono);
-  font-size: 10.5px;
-  color: #8a929c;
-  width: 52px;
-  flex-shrink: 0;
-}
-.fr-point-text {
-  flex: 1;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #4a525c;
-}
-.fr-point-value {
-  font-family: var(--clara-mono);
-  font-size: 11px;
-  color: #8a929c;
-  flex-shrink: 0;
-}
-
-.dim { color: #8a929c; }
-.small { font-size: 11px; }
-
-.fr-disclaimer {
-  font-size: 11px;
-  line-height: 1.6;
-  color: #a7afb9;
-  padding-top: 10px;
-}
+.comments-widget { position:fixed; right:20px; bottom:20px; z-index:40; display:flex; flex-direction:column; align-items:flex-end; }
+.comments-panel { width:340px; max-height:60vh; display:flex; flex-direction:column; background:#fff; border:1px solid #d5d9de; border-radius:8px; box-shadow:0 10px 32px rgba(20,24,29,0.18); margin-bottom:8px; overflow:hidden; }
+.comments-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid #eef0f3; flex-shrink:0; }
+.comments-list { display:flex; flex-direction:column; gap:10px; padding:12px; overflow-y:auto; flex:1; min-height:0; }
+.comment { display:flex; flex-direction:column; gap:4px; padding-bottom:10px; border-bottom:1px solid #f4f5f7; }
+.comment-head { display:flex; align-items:center; gap:8px; }
+.comment-edit { font:inherit; font-size:12px; line-height:1.55; color:#1c1f24; padding:5px 7px; border:1px solid #bcd0f7; border-radius:4px; outline:none; resize:vertical; width:100%; }
+.comment-text { font-size:12px; line-height:1.55; color:#4a525c; }
+.comment-input-row { display:flex; gap:8px; align-items:flex-end; padding:10px 12px; border-top:1px solid #eef0f3; flex-shrink:0; }
+.comment-input-row textarea { flex:1; font:inherit; font-size:12px; line-height:1.5; color:#1c1f24; padding:6px 8px; border:1px solid #e2e5ea; border-radius:4px; outline:none; resize:vertical; }
+.comments-toggle { display:flex; align-items:center; gap:7px; height:38px; padding:0 14px; border:1px solid #d5d9de; border-radius:19px; background:#fff; box-shadow:0 6px 18px rgba(20,24,29,0.14); font:inherit; font-size:12.5px; font-weight:500; color:#1c1f24; cursor:pointer; }
+.count-badge { display:flex; align-items:center; justify-content:center; min-width:16px; height:16px; padding:0 4px; border-radius:8px; background:#2f6fed; font-family:'Roboto Mono',monospace; font-size:10px; font-weight:600; color:#fff; }
 </style>
