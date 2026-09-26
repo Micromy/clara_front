@@ -1,13 +1,36 @@
 <script setup>
 import { computed } from 'vue'
-import { releasePaths, CELL_DESIGN, VTH_ALL, NANOSHEET_ALL } from './data.js'
+import { libraryInfo, VTH_ALL, NANOSHEET_ALL } from './data.js'
 
 const props = defineProps({
   pdk: { type: Object, required: true },
-  lib: { type: String, required: true },
+  family: { type: Object, required: true },
 })
 
-const paths = computed(() => releasePaths(props.lib))
+// GET /clara/library-info/?pdk_id=&family= 1회 = 이 computed 1개 (API.md §12).
+// family 멤버 library마다 따로 조회하지 않는다.
+const info = computed(() => libraryInfo(props.pdk.id, props.family))
+
+// 중첩 응답을 표 행으로 펼친다. 행 = library × height, 순서는 응답 배열 순서(§12 순서 계약).
+// `groupStart`가 library 경계선 — 첫 행은 제외한다(헤더 경계선이 이미 그 자리에 있다).
+function flatRows(libraries, key) {
+  return libraries.flatMap((l, li) =>
+    l[key].map((r, i) => ({ library: l.library, ...r, groupStart: i === 0 && li > 0 })),
+  )
+}
+
+const paths = computed(() => flatRows(info.value.libraries, 'release_paths'))
+const designs = computed(() => flatRows(info.value.libraries, 'cell_design'))
+
+// 스코프 표시는 응답에서 센다 — library마다 지원 height 수가 다를 수 있다(§12).
+const scopeText = computed(() => {
+  const libs = info.value.libraries
+  const heights = new Set(libs.flatMap(l => [
+    ...l.release_paths.map(r => r.height),
+    ...l.cell_design.map(r => r.height),
+  ]))
+  return `${libs.length} libraries × ${heights.size} heights`
+})
 </script>
 
 <template>
@@ -32,15 +55,24 @@ const paths = computed(() => releasePaths(props.lib))
     <div class="lr-equal-width">
       <!-- One release path per Cell Height -->
       <section class="lr-section">
-        <span class="lr-section-title">Release Path</span>
+        <div class="info-sec-head">
+          <span class="lr-section-title">Release Path</span>
+          <span class="lr-subtitle">{{ scopeText }}</span>
+        </div>
         <div class="lr-box">
           <div class="lr-thead g-path">
-            <span>HEIGHT</span><span>RELEASE PATH</span><span>GDS VERSION</span>
+            <span>LIBRARY</span><span>HEIGHT</span><span>RELEASE PATH</span><span>GDS VERSION</span>
           </div>
-          <div v-for="r in paths" :key="r.height" class="lr-row g-path">
+          <div
+            v-for="r in paths"
+            :key="`${r.library}-${r.height}`"
+            class="lr-row g-path"
+            :class="{ 'group-start': r.groupStart }"
+          >
+            <span class="lr-mono strong">{{ r.library }}</span>
             <span class="lr-mono strong">{{ r.height }}</span>
             <span class="lr-mono lr-ellipsis">{{ r.path }}</span>
-            <span class="lr-mono">{{ r.gds }}</span>
+            <span class="lr-mono">{{ r.gds_version }}</span>
           </div>
         </div>
         <p class="lr-note">
@@ -51,12 +83,21 @@ const paths = computed(() => releasePaths(props.lib))
 
       <!-- Only supported items are listed -->
       <section class="lr-section">
-        <span class="lr-section-title">Cell Design</span>
+        <div class="info-sec-head">
+          <span class="lr-section-title">Cell Design</span>
+          <span class="lr-subtitle">{{ scopeText }}</span>
+        </div>
         <div class="lr-box">
           <div class="lr-thead g-design">
-            <span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span><span class="lr-num">CELL COUNT</span>
+            <span>LIBRARY</span><span>HEIGHT</span><span>DRIVE STRENGTH</span><span>VTH</span><span>NANOSHEET</span><span class="lr-num">CELL COUNT</span>
           </div>
-          <div v-for="r in CELL_DESIGN" :key="r.height" class="lr-row g-design">
+          <div
+            v-for="r in designs"
+            :key="`${r.library}-${r.height}`"
+            class="lr-row g-design"
+            :class="{ 'group-start': r.groupStart }"
+          >
+            <span class="lr-mono strong">{{ r.library }}</span>
             <span class="lr-mono strong">{{ r.height }}</span>
             <span class="lr-mono spaced">{{ r.drives }}</span>
             <span class="mini">
@@ -75,7 +116,7 @@ const paths = computed(() => releasePaths(props.lib))
                 :class="{ off: !r.nanosheet.includes(n) }"
               >{{ n }}</span>
             </span>
-            <span class="lr-mono lr-num strong">{{ r.cells }}</span>
+            <span class="lr-mono lr-num strong">{{ r.cell_count }}</span>
           </div>
         </div>
       </section>
@@ -98,8 +139,17 @@ const paths = computed(() => releasePaths(props.lib))
    (1fr) so it absorbs the extra width when the table is stretched to match
    the wider Cell Design table. */
 .g-pdk    { grid-template-columns: 80px 96px 96px 96px; column-gap: 28px; }
-.g-path   { grid-template-columns: 72px minmax(230px, 1fr) 96px; column-gap: 20px; }
-.g-design { grid-template-columns: 72px 150px 200px 170px 90px; column-gap: 20px; }
+.g-path   { grid-template-columns: 72px 72px minmax(230px, 1fr) 96px; column-gap: 20px; }
+.g-design { grid-template-columns: 72px 72px 150px 200px 170px 90px; column-gap: 20px; }
+
+/* Rows are grouped by library; mark where the next library starts. */
+.lr-row.group-start { border-top: 1px solid #e2e5ea; }
+
+.info-sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 
 /* Standalone tables (PDK) hug their own content width. */
 .lr-box { width: max-content; }

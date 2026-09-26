@@ -1,19 +1,37 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { PDKS, LIBS, HEIGHTS, MW_TYPES, findPdk, mwTable } from './data.js'
+import { ref, computed, watch } from 'vue'
+import { PDKS, HEIGHTS, MW_TYPES, findPdk, mwTable } from './data.js'
 
 const props = defineProps({
   pdkId: { type: String, required: true },
-  lib: { type: String, required: true },
+  family: { type: Object, required: true },
 })
+
+// Tables stay library-scoped (one table = one GET /clara/mw/ call); the family
+// is what composes the comparison set.
+const libOptions = computed(() => props.family.libraries.map(l => l.library))
 
 // A "비교 셋" is a horizontal row of tables; sets stack vertically.
 // The first table in a set is BASE and can't be removed.
-let nextSetId = 2
-let nextTableId = 2
-const sets = ref([
-  { id: 1, label: '', open: true, tables: [{ id: 1, pdkId: props.pdkId, lib: props.lib, height: HEIGHTS[0], mwType: MW_TYPES[0] }] },
-])
+let nextSetId = 1
+let nextTableId = 1
+
+// family 선택 = 소속 library 전체 선택 — 기본 셋은 library마다 테이블 1개.
+function makeFamilySet() {
+  return {
+    id: nextSetId++,
+    label: '',
+    open: true,
+    tables: props.family.libraries.map(l => ({
+      id: nextTableId++, pdkId: props.pdkId, lib: l.library, height: HEIGHTS[0], mwType: MW_TYPES[0],
+    })),
+  }
+}
+
+const sets = ref([makeFamilySet()])
+
+// family가 바뀌면 이전 family의 library를 가리키는 테이블이 남지 않게 셋을 재생성한다.
+watch(() => props.family, () => { picking.value = null; sets.value = [makeFamilySet()] })
 
 const tableCount = computed(() => sets.value.reduce((a, s) => a + s.tables.length, 0))
 const allCollapsed = computed(() => sets.value.every(s => !s.open))
@@ -25,12 +43,7 @@ function toggleAll() {
 
 function addSet() {
   picking.value = null
-  sets.value.push({
-    id: nextSetId++,
-    label: '',
-    open: true,
-    tables: [{ id: nextTableId++, pdkId: props.pdkId, lib: props.lib, height: HEIGHTS[0], mwType: MW_TYPES[0] }],
-  })
+  sets.value.push(makeFamilySet())
 }
 
 function duplicateSet(set) {
@@ -52,15 +65,16 @@ function removeTable(set, table) {
 // ── "테이블 추가" popover, opened in place at the end of a set ──
 const picking = ref(null)
 const pickPdk = ref(PDKS[0].id)
-const pickLib = ref(LIBS[0])
+const pickLib = ref(libOptions.value[0])
 const pickHeight = ref(HEIGHTS[0])
 const pickMwType = ref(MW_TYPES[0])
 
 function openPicker(set) {
   const last = set.tables.length ? set.tables[set.tables.length - 1] : null
+  const libs = libOptions.value
   picking.value = set.id
   pickPdk.value = props.pdkId
-  pickLib.value = LIBS[(LIBS.indexOf(last ? last.lib : props.lib) + 1) % LIBS.length]
+  pickLib.value = libs[(libs.indexOf(last ? last.lib : libs[0]) + 1) % libs.length]
   pickHeight.value = last ? last.height : HEIGHTS[0]
   pickMwType.value = last ? last.mwType : MW_TYPES[0]
 }
@@ -106,7 +120,7 @@ function exportCsv(t, data) {
     <div class="lr-bar">
       <span class="lr-section-title">MW</span>
       <span class="lr-subtitle">
-        {{ sets.length }} sets · {{ tableCount }} tables · Cell × CK slope / voltage
+        {{ sets.length }} sets · {{ tableCount }} tables · {{ family.libraries.length }} libraries · Cell × CK slope / voltage
       </span>
       <div class="lr-spacer"></div>
       <button class="lr-btn" type="button" @click="toggleAll">
@@ -141,7 +155,7 @@ function exportCsv(t, data) {
                 </option>
               </select>
               <select v-model="t.lib" class="mw-sel muted">
-                <option v-for="l in LIBS" :key="l" :value="l">{{ l }}</option>
+                <option v-for="l in libOptions" :key="l" :value="l">{{ l }}</option>
               </select>
               <select v-model="t.height" class="mw-sel muted">
                 <option v-for="h in HEIGHTS" :key="h" :value="h">{{ h }}</option>
@@ -210,7 +224,7 @@ function exportCsv(t, data) {
           <label class="mw-picker-field">
             <span>Library</span>
             <select v-model="pickLib">
-              <option v-for="l in LIBS" :key="l" :value="l">{{ l }}</option>
+              <option v-for="l in libOptions" :key="l" :value="l">{{ l }}</option>
             </select>
           </label>
           <label class="mw-picker-field">

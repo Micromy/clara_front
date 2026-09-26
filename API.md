@@ -20,8 +20,10 @@
 9. [Chart](#8-chart)
 10. [Cell Height](#9-cell-height)
 11. [MW Table](#10-mw-table)
-12. [에러 응답 형식](#에러-응답-형식)
-13. [데이터 모델 관계](#데이터-모델-관계)
+12. [Family](#11-family)
+13. [Library Info 집계](#12-library-info-집계)
+14. [에러 응답 형식](#에러-응답-형식)
+15. [데이터 모델 관계](#데이터-모델-관계)
 
 ---
 
@@ -119,6 +121,8 @@
 ## 3. Library
 
 라이브러리 목록.
+
+> 📌 family 단위 그룹 목록은 [11. Family](#11-family) 참조. 이 엔드포인트의 응답 스키마는 family 도입 후에도 변경되지 않는다.
 
 ### `GET /clara/lib/`
 
@@ -575,6 +579,240 @@ cell을 WHERE에 지정하지 않으므로, 조건에 맞는 **모든 셀**(= �
 
 ---
 
+## 11. Family
+
+Library의 `family` 컬럼으로 묶은 그룹 목록. Library Report 페이지(`/library-report`)는 library를 개별 선택하지 않고 **family 하나를 선택해 소속 library 전체를 한 번에 스코프로 삼는다** — 그 드롭다운의 데이터 소스.
+
+> 📌 family 스코프의 Library Info 집계(Release Path / Cell Design)는 [12. Library Info 집계](#12-library-info-집계) 참조.
+
+**출처 테이블**: `library` (신규 `family` 컬럼). family 자체 테이블은 없다 — family는 `library.family`의 distinct 값이며 **id가 없고 이름이 곧 키다.**
+
+### `GET /clara/family/`
+
+#### Query Parameters
+
+없음. 응답이 곧 전체 데이터 ([공통 사항 · 페이지네이션](#페이지네이션) 참조).
+
+#### 쿼리
+
+```sql
+SELECT
+  l.family,
+  l.id      AS library_id,
+  l.library
+FROM library l
+WHERE l.family IS NOT NULL
+  AND TRIM(l.family) IS NOT NULL
+ORDER BY l.family, l.id
+```
+
+백엔드는 이 결과를 `family` 기준으로 묶어 아래 중첩 형태로 직렬화한다. 중첩은 `GET /clara/chart/`가 `items`를 함께 내려주는 것과 같은 부모-자식 집합체 패턴이다([8. Chart](#8-chart) 참조).
+
+#### Response 예시
+
+```json
+[
+  {
+    "family": "FAMA",
+    "libraries": [
+      { "id": 1, "library": "LIBA" },
+      { "id": 2, "library": "LIBB" }
+    ]
+  },
+  {
+    "family": "FAMB",
+    "libraries": [
+      { "id": 3, "library": "LIBC" },
+      { "id": 4, "library": "LIBD" },
+      { "id": 5, "library": "LIBE" }
+    ]
+  }
+]
+```
+
+#### 필드 설명
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `family` | string | `library.family` 값. **이 목록의 키** (family에는 id가 없다) |
+| `libraries` | array | 해당 family에 속한 library 목록. 원소는 [3. Library](#3-library) 응답과 **동일한 shape** (`{ id, library }`) |
+| `libraries[].id` | int | `library.id` — `/clara/meta/`의 `lib_id`, `/clara/mw/`의 `library_id`와 같은 FK 공간 |
+| `libraries[].library` | string | `library.library` |
+
+#### 순서 계약
+
+**배열 순서가 곧 프론트의 표시 순서다.** `ORDER BY l.family, l.id`로 안정 정렬해 내려준다.
+
+프론트는 `libraries` 순서를 재정렬하지 않고 그대로 사용한다 — family 안의 library는 PPA 탭의 열 그룹 순서, Library Info 표의 행 그룹 순서, MW 비교 셋의 테이블 배치 순서가 된다. 호출마다 순서가 흔들리면 비교 화면이 매번 달라 보인다.
+
+#### 그 외
+
+- **`family`가 NULL·공백인 library는 응답에 포함되지 않는다.** Library Report는 family 단위로만 동작하므로 소속이 없는 library는 이 화면에서 선택할 수 없다. 전체 library 목록이 필요한 화면(메인 PPA 빌더의 Library 다중선택)은 계속 [3. Library](#3-library)를 쓴다. Oracle에서 빈 문자열은 NULL이지만 공백 문자열(`' '`)은 NULL이 아니므로 `TRIM` 조건을 함께 둔다.
+- **`/clara/lib/`의 응답 스키마는 바뀌지 않는다.** family는 이 엔드포인트로만 노출한다.
+- library가 1개뿐인 family도 정상 응답이다 (프론트는 이 경우 library 간 비교 UI를 숨긴다).
+- family 목록만 필요한 소비자도 `libraries`를 함께 받는다. 별도의 "family 이름만" 엔드포인트는 두지 않는다 — Library Report가 선택 직후 곧바로 멤버 library id를 필요로 하므로 왕복 한 번을 줄이는 쪽이 낫다.
+
+#### Error Response
+
+```json
+// 500 — 서버 오류
+```
+
+- 조건에 맞는 family가 없으면 `404`가 아니라 **`200` + 빈 배열 `[]`** 을 반환한다 (`/clara/lib/`, `/clara/pdk/` 등 다른 list 엔드포인트와 동일).
+- 필수 쿼리 파라미터가 없으므로 `400`은 발생하지 않는다.
+
+---
+
+## 12. Library Info 집계
+
+Library Report 페이지의 **Library Info 탭** 전용 집계. family 하나를 넘기면 **소속 library 전체의 Release Path(+GDS version)와 Cell Design 지원 범위를 한 번에** 반환한다. 이 탭은 library를 개별 선택하지 않으므로([11. Family](#11-family)), library마다 따로 조회하는 엔드포인트를 두지 않고 family 단위 집계 하나로 대응한다.
+
+**출처 테이블**: `library`(family 멤버 확정) + release/GDS 원천(⚠️ 미확정, 아래 [그 외](#그-외-2) 참조) + `cell_meta`(cell design 집계). 자체 테이블은 없다 — **전부 조회 시점 집계이며 저장하지 않는다.**
+
+### `GET /clara/library-info/`
+
+#### Query Parameters
+
+| 이름 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `pdk_id` | int | ✅ | `PDKVersion.id` — [`GET /clara/pdk/`](#2-pdk-version). cell design 집계의 PDK 축 |
+| `family` | string | ✅ | `library.family` 값. [`GET /clara/family/`](#11-family)의 `family` 문자열 (family에는 id가 없다) |
+
+Library Report는 컨텍스트바에서 (PDK, family) 두 축을 항상 함께 정하므로 두 파라미터 모두 필수로 둔다. `library_id` 필터는 두지 않는다 — 이 탭의 스코프는 family 전체다.
+
+#### 쿼리
+
+```sql
+-- 1) family 멤버 library (11. Family와 동일 원천 · 동일 정렬)
+SELECT l.id AS library_id, l.library
+FROM library l
+WHERE l.family = :family
+ORDER BY l.id
+
+-- 2) library × cell_height 별 release path / gds version
+--    ⚠️ 원천 테이블 미확정 — 아래 '그 외' 참조. library_release는 가칭.
+SELECT r.library_id,
+       r.cell_height_id,
+       ch.height,
+       r.release_path AS path,
+       r.gds_version
+FROM library_release r
+JOIN cell_height ch ON ch.id = r.cell_height_id
+WHERE r.library_id IN (:library_ids)
+  AND r.pdk_id = :pdk_id
+ORDER BY r.library_id, r.cell_height_id
+
+-- 3) library × cell_height 별 cell design 지원 범위 집계
+SELECT m.lib_id AS library_id,
+       ch.id    AS cell_height_id,
+       ch.height,
+       LISTAGG(DISTINCT m.drive_strength, ' ') WITHIN GROUP (ORDER BY m.drive_strength) AS drives,
+       LISTAGG(DISTINCT m.vth, ',')            WITHIN GROUP (ORDER BY m.vth)            AS vths,
+       LISTAGG(DISTINCT m.nanosheet, ',')      WITHIN GROUP (ORDER BY m.nanosheet)      AS nanosheet,
+       COUNT(*)                                                                        AS cell_count
+FROM cell_meta m
+JOIN cell_height ch ON ch.height = m.cell_height   -- ⚠️ cell_meta.cell_height는 문자열 ('12T'), 정규화 확인 필요
+WHERE m.lib_id IN (:library_ids)
+  AND m.pdk_id = :pdk_id
+GROUP BY m.lib_id, ch.id, ch.height
+ORDER BY m.lib_id, ch.id
+```
+
+백엔드는 2)·3)의 결과를 1)의 library에 붙여 아래 중첩 형태로 직렬화한다. 중첩은 [11. Family](#11-family)의 `family` → `libraries[]`와 같은 패턴이다.
+
+#### Response 예시
+
+```json
+{
+  "family": "FAMA",
+  "pdk_id": 3,
+  "libraries": [
+    {
+      "id": 1,
+      "library": "LIBA",
+      "release_paths": [
+        { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/LIBA/ch120/release/r4", "gds_version": "V1.0.0.0" },
+        { "cell_height_id": 2, "height": "CH150", "path": "/proj/lib/LIBA/ch150/release/r3", "gds_version": "V0.9.5.0" },
+        { "cell_height_id": 3, "height": "CH180", "path": "/proj/lib/LIBA/ch180/release/r2", "gds_version": "V0.9.5.0" }
+      ],
+      "cell_design": [
+        { "cell_height_id": 1, "height": "CH120", "drives": "D1 D2 D3 D6 D8 D16",
+          "vths": ["rvt", "lvt", "slvt", "vlvt"], "nanosheet": ["N1", "N2", "N3", "N5"], "cell_count": 512 },
+        { "cell_height_id": 2, "height": "CH150", "drives": "D1 D2 D3 D4 D8",
+          "vths": ["rvt", "lvt", "slvt"], "nanosheet": ["N1", "N2", "N3"], "cell_count": 374 },
+        { "cell_height_id": 3, "height": "CH180", "drives": "D1 D2 D3",
+          "vths": ["rvt", "lvt", "slvt", "mvt"], "nanosheet": ["N1", "N2", "N3", "N4"], "cell_count": 268 }
+      ]
+    },
+    {
+      "id": 2,
+      "library": "LIBB",
+      "release_paths": [
+        { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/LIBB/ch120/release/r4", "gds_version": "V1.0.0.0" }
+      ],
+      "cell_design": [
+        { "cell_height_id": 1, "height": "CH120", "drives": "D1 D2 D3 D6 D8 D16",
+          "vths": ["rvt", "slvt"], "nanosheet": ["N1", "N2"], "cell_count": 498 }
+      ]
+    }
+  ]
+}
+```
+
+#### 필드 설명
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `family` | string | 요청한 `family` 값 되돌림. 프론트가 늦게 도착한 응답을 현재 컨텍스트와 대조하는 데 쓴다 |
+| `pdk_id` | int | 요청한 `pdk_id` 되돌림 |
+| `libraries` | array | family 멤버 library. 원소는 [11. Family](#11-family)의 `libraries[]`(= [3. Library](#3-library) shape)에 집계 배열 2개가 붙은 형태 |
+| `libraries[].id` | int | `library.id`. **중첩 노드이므로 `id`** — `/clara/report/`의 flat `release_paths[]`처럼 행 단위로 펼쳐진 배열에서는 `library_id`를 쓴다 |
+| `libraries[].library` | string | `library.library` |
+| `libraries[].release_paths` | array | library × cell_height 별 릴리스 경로. 행 없으면 **빈 배열** |
+| `release_paths[].cell_height_id` | int | [`GET /clara/cell-height/`](#9-cell-height)의 `id`. `/clara/mw/`의 `cell_height_id`와 같은 FK 공간 |
+| `release_paths[].height` | string | `cell_height.height` (표시용 — 프론트가 id로 재조회하지 않게) |
+| `release_paths[].path` | string \| null | 릴리스 경로. **원천 미확정이라 nullable** — 없으면 `null` |
+| `release_paths[].gds_version` | string | GDS version 집계값 |
+| `libraries[].cell_design` | array | library × cell_height 별 지원 범위. 행 없으면 **빈 배열** |
+| `cell_design[].drives` | string | 지원 Drive Strength를 **공백으로 구분한 문자열** (`"D1 D2 D3"`). 표에 그대로 출력하는 값 |
+| `cell_design[].vths` | array\<string\> | 지원 VTH. 프론트가 전체 축과 대조해 미지원 항목을 회색 처리하므로 **문자열이 아니라 배열** |
+| `cell_design[].nanosheet` | array\<string\> | 지원 Nanosheet. 위와 동일 |
+| `cell_design[].cell_count` | int | 해당 (library, cell_height)의 셀 수 |
+
+`gds_desc`(GDS version 해석 설명)와 release path의 **사용자 입력분은 이 응답에 없다.** 리포트별 입력값이며 `GET /clara/report/`가 담당한다.
+
+`vth_all` / `nanosheet_all`(미지원 항목 회색 처리용 전체 축)도 포함하지 않는다 — 현재는 프론트 상수다. 응답에 싣기로 확정되면 library별이 아니라 **top-level에** 가산 추가한다 (mini-table의 열이 family 전체에서 같은 위치여야 비교가 된다).
+
+#### 순서 계약
+
+**배열 순서가 곧 프론트의 표시 순서다** ([11. Family](#11-family)와 동일 계약).
+
+- `libraries[]` — `ORDER BY library.id`. 같은 family를 다시 조회했을 때 순서가 흔들리면 Library Info 표의 행 그룹 순서가 매번 달라진다.
+- `release_paths[]` / `cell_design[]` — `ORDER BY cell_height_id`. 프론트는 두 배열을 재정렬하지 않고 받은 순서로 행을 쌓는다.
+
+#### 그 외
+
+- **`path`·`gds_version`의 원천 테이블이 미확정이다.** 위 쿼리의 `library_release`는 가칭이다. Library Report의 Final Report 설계는 release path를 *리포트별 사용자 입력*으로 정의했다(리포트 테이블에 JSON 저장). library 마스터 쪽에 릴리스 경로/GDS version 원천이 있는지 확인이 필요하며, 없다면 이 응답의 `path`는 항상 `null`이고 GDS version만 집계로 채워진다.
+- **`cell_meta.cell_height`는 문자열(`"12T"`)이고 `spil_mw_meta.cell_height_id`는 int다.** 위 3) 쿼리는 이름 조인으로 우회했다. 두 축이 같은 lookup(`cell_height`)을 가리키는지, `cell_meta`에 `cell_height_id`를 추가할지 확인이 필요하다 — 확인 전까지 `cell_design[].cell_height_id`는 이름 조인 결과다.
+- **library마다 지원 cell_height 수가 다를 수 있다.** 응답이 library별 배열이므로 구조적으로 허용되며, 프론트도 배열 길이를 가정하지 않는다. 위 예시의 `LIBB`가 그 경우다.
+- **집계 행이 0개인 library도 응답에 남는다** (`release_paths: []`, `cell_design: []`). 그 library를 빼지 않는 이유는 "library는 있는데 데이터가 없음"과 "library가 family에 없음"을 프론트가 구분해야 하기 때문이다.
+- **PDK 축의 적용 범위**: `pdk_id`는 cell design 집계에 확실히 필요하다. release/GDS가 PDK에 의존하는지는 원천 확정과 함께 확인한다 — 무관하다면 2) 쿼리에서 `pdk_id` 조건만 빠지고 응답 shape은 그대로다.
+
+#### Error Response
+
+```json
+// 400 — 필수 파라미터 누락
+{ "error": "pdk_id and family parameters are required" }
+
+// 404 — family 없음 (소속 library가 하나도 없음)
+{ "error": "No libraries found for the given family" }
+```
+
+- family에 library가 있으면 집계 결과가 비어도 **`200`** 이다 (`libraries[]`의 각 배열이 빈 배열). `404`는 family 자체가 없을 때만 낸다.
+- `pdk_id`에 데이터가 없는 family도 `200` — 각 library의 `cell_design`이 빈 배열이 된다 ([11. Family](#11-family) "family는 PDK와 독립" 참조).
+
+---
+
 ## 에러 응답 형식
 
 ### 400 Bad Request
@@ -622,6 +860,8 @@ ChartPreset.y2_metric ──→ ChartMetric (FK, nullable)
 CellMeta.lib_id ──→ Library (FK 의미상)
 CellMeta.pdk_id ──→ PDKVersion (FK 의미상)
 
+Library.family ──→ (마스터 테이블 없음, distinct 값이 곧 Family)
+
 ChartItem.cell_id ──→ FFCell or ICGCell (cell_type에 따라 분기)
 ```
 
@@ -636,6 +876,7 @@ ChartItem.cell_id ──→ FFCell or ICGCell (cell_type에 따라 분기)
 | GET | `/clara/meta/` | 셀 메타 (필터 가능) |
 | GET | `/clara/pdk/` | PDK 버전 목록 |
 | GET | `/clara/lib/` | 라이브러리 목록 |
+| GET | `/clara/family/` | family별 library 목록 (Library Report 컨텍스트바) |
 | GET | `/clara/cell/ff/?cell_id=...` | FF 셀 데이터 (필수 cell_id) |
 | GET | `/clara/cell/ff/<id>/` | FF 셀 단건 |
 | GET | `/clara/cell/icg/?cell_id=...` | ICG 셀 데이터 |
@@ -651,6 +892,7 @@ ChartItem.cell_id ──→ FFCell or ICGCell (cell_type에 따라 분기)
 | DELETE | `/clara/chart/<id>/` | chart 삭제 (cascade) |
 | GET | `/clara/cell-height/` | Cell Height 목록 (mw 조회의 cell_height_id 드롭다운) |
 | GET | `/clara/mw/` | MW 테이블 (cell_height_id × mw_type × pdk_id × library_id 조합, flat list) |
+| GET | `/clara/library-info/?pdk_id=&family=` | Library Info 탭 집계 (family 멤버 library별 release path + cell design) |
 
 ### 자주 쓰는 호출 패턴
 
@@ -682,10 +924,37 @@ GET /clara/preset/
   → 저장된 preset 목록에서 사용자가 선택
 ```
 
+**Library Report 컨텍스트 (family 단위):**
+```
+GET /clara/family/
+  → family 선택 → family 이름 + libraries[].id 확보
+
+GET /clara/library-info/?pdk_id=3&family=FAMA
+  → Library Info 탭: family 멤버 library 전체의 release path + cell design을 1회로 (§12)
+
+GET /clara/mw/?pdk_id=3&library_id=1&cell_height_id=1&mw_type=MWD
+  → MW 탭: family 멤버 library마다 1회 호출 (테이블 1개당 요청 1개)
+```
+
 ---
 
 ## 변경 이력
 
+- **2026-09-26** Library Info 집계 엔드포인트 추가
+  - 신규 `GET /clara/library-info/?pdk_id=&family=` — Library Report의 Library Info 탭이 family 멤버 library마다 따로 조회하는 대신 **family 1건으로 소속 library 전체의 Release Path(+GDS version) / Cell Design 집계를 1회에** 받는다
+  - 응답은 §11 Family와 동형 중첩(`family` → `libraries[]`)이고, `libraries[]` 원소 하나가 리포트 `LIB` 블록 `data`의 `release_paths`/`cell_design`과 같은 shape — 백엔드 직렬화 로직을 공유할 수 있다
+  - 저장 테이블 없음(전부 조회 시점 집계). `gds_desc`와 release path 사용자 입력분은 리포트 소유이므로 이 응답에 포함하지 않는다
+  - `path`는 **nullable** — release/GDS 원천 테이블 미확정. `cell_meta.cell_height`(문자열) ↔ `cell_height_id`(int) 정규화도 확인 대상
+  - 집계 행이 0개인 library도 `release_paths: []`로 응답에 남긴다 ("데이터 없음" ≠ "library 없음")
+  - `vth_all`/`nanosheet_all`은 계속 프론트 상수 — 응답에 싣기로 확정되면 top-level에 가산 추가
+  - **`GET /clara/mw/`(§10) 계약은 변경 없음** — MW를 family 단위로 묶을지는 미결 (설계 문서 오픈 이슈)
+- **2026-09-26** Family 엔드포인트 추가
+  - 신규 `GET /clara/family/` — `library.family` 컬럼으로 묶은 그룹 목록. Library Report 페이지의 컨텍스트바가 library 단일 선택에서 **family 단일 선택(= 소속 library 전체 선택)** 으로 바뀜
+  - family는 **마스터 테이블이 아니라 `library`의 컬럼** — 자체 id가 없고 이름 문자열이 키. 추후 마스터 테이블로 승격되면 `family_id`를 가산 추가
+  - 응답은 중첩(`family` → `libraries[]`) — `/clara/chart/`의 `items` 중첩과 같은 소유 관계 패턴. `libraries[]` 원소는 §3 Library와 동일 shape
+  - 배열 순서 = 프론트 표시 순서 (`ORDER BY family, library.id`). family 안의 library가 PPA 열 그룹 / MW 테이블 배치 순서가 되므로 안정 정렬이 계약
+  - `family`가 NULL·공백인 library는 응답에서 제외 — 전체 목록이 필요한 화면은 계속 §3 사용
+  - **`GET /clara/lib/`의 응답 스키마는 변경 없음**
 - **2026-09-03** MW Table + Cell Height 엔드포인트 추가
   - 신규 `GET /clara/mw/` — Library Report MW 탭의 cell_height_id × mw_type × pdk_id × library_id 조합 조회
   - 출처 테이블 확정: `spil_mw_meta`(1행=셀 1개) + `spil_mw_fail_count`(ck_slope×voltage별 fail_count, N행), meta에 cell 필터를 걸지 않고 조회해 조건에 맞는 모든 셀을 한 번에 반환
@@ -707,4 +976,4 @@ GET /clara/preset/
   - `chart_preset.x_metric`: bar 차트에서 `__group__` 문자열 허용 (`__label__`는 deprecated)
   - `chart_item.cell_alias` → **`chart_item.cell_tag`** 리네임. 빈 문자열 허용 (이전: 빈 값 거부됨).
 
-문서 최종 수정: 2026-05-19
+문서 최종 수정: 2026-09-26

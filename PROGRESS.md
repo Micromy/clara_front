@@ -1,7 +1,7 @@
 # CLARA Front Mockup — 진행 상황
 
-> 마지막 업데이트: 2026-09-21
-> 현재 브랜치: `main` (HEAD: `052a43b`)
+> 마지막 업데이트: 2026-09-26
+> 현재 브랜치: `mw-table-height-type-params` (HEAD: `201d7ed`, `origin/main` 대비 32 커밋 앞섬 · 1 커밋 미푸시)
 > 리포: `Micromy/clara_front`
 
 ---
@@ -9,6 +9,8 @@
 ## 1. 프로젝트 개요
 
 **CLARA** — 반도체 셀 라이브러리 분석 프론트엔드. **FF / ICG** 두 타입의 셀 메타데이터와 시뮬레이션 결과를 검색·선택하고 차트로 비교 시각화하는 Vue 3 SPA. 백엔드(Django REST)와 연동.
+
+> 이후 상위 **DTCO Platform** 쉘에 서비스로 편입되었고(3-10), PDK/Family 단위 요약을 보여주는 **Library Report** 페이지가 추가됨(3-11, 현재 mock 단계).
 
 ---
 
@@ -20,7 +22,7 @@
 | 빌드 | Vite 4.5.5 |
 | UI 라이브러리 | Element Plus 2.13 + `@element-plus/icons-vue` |
 | 상태 관리 | Pinia 3 |
-| 라우팅 | 없음 — 단일 경로 SPA (`<AppView>` 조건부 렌더) |
+| 라우팅 | Vue Router — `/`(CLARA PPA 빌더), `/library-report`(Library Report), 그 외 `/`로 redirect. 사내 nginx 배포는 history mode, GitHub Pages 빌드는 hash mode(`VITE_ROUTER_HASH=true`) |
 | 차트 | ECharts 6 + vue-echarts |
 | 패키지 매니저 | npm (Node 20+) |
 | 배포 | 사내 Docker (nginx) |
@@ -110,6 +112,27 @@
 - **Chart Preset / Saved Charts** — 백엔드 API
 - 첫 렌더 전 동기 복원
 
+### 3-10. 플랫폼 쉘 (PlatformShell)
+- CLARA가 **DTCO Platform**이라는 상위 쉘 안의 한 서비스로 편입 — 헤더에 서비스 스위처(`src/config/services.js`) 추가
+- Vue Router 도입: `/`(CLARA PPA 빌더 = `PpaApp.vue`, 기존 `AppView`를 감싸는 형태로 loading/error 화면 처리), `/library-report`(신규), 나머지 경로는 `/`로 redirect
+- 배포 환경별 history 모드 분기 — 사내 nginx(`try_files ... /index.html`)는 `createWebHistory`, GitHub Pages(서브디렉토리, 서버 rewrite 없음)는 `createWebHashHistory`
+
+### 3-11. Library Report 페이지 (신규 — 전부 mock 데이터)
+`/library-report` — **PDK × Family**를 고르면 4개 탭에 걸쳐 요약을 보여주는 신규 화면. **현재 `src/views/library-report/data.js`의 하드코딩 mock만 존재하며 백엔드 연동 전 단계.**
+
+2026-09-26: 컨텍스트 단위가 **library 1개 → family 1개(= library N개)** 로 바뀜. family는 `library` 테이블의 신규 컬럼이며 마스터 테이블이 아니다(자체 id 없음, 이름 문자열이 키). family 선택이 곧 소속 library 전체 선택이고, 4개 탭이 family 멤버 library들을 함께 그린다. 목록은 신규 `GET /clara/family/`([API.md](API.md) §11), 설계는 [docs/library-report-family-design.md](docs/library-report-family-design.md).
+- **Library Info** — PDK 구성(HSPICE/LVS/PEX 버전)은 family 공통. Release Path / Cell Design 표는 **`LIBRARY` 열이 추가되어 행 = library × height**로 쌓인다(같은 height끼리 붙어 library 간 GDS version·지원 범위 차이를 비교). Cell Design 매트릭스(Drive Str × VTH × Nanosheet 지원 여부 mini-table)는 library별로 생성(`cellDesign(library)`). 2차 라운드(9/26)에서 데이터 경로를 **신규 `GET /clara/library-info/`([API.md](API.md) §12) 1회 호출**로 묶었다 — library마다 조회하지 않고 family 단위 집계를 받아 표 행으로 펼치기만 한다. 표 구성·열은 변경 없음
+- **PPA** — 저장된 Chart Preset(메인 PPA 페이지에서 저장한 셋)을 선택 → **열 = library × metric의 2단 헤더 표**(행은 family 전체 cell 합집합). 참조 library는 family 멤버 중에서 고르고 diff%는 그 library의 **실측 행**에서 계산(이전의 pseudo-random 가짜 참조 제거). 특정 library에 없는 cell은 빈칸(0과 구분). library가 1개인 family면 참조 select·Raw/Diff 토글을 숨김
+- **MW** — Cell Height + mw_type(MWD/MWS) 축 선택 → CK Slope별 voltage로 그룹핑된 pivot 테이블. 백엔드는 로우 데이터만 주고 **표 조립(pivot)은 프론트 책임** ([API.md](API.md) `GET /clara/mw/`). 테이블 1개 = library 1개 = `/clara/mw/` 1회 호출이라 **테이블 내부에 library 축을 넣지 않고**, family 선택이 "library마다 테이블 1개"인 비교 셋을 자동 구성한다. 테이블/picker의 Library 옵션은 family 멤버로 제한
+- **Final Report** — **PDK+Family당 1개**, "참조형(스냅샷 아님)" 설계([docs/final-report-design.md](docs/final-report-design.md)):
+  - 블록 구성: `LIB`(Library Info 요약) / `PPA`(저장 셋 요약) / `MW`(경고 셀) / `user`(자유 입력 블록, 삽입·재정렬 가능)
+  - 블록 스코프: `LIB`/`MW`는 **library 단위**(블록에 `library_id`, 제목에 library 접두, 카드에 library 칩), `PPA`는 family 단위. library N개면 `N × 3 + 1` 블록. family 변경 시 리포트 정체성이 바뀌므로 `state`를 `idle`로 리셋
+  - 블록마다 AI 초안(`ai_draft`) + 사람이 수정한 본문(`body`) + 원본 조인 데이터(`data`, 응답 시점에 inline 확장) + 낡음 배지(`stale`, `source_saved_at` vs `source_current_at` 비교)
+  - MW 블록은 CK Slope 40 고정 + `MW_THRESHOLD`(MWD 44 / MWS 40, 시스템 상수로 하드코딩, DB 없음) 이상 fail_count 셀만 필터
+  - 액션은 **edit / save / final-save** 3단으로 단순화 (별도 "리뷰 완료 체크" 단계는 한때 추가됐다가 제거됨)
+  - `final-save` 5일 후 편집 잠금 (`locked` computed)
+  - 9/22 커밋에서 응답 shape을 계획 중인 `GET /clara/report/` 계약에 맞춰 재구성 — **이 엔드포인트는 아직 API.md에 정식 등재되지 않음** (final-report-design.md 초안만 존재)
+
 ---
 
 ## 4. 데이터 아키텍처
@@ -117,13 +140,26 @@
 ### 4-1. 파일 구조
 ```
 src/
-  ├── api/cells.js            REST 호출 + snake/camel 변환
-  ├── config/column-config.json  UI 메타 (chartOptions, groupableFields 등)
+  ├── router.js                라우팅 (`/`, `/library-report`, 그 외 redirect)
+  ├── api/
+  │   ├── client.js            공통 HTTP transport (snake/camel 변환)
+  │   └── cells.js             REST 호출
+  ├── config/
+  │   ├── column-config.json   UI 메타 (chartOptions, groupableFields 등)
+  │   └── services.js          플랫폼 서비스 스위처 목록, CURRENT_USER
   ├── stores/builderStore.js  Pinia store (selectedCells, groupTemplate, ...)
   ├── views/
+  │   ├── PpaApp.vue          CLARA PPA 빌더 진입점 (loading/error 화면 + AppLayout)
   │   ├── AppView.vue         BuilderView/ChartView 조건부 렌더
   │   ├── BuilderView.vue     검색 + Selected Cells + ChartConfig
-  │   └── ChartView.vue       ECharts + SourceData
+  │   ├── ChartView.vue       ECharts + SourceData
+  │   └── library-report/     신규 — Library Report 페이지 (전부 mock)
+  │       ├── LibraryReportView.vue  탭 컨테이너 + PDK/Family 컨텍스트바
+  │       ├── TabLibraryInfo.vue
+  │       ├── TabPpa.vue
+  │       ├── TabMw.vue
+  │       ├── TabFinalReport.vue
+  │       └── data.js          mock 데이터 + 백엔드 응답 shape 시뮬레이션
   ├── components/
   │   ├── builder/
   │   │   ├── CellSearchTable.vue
@@ -133,7 +169,9 @@ src/
   │   └── chart/
   │       ├── ChartDisplay.vue
   │       └── SourceDataTable.vue
-  └── layouts/AppLayout.vue
+  └── layouts/
+      ├── PlatformShell.vue    상위 플랫폼 헤더 + 서비스 스위처 (신규)
+      └── AppLayout.vue        CLARA 내부 헤더 + 2단 탭바
 ```
 
 ### 4-2. 데이터 소스: 사내 Django REST API
@@ -142,10 +180,15 @@ src/
 
 **API 엔드포인트** (`/clara/...`) — 자세한 계약은 [API.md](API.md) 참조:
 - `GET /pdk/`, `/lib/`, `/metric/` — 드롭다운/축 옵션
+- `GET /family/` — family별 library 목록 (Library Report 컨텍스트바). `/lib/`의 응답 스키마는 변경 없음
 - `GET /meta/?cell_type=&pdk_id=&lib_id=` — 메타데이터 검색
 - `GET /cell/ff/?cell_id=...`, `/cell/icg/?cell_id=...` — 시뮬 데이터
 - `GET/POST/DELETE /preset/` — Chart Preset
 - `GET/POST/DELETE /chart/` — Saved Chart (preset + items 묶음)
+- `GET /cell-height/` — Cell Height 목록 (Library Report용)
+- `GET /library-info/?pdk_id=&family=` — Library Info 탭 집계 (family 멤버 library별 release path + cell design, 1회 호출)
+- `GET /mw/` — MW 테이블 로우 데이터 (pivot은 프론트에서 조립)
+- `GET /report/` — Final Report (**설계 초안 단계, API.md 미등재** — [docs/final-report-design.md](docs/final-report-design.md) 참조)
 
 ### 4-3. snake_case ↔ camelCase 자동 변환
 `api/cells.js`의 `get()`/`post()` 헬퍼가 응답은 camelCase로, 요청 body는 snake_case로 자동 변환. 프론트 코드는 항상 camelCase.
@@ -161,7 +204,7 @@ src/
 ### 4-5. 데이터 흐름
 ```
 앱 시작
-  └─ App.vue onMounted → store.init()
+  └─ PpaApp.vue onMounted → store.init()
        └─ Promise.all([fetchColumnConfig, fetchPdks, fetchLibraries,
                        fetchMetrics, fetchPresets, fetchCharts])
 
@@ -199,8 +242,15 @@ selectedCells (computed)
 - **SourceDataTable** — 차트 데이터 테이블 (우, 오버레이)
 
 ### 5-3. 공통
-- **AppLayout** — 헤더 + 2단 탭바 + `<AppView>` 직접 렌더
+- **PlatformShell** — 최상위 헤더(서비스 스위처), `App.vue`에서 `<router-view>`와 함께 항상 렌더
+- **AppLayout** — CLARA 내부 헤더 + 2단 탭바, `/`(`PpaApp` → `AppView`) 안에서만 렌더
 - **CellSearchPopupRoot** — 별도 윈도우에서 검색 (Pinia store 공유)
+
+### 5-4. Library Report 뷰 (`/library-report`, 신규)
+- **LibraryReportView** — PDK/Family 컨텍스트바 + 4개 탭(Library Info / PPA / MW / Final Report) 전환. 선택 상태는 라우트 쿼리에 실려 딥링크 가능
+- route query: `tab`(`info|ppa|mw|final`) · `pdk`(PDK id) · **`family`(family 이름)** · `set`(PPA 저장 셋 id). `family`는 2026-09-26에 `lib`를 대체했으며, 없거나 존재하지 않는 값이면 첫 family로 방어 fallback (`?lib=` 하위 호환은 두지 않음 — 외부 배포된 고정 링크가 없다)
+- Family select 오른쪽에 멤버 library를 읽기 전용 칩으로 표시(4개 초과 시 `+N`) — family 선택이 곧 library N개 선택임을 화면에 드러내기 위함
+- 자세한 탭별 기능은 3-11, 설계 근거는 [docs/library-report-family-design.md](docs/library-report-family-design.md) 참조
 
 ---
 
@@ -247,7 +297,7 @@ VITE_API_BASE_URL=http://...-prod...samsungds.net
 
 - **사내 Docker** — `Dockerfile`에서 `npm run build` → nginx 컨테이너로 정적 자산 서빙
 - **SPA fallback** — `nginx.conf`에서 `try_files $uri $uri/ /index.html`로 모든 경로 → index.html
-- **URL 정책** — 단일 경로 `/`. 비루트 접근은 mount 시 `history.replaceState`로 `/`로 정리
+- **URL 정책** — Vue Router 2개 경로(`/`, `/library-report`) + catch-all redirect. 사내 배포는 history mode(SPA fallback 필요), GitHub Pages 빌드만 hash mode
 
 ---
 
@@ -257,7 +307,8 @@ VITE_API_BASE_URL=http://...-prod...samsungds.net
 - **localStorage 마이그레이션** — `builders` 스키마 변경 시 ensureBuilderShape에서 처리 중. 추후 스키마 버전 키 권장
 - **Group 템플릿 백엔드 영속화** — `group_by`에 CSV로 저장 중. JSON으로 확장 시 schema 변경 필요
 - **반응형** — 모바일/태블릿 레이아웃 미검증
-- **로그인 시스템 부재** — `CURRENT_USER = 'anonymous'` 하드코딩. 도입 시 교체 예정
+- **로그인 시스템 부재** — `CURRENT_USER`가 파일마다 따로 하드코딩(`builderStore.js`는 `'anonymous'`, `config/services.js`·`library-report/data.js`는 `'demo.user'`). 도입 시 단일 소스로 교체 예정
+- **Library Report 전체 mock** — Library Info/PPA/MW/Final Report 4탭 모두 `data.js` 하드코딩으로 동작. `GET /clara/mw/`·`/clara/family/`·`/clara/library-info/`는 API 스펙 확정([API.md](API.md))되어 있고, 나머지는 백엔드 미연동
 
 ---
 
@@ -268,6 +319,8 @@ VITE_API_BASE_URL=http://...-prod...samsungds.net
 - [ ] `chart_item.cell_alias` → `cell_tag` 리네임 + 빈 값 허용
 - [ ] `chart_preset.x_axis`에서 `__label__` 문자열 허용
 - [ ] `/clara/meta/?id=...` 필터 — chart restore 시 cell_id로 정확히 가져오기
+- [ ] `/clara/library-info/`의 release path·GDS version 원천 테이블 확정 (없으면 탭의 PATH 열 재검토)
+- [ ] `cell_meta`에 `cell_height_id` 추가 (현재 `cell_height` 문자열 ↔ `cell_height_id` int 불일치)
 
 ### 10-2. 기술적 개선
 - [ ] ECharts tree-shaking + 코드 스플리팅
@@ -280,14 +333,15 @@ VITE_API_BASE_URL=http://...-prod...samsungds.net
 - [ ] Chart 저장 시 labelTemplate도 함께 영속화 (현재 CSV로 호환 완료, JSONField로 확장 시 고려)
 
 ### 10-4. Final Report (Library Report) — 2026-09-17 스펙 산정 미팅 확정
-- [ ] Final Report 영역별 유효성 체크 (MW/PPA 변경 여부 확인)
-- [ ] 영역별 AI 초안 생성 로직 분리
-- [ ] Library 이름 convention & gds version 설명 입력 기능
-- [ ] 최종 저장 시 library info/MW/PPA 수정 불가 고정
-- [ ] Comment 기능 추가 (권한: SPiL 전원)
-- [ ] PPA & MW를 F.R.에 작게 요약 표시
+- [x] Final Report 영역별 유효성 체크 (MW/PPA 변경 여부 확인) — `stale` 배지 + `source_saved_at`/`source_current_at` 비교 뼈대 구현. mock이라 항상 `stale: false`; 실 데이터로는 백엔드 연동 후 검증 필요
+- [ ] 영역별 AI 초안 생성 로직 분리 — `ai_draft` 필드는 있으나 mock에서는 고정 문구만 생성. 실제 생성 로직 없음
+- [ ] Library 이름 convention & gds version 설명 입력 기능 — 데이터 모델에 `gds_desc` 필드는 있으나 입력 UI 미구현
+- [x] 최종 저장 시 library info/MW/PPA 수정 불가 고정 — `final-save` 5일 후 `locked`. 액션은 edit/save/final-save 3단으로 단순화(별도 "리뷰 완료 체크" 단계는 도입 후 제거)
+- [ ] Comment 기능 추가 (권한: SPiL 전원) — **부분 구현**: 스펙은 "리포트 전체 댓글 스레드"였으나 현재는 삽입 가능한 단일 `user` 자유입력 블록으로 대체 구현됨. 멀티유저 댓글/스레드는 아직 없음
+- [x] PPA & MW를 F.R.에 작게 요약 표시 — 블록 `data`에서 파생한 요약 칩(`blockSummary`)으로 구현
 - [ ] PPA 백엔드+프론트 재점검
 - [ ] ETL 재공유
+- [ ] `GET /clara/report/` 백엔드 구현 + API.md 정식 등재 — 현재 [docs/final-report-design.md](docs/final-report-design.md) 초안만 있고, 프론트는 그 계약대로 mock을 미리 맞춰둔 상태(9/22 커밋)
 
 ---
 

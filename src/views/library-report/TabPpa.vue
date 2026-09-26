@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LIBS, SAVED_SETS, findSavedSet, ppaRows } from './data.js'
+import { SAVED_SETS, findSavedSet, PPA_METRICS, ppaTable } from './data.js'
 
 const props = defineProps({
   pdkId: { type: String, required: true },
-  lib: { type: String, required: true },
+  family: { type: Object, required: true },
 })
 
 const route = useRoute()
@@ -23,18 +23,26 @@ function backToList() {
 }
 
 const diff = ref(false)
-const refLib = ref(LIBS.find(l => l !== props.lib) || LIBS[0])
-const refOptions = computed(() => LIBS.filter(l => l !== props.lib))
 
-const rows = computed(() =>
-  set.value ? ppaRows(set.value, props.pdkId, props.lib, refLib.value) : [],
-)
+// The reference is a real family member now, so diff% comes from its own row.
+const refLibrary = ref(props.family.libraries[0].library)
+watch(() => props.family, f => { refLibrary.value = f.libraries[0].library; diff.value = false })
 
-const columns = computed(() =>
-  diff.value
-    ? ['Δ AREA', 'Δ DELAY', 'Δ LEAK', 'Δ CIN']
-    : ['AREA (µm²)', 'DELAY (ps)', 'LEAK (nA)', 'CIN (fF)'],
+// A one-library family has nothing to compare against.
+const comparable = computed(() => props.family.libraries.length > 1)
+
+const table = computed(() =>
+  set.value ? ppaTable(set.value, props.pdkId, props.family.libraries, refLibrary.value) : null,
 )
+// Columns are library × metric; the group row spans each library's metrics.
+const subCols = computed(() =>
+  table.value
+    ? table.value.groups.flatMap(g =>
+        PPA_METRICS.map((m, i) => ({ library: g.library, ref: g.ref, metric: m, last: i === PPA_METRICS.length - 1 })),
+      )
+    : [],
+)
+const gridCols = computed(() => `180px repeat(${subCols.value.length}, minmax(92px, 1fr))`)
 
 const facts = computed(() => {
   const s = set.value
@@ -45,22 +53,26 @@ const facts = computed(() => {
     { k: 'y', v: s.y2 === 'None' ? s.y : `${s.y} / ${s.y2}` },
     { k: 'derived', v: s.derived ? String(s.derived) : '—' },
     { k: 'cells', v: String(s.cells) },
+    { k: 'libraries', v: String(props.family.libraries.length) },
   ]
 })
 
-function cells(r) {
-  if (diff.value) {
-    return [r.dArea, r.dDelay, r.dLeak, r.dCin].map(v => ({
-      text: `${v > 0 ? '+' : ''}${v.toFixed(2)}%`,
-      cls: v > 2 ? 'lr-over' : v < -1 ? 'lr-good' : '',
-    }))
+// 값 없음 → 빈칸(0과 구분), 참조 library의 diff → 'REF'
+function cellText(row, col) {
+  const v = row.byLib[col.library]
+  if (!v) return { text: '', cls: '' }
+  if (!diff.value) {
+    const n = v[col.metric.key]
+    return { text: n.toFixed(col.metric.digits), cls: col.metric.key === 'leak' && n > 200 ? 'lr-over' : '' }
   }
-  return [
-    { text: r.area.toFixed(4), cls: '' },
-    { text: r.delay.toFixed(2), cls: '' },
-    { text: r.leak.toFixed(1), cls: r.leak > 200 ? 'lr-over' : '' },
-    { text: r.cin.toFixed(2), cls: '' },
-  ]
+  if (col.ref) return { text: 'REF', cls: 'ppa-ref' }
+  const d = v[col.metric.dkey]
+  if (d === null) return { text: '', cls: '' }
+  return { text: `${d > 0 ? '+' : ''}${d.toFixed(2)}%`, cls: d > 2 ? 'lr-over' : d < -1 ? 'lr-good' : '' }
+}
+
+function rowCells(row) {
+  return subCols.value.map(c => ({ ...cellText(row, c), edge: c.last }))
 }
 </script>
 
@@ -115,7 +127,7 @@ function cells(r) {
       <div class="ppa-chart-head">
         <span class="lr-section-title">{{ set.name }}</span>
         <span class="lr-subtitle">
-          {{ set.chart }} · Cell × {{ set.y }}{{ diff ? ` · diff vs ${refLib}` : '' }}
+          {{ set.chart }} · Cell × {{ set.y }}{{ diff ? ` · diff vs ${refLibrary}` : '' }}
         </span>
       </div>
       <!-- Chart rendering is out of scope for this step; PPA page owns it. -->
@@ -125,29 +137,60 @@ function cells(r) {
     <div class="lr-bar">
       <span class="lr-section-title">Cell별 측정값</span>
       <span class="lr-subtitle">
-        {{ rows.length }} cells · {{ diff ? `Δ % vs ${refLib}` : lib }}
+        {{ table.rows.length }} cells × {{ table.groups.length }} libraries ·
+        {{ diff ? `Δ % vs ${refLibrary}` : family.family }}
       </span>
       <div class="lr-spacer"></div>
-      <label v-if="diff" class="lr-control">
+      <label v-if="comparable && diff" class="lr-control">
         <span class="lr-control-label">reference</span>
-        <select v-model="refLib">
-          <option v-for="l in refOptions" :key="l" :value="l">{{ l }}</option>
+        <select v-model="refLibrary">
+          <option v-for="l in family.libraries" :key="l.id" :value="l.library">{{ l.library }}</option>
         </select>
       </label>
-      <div class="lr-seg">
+      <div v-if="comparable" class="lr-seg">
         <button type="button" :class="{ active: !diff }" @click="diff = false">Raw</button>
         <button type="button" :class="{ active: diff }" @click="diff = true">Diff</button>
       </div>
     </div>
 
     <div class="ppa-table">
-      <div class="lr-thead g-ppa">
-        <span>CELL</span>
-        <span v-for="c in columns" :key="c" class="lr-num">{{ c }}</span>
+      <!-- Two-level header: library groups over the four metrics -->
+      <div class="ppa-group-row" :style="{ gridTemplateColumns: gridCols }">
+        <span class="ppa-group-pad"></span>
+        <span
+          v-for="g in table.groups"
+          :key="g.library"
+          class="ppa-group"
+          :style="{ gridColumn: `span ${table.metrics.length}` }"
+        >
+          {{ g.library }}
+          <span v-if="g.ref && comparable" class="ppa-badge">REF</span>
+        </span>
       </div>
-      <div v-for="r in rows" :key="r.cell" class="lr-row g-ppa">
+
+      <div class="ppa-subhead" :style="{ gridTemplateColumns: gridCols }">
+        <span class="ppa-cell-col">CELL</span>
+        <span
+          v-for="(c, i) in subCols"
+          :key="i"
+          class="ppa-metric"
+          :class="{ edge: c.last }"
+        >{{ diff ? c.metric.diff : c.metric.raw }}</span>
+      </div>
+
+      <div
+        v-for="r in table.rows"
+        :key="r.cell"
+        class="lr-row"
+        :style="{ gridTemplateColumns: gridCols }"
+      >
         <span class="lr-mono">{{ r.cell }}</span>
-        <span v-for="(v, i) in cells(r)" :key="i" class="lr-mono lr-num" :class="v.cls">{{ v.text }}</span>
+        <span
+          v-for="(v, i) in rowCells(r)"
+          :key="i"
+          class="lr-mono lr-num ppa-val"
+          :class="[v.cls, { edge: v.edge }]"
+        >{{ v.text }}</span>
       </div>
     </div>
   </div>
@@ -237,9 +280,67 @@ function cells(r) {
   color: #c8d0d9;
 }
 
+/* Two-level header. The column template is inline (library count varies), and
+   both header rows share it with the body rows so the groups stay aligned.
+   Deliberately not shared with TabMw: MW's columns are a fixed 62px, PPA's
+   flex, so the two can't use one width rule. */
 .ppa-table { overflow-x: auto; }
-.g-ppa {
-  grid-template-columns: 180px repeat(4, minmax(110px, 1fr));
-  min-width: 640px;
+.ppa-group-row {
+  display: grid;
+  align-items: stretch;
+  height: 24px;
+  padding: 0 12px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #eef0f3;
+}
+.ppa-group-pad { border-right: 1px solid #e2e5ea; }
+.ppa-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-right: 1px solid #e2e5ea;
+  font-family: var(--clara-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: #1c1f24;
+}
+.ppa-badge {
+  display: flex;
+  align-items: center;
+  height: 15px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: rgba(47, 111, 237, 0.09);
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #2f6fed;
+}
+
+.ppa-subhead {
+  display: grid;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e2e5ea;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #8a929c;
+}
+.ppa-metric {
+  text-align: right;
+  padding-right: 8px;
+}
+.ppa-val { padding-right: 8px; }
+.ppa-metric.edge,
+.ppa-val.edge { border-right: 1px solid #e2e5ea; }
+.ppa-ref {
+  color: #2f6fed;
+  font-weight: 500;
 }
 </style>

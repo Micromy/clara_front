@@ -1,11 +1,11 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { finalReport, CURRENT_USER } from './data.js'
 
 const props = defineProps({
   pdk: { type: Object, required: true },
-  lib: { type: String, required: true },
+  family: { type: Object, required: true },
 })
 
 const route = useRoute()
@@ -15,12 +15,14 @@ const state = ref('idle') // idle | loading | ready
 
 // Mock of GET /clara/report/ — backend inline-expands each block's `data`.
 const report = computed(() =>
-  finalReport({ pdkId: props.pdk.id, lib: props.lib, savedSetId: route.query.set }),
+  finalReport({ pdkId: props.pdk.id, family: props.family, savedSetId: route.query.set }),
 )
 const inputSummary = computed(() => {
   const b = report.value.blocks
   const mw = b.filter(x => x.block_type === 'MW').length
-  return `PDK ${props.pdk.process} · PPA ${b.filter(x => x.block_type === 'PPA').length} chart · MW ${mw} sets`
+  const ppa = b.filter(x => x.block_type === 'PPA').length
+  return `PDK ${props.pdk.process} · ${props.family.family} (library ${props.family.libraries.length}종) · ` +
+    `PPA ${ppa} chart · MW ${mw} blocks`
 })
 const metaText = computed(() => `generated ${report.value.generated_at} · ${report.value.blocks.length} areas`)
 
@@ -45,6 +47,7 @@ function blockSummary(b) {
   }
   if (b.blockType === 'PPA') {
     return [
+      { flag: 'LIBS', text: 'family 내 비교 library', value: `${d.library_count}종` },
       { flag: 'CELLS', text: '저장된 Cell 수', value: String(d.cell_count) },
       { flag: 'CHART', text: `${d.chart_type} · Cell × ${d.y1_metric}`, value: d.y2_metric ? '2축' : '단일 축' },
       { flag: 'DERIVED', text: 'Derived Metric', value: d.derived_count ? String(d.derived_count) : '—' },
@@ -83,6 +86,8 @@ function buildBlocks() {
           blockType: b.block_type,
           source: SOURCE_LABEL[b.block_type],
           color: BLOCK_COLOR[b.block_type],
+          // LIB/MW blocks are library-scoped; PPA is family-scoped (no chip).
+          library: b.data?.library ?? null,
           title: b.title,
           body: b.body,
           stale: b.stale,
@@ -187,6 +192,16 @@ function generate() {
     loadDraft()
   }, 700)
 }
+
+// family는 리포트의 UNIQUE 키다 — 바뀌면 다른 문서이므로 생성 전 상태로 되돌린다.
+// (report가 computed라 그냥 두면 'ready'인 채로 본문만 조용히 뒤바뀐다.)
+watch(() => props.family, () => {
+  state.value = 'idle'
+  editing.value = false
+  savedBy.value = ''
+  savedAt.value = null
+  finalizedAt.value = null
+})
 </script>
 
 <template>
@@ -264,6 +279,7 @@ function generate() {
               <div class="fr-card-head">
                 <template v-if="b.kind === 'ai'">
                   <span class="fr-source" :style="{ color: b.color }">{{ b.source }}</span>
+                  <span v-if="b.library" class="fr-lib">{{ b.library }}</span>
                   <span class="fr-card-title">{{ b.title }}</span>
                   <span v-if="b.stale" class="fr-stale">본문 낡음</span>
                 </template>
@@ -552,6 +568,15 @@ function generate() {
 .fr-drag:active { cursor: grabbing; }
 
 .fr-source-user { color: #a7afb9; }
+/* Library scope of the block — LIB/MW only; PPA is family-scoped. */
+.fr-lib {
+  font-family: var(--clara-mono);
+  font-size: 10px;
+  color: #8a929c;
+  padding: 1px 5px;
+  border: 1px solid #eef0f3;
+  border-radius: 3px;
+}
 .fr-stale {
   font-size: 10px;
   font-weight: 600;

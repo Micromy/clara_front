@@ -1,8 +1,9 @@
 # Final Report — 데이터 구조 설계
 
-> 작성일: 2026-09-21
+> 작성일: 2026-09-21 (2026-09-26 family 단위 전환 반영)
 > 근거: 2026-09-17 Clara Final Report 스펙 산정 미팅 (확정 사항은 [../PROGRESS.md](../PROGRESS.md) 11장)
 > 상태: 설계 초안 — 테이블/컬럼 이름은 전부 **가칭**, 백엔드 협의 후 확정
+> 연계: 리포트 스코프가 (PDK, library) → (PDK, family)로 바뀐 근거는 [library-report-family-design.md](library-report-family-design.md) §5
 
 ---
 
@@ -59,10 +60,10 @@ Oracle 기준. 기존 CLARA 컨벤션(`<table>_id` PK, `created_at`/`created_by`
 ```sql
 report_id      NUMBER          PK
 pdk_id         NUMBER          NOT NULL  FK -> pdk_version(id)
-library_id     NUMBER          NOT NULL  FK -> library(id)
+family         VARCHAR2(100)   NOT NULL  -- library.family 값. family는 마스터 테이블이 아니므로 FK 없음
 title              VARCHAR2(400)   NOT NULL
 lead_body          CLOB            NULL      -- 리드 문단
-release_paths      CLOB            NULL      -- [{cell_height_id, path, gds_desc}, ...] JSON, 사용자 입력
+release_paths      CLOB            NULL      -- [{library_id, cell_height_id, path, gds_desc}, ...] JSON, 사용자 입력
 release_updated_at TIMESTAMP       NULL      -- release_paths 마지막 수정 시각
 status             VARCHAR2(10)    NOT NULL  -- DRAFT | FINAL
 created_by     VARCHAR2(100)
@@ -72,12 +73,13 @@ updated_at     TIMESTAMP
 finalized_by   VARCHAR2(100)   NULL
 finalized_at   TIMESTAMP       NULL
 
-UNIQUE (pdk_id, library_id)
+UNIQUE (pdk_id, family)
 ```
 
-- **PDK & library 조합당 1건.** 변경점이 생기면 library가 새로 생성되므로 리포트에 별도 버전 축이 필요 없다 — 버저닝은 library 테이블이 이미 갖고 있다.
+- **PDK & family 조합당 1건.** 2026-09-26 변경 — Library Report 페이지 전체가 family 단위가 되었으므로(→ [library-report-family-design.md](library-report-family-design.md) §5) 리포트 스코프도 (pdk, library) → (pdk, family)로 올라갔다.
 - 재생성은 `report_id`를 유지한 채 블록을 전량 교체한다.
-- **`release_paths`는 별도 테이블로 빼지 않는다.** 리포트가 이미 (pdk, library)당 1건이라 join 없이 컬럼으로 둬도 중복 저장이 생기지 않는다 (3-5 참조).
+- **`release_paths`는 별도 테이블로 빼지 않는다.** 리포트가 이미 (pdk, family)당 1건이라 join 없이 컬럼으로 둬도 중복 저장이 생기지 않는다. 단 family 안에 library가 N개이므로 **원소에 `library_id`가 들어간다** (3-5 참조).
+- ⚠️ **"변경점이 생기면 library가 새로 생성되므로 버전 축이 필요 없다"는 기존 근거가 family 단위에서는 성립하지 않는다.** family는 library가 추가되는 컨테이너이므로 `UNIQUE (pdk_id, family)`가 member drift와 충돌한다 — 8장 #8/#9 참조.
 
 ### 3-2. `fr_block` — 영역
 
@@ -93,15 +95,19 @@ ai_generated_at     TIMESTAMP       NULL
 
 -- 참조 메타 (block_type에 따라 일부만 채워짐)
 chart_id            NUMBER          NULL  FK -> chart(chart_id)        -- PPA
+library_id          NUMBER          NULL  FK -> library(id)            -- LIB, MW
 cell_height_id      NUMBER          NULL  FK -> cell_height(id)        -- MW
 mw_type             VARCHAR2(10)    NULL                               -- MW
 source_updated_at   TIMESTAMP       NULL  -- 참조 시점 원본 갱신시각 (MAX 집계, 2-3 참조)
 
 INDEX (report_id, seq)
 CHECK (block_type별 필수 참조키가 채워졌는지)
+CHECK block_type IN ('LIB','MW')    => library_id IS NOT NULL
+      block_type IN ('PPA','USER')  => library_id IS NULL
 ```
 
-- **`pdk_id` / `library_id`는 블록에 두지 않는다.** `fr_report`가 이미 갖고 있고, MW 조회에 필요한 나머지(`cell_height_id`, `mw_type`)만 블록이 가지면 조회 키가 완성된다.
+- **`pdk_id`는 블록에 두지 않는다.** `fr_report`가 이미 갖고 있다.
+- **`library_id`는 블록에 둔다** (2026-09-26 변경). 리포트가 family 단위가 되면서 library는 리포트가 아니라 블록의 스코프가 되었다 — `LIB`/`MW` 블록은 library 하나를 맡고, `PPA`는 family 전체(chart는 library에 종속되지 않음), `USER`는 무관하다. 블록을 library마다 하나씩 만들면 `data` 구조가 그대로 유지되고 staleness 입도도 library별로 세분화된다(근거는 [library-report-family-design.md](library-report-family-design.md) §5-1).
 - **`ai_draft`와 `body`를 분리**한다. 영역별로 AI 초안을 재생성해도 사람이 쓴 글이 날아가지 않고, 둘을 비교해 보여줄 수도 있다. 현재 mockup도 같은 의도로 되어 있다(`TabFinalReport.vue:31-33`).
 - `USER` 블록은 참조 메타와 `ai_draft`가 전부 NULL이며 `title` + `body`만 갖는다.
 - `(report_id, seq)`에 UNIQUE를 걸지 않는다. 드래그 재정렬 중간 상태에서 충돌한다.
@@ -110,10 +116,12 @@ CHECK (block_type별 필수 참조키가 채워졌는지)
 
 | block_type | 조회에 쓰는 키 | 유효성 비교 대상 |
 |---|---|---|
-| `LIB` | `report.library_id` | `source_updated_at` (3-5 참조) |
+| `LIB` | `report.pdk_id`, **`block.library_id`** | `source_updated_at` (3-5 참조) |
 | `PPA` | `chart_id` | `source_updated_at` |
-| `MW` | `report.pdk_id`, `report.library_id`, `cell_height_id`, `mw_type` | `source_updated_at` |
+| `MW` | `report.pdk_id`, **`block.library_id`**, `cell_height_id`, `mw_type` | `source_updated_at` |
 | `USER` | — | — (경고 없음) |
+
+library의 출처가 `report.library_id` → `block.library_id`로 이동한 것이 2026-09-26 변경의 전부다. 조회 키 자체의 구성은 바뀌지 않았다.
 
 ### 3-3. `fr_comment` — 코멘트
 
@@ -149,7 +157,7 @@ DB config 테이블을 두지 않는다. **코드 상수로 고정**한다. MWD/
 | cell design 지원 범위 | **쿼리 집계** | Drive Strength / VTH / Nanosheet |
 | release path | **사용자 입력** | `fr_report.release_paths`(3-1)에 저장 |
 
-release path는 지금까지 어느 백엔드 테이블에도 저장된 적 없는 값이다. 별도 테이블을 두는 대신, **리포트가 PDK & library 조합당 1건**이라는 3-1의 UNIQUE 제약을 그대로 살려 `fr_report`에 JSON 컬럼으로 둔다 — 조인할 이유가 없다.
+release path는 지금까지 어느 백엔드 테이블에도 저장된 적 없는 값이다. 별도 테이블을 두는 대신, **리포트가 PDK & family 조합당 1건**이라는 3-1의 UNIQUE 제약을 그대로 살려 `fr_report`에 JSON 컬럼으로 둔다 — 조인할 이유가 없다. family 안의 library가 N개이므로 JSON 원소는 `(library_id, cell_height_id)`로 식별된다.
 
 - **library 이름 convention 설명**(TODO #3의 나머지 절반)은 library 단위로 1건이라 `fr_report`(리포트별)에 두면 리포트마다 같은 내용을 다시 입력하게 된다. `library` 테이블에 실제 마스터 컬럼이 있으면 거기, 없으면 별도 검토가 필요하다 — 이건 아직 열려 있다.
 - `LIB` 블록의 `source_updated_at`은 **집계 원천의 갱신시각과 `fr_report.release_updated_at` 중 `MAX`** 로 잡는다. 사용자가 release path만 고쳐도 본문이 낡을 수 있으므로 둘 다 봐야 한다.
@@ -209,7 +217,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 | Method | 엔드포인트 | 용도 |
 |---|---|---|
-| GET | `/clara/report/?pdk_id=&library_id=` | 리포트 조회 (blocks inline 확장 + staleness 포함) |
+| GET | `/clara/report/?pdk_id=&family=` | 리포트 조회 (blocks inline 확장 + staleness 포함) |
 | POST | `/clara/report/` | 생성(요약 생성) |
 | PUT | `/clara/report/<id>/` | 저장 / 재생성 (blocks 전량 교체) |
 | POST | `/clara/report/<id>/finalize/` | 최종 저장 |
@@ -220,15 +228,17 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 - **유효성(본문 낡음)은 GET 응답 블록별 플래그(`stale`)로 포함.** 별도 `/validate/` 호출 없음.
 - 임계값 lookup 엔드포인트는 없다 — DB/config가 없으므로 내려줄 것이 없다. 프론트·백엔드가 각자 코드 상수로 맞춘다(3-4). MW 블록 `data.threshold`에 사용값을 명시해 표시용으로만 노출.
 
-### 7-1. `GET /clara/report/?pdk_id=&library_id=`
+### 7-1. `GET /clara/report/?pdk_id=&family=`
 
 없으면 `404`(프론트는 "요약 생성" idle). 블록은 seq 순.
 
 ```json
 {
-  "report_id": 12, "pdk_id": 3, "library_id": 1,
-  "title": "[AX5] LIBA 리포트 요약",
-  "lead_body": "Library Info · PPA · MW 세 탭에 담긴 값을 정리했습니다. ...",
+  "report_id": 12, "pdk_id": 3,
+  "family": "FAMA",
+  "libraries": [ { "id": 1, "library": "LIBA" }, { "id": 2, "library": "LIBB" } ],
+  "title": "[AX5] FAMA 리포트 요약",
+  "lead_body": "Library Info · PPA · MW 세 탭에 담긴 값을 정리했습니다. family FAMA의 library 2종이 대상이며 ...",
   "status": "DRAFT",
   "generated_at": "2026-08-31T09:42:00",
   "finalized_at": null, "finalized_by": null,
@@ -236,30 +246,34 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
   "created_by": "demo.user", "created_at": "2026-08-31T09:42:00",
   "updated_by": "demo.user", "updated_at": "2026-09-02T14:05:00",
   "release_paths": [
-    { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/liba/ch120/release/r4", "gds_desc": "..." }
+    { "library_id": 1, "library": "LIBA", "cell_height_id": 1, "height": "CH120",
+      "path": "/proj/lib/liba/ch120/release/r4", "gds_desc": "..." }
   ],
   "release_updated_at": "2026-09-02T14:05:00",
+  "unreported_libraries": [],
   "blocks": [ /* 7-2 */ ],
   "comment_count": 4
 }
 ```
 
-- `locked`: 백엔드가 `finalized_at` + 정책(5일)으로 계산한 파생 bool. 프론트는 그대로 사용(현재 `TabFinalReport.vue:92` 로컬 계산 대체).
+- `locked`: 백엔드가 `finalized_at` + 정책(5일)으로 계산한 파생 bool. 프론트는 그대로 사용(현재 `TabFinalReport.vue`의 로컬 계산 대체).
 - `editable_until`: `finalized_at + 5일`. "수정 가능 D-n" 표시용. FINAL 아니면 null.
+- `family` / `libraries`: 리포트의 스코프. `family`가 UNIQUE 키이고 `libraries`는 조회 시점의 family 멤버 목록이다(3-1).
+- `unreported_libraries`: family 멤버 중 **블록이 없는 library** 목록 `[{id, library}]`. `stale`과 같은 층위의 "리포트가 낡음" 신호로, family에 library가 추가됐을 때만 채워진다(8장 #8). **프론트는 mock 단계에서 필드만 보유하고 배너 UI를 만들지 않는다** — mock이 절대 채우지 않는 값이므로.
 
 ### 7-2. 블록 shape (`blocks[]`)
 
-공통 필드 + `block_type`별 `data` + staleness. `USER`는 `data`/staleness 없음.
+공통 필드 + `block_type`별 `data` + staleness. `USER`는 `data`/staleness 없음. `library_id`는 `LIB`/`MW`에만 채워지고 `PPA`/`USER`는 `null`이다(3-2). 블록 제목도 library 스코프 블록은 library 접두를 갖는다 (`LIBA · CH120 · MWD 경고 셀`).
 
 ```json
 {
   "block_id": 101, "seq": 0,
   "block_type": "LIB",                     // LIB | PPA | MW | USER
-  "title": "PDK 구성과 릴리스 경로",
+  "title": "LIBA · PDK 구성과 릴리스 경로",
   "ai_draft": "PDK는 AX5 기준이며 ...",       // AI 생성 원문(보존)
   "body": "PDK는 AX5 기준이며 ...",           // 사람 편집본 (미편집 시 ai_draft와 동일)
   "ai_generated_at": "2026-08-31T09:42:00",
-  "chart_id": null, "cell_height_id": null, "mw_type": null,  // 참조키 (해당 타입만)
+  "chart_id": null, "library_id": 1, "cell_height_id": null, "mw_type": null,  // 참조키 (해당 타입만)
   "stale": false,                          // 본문 낡음 여부
   "source_saved_at": "2026-08-30T...",     // 초안 시점 원본 갱신시각
   "source_current_at": "2026-08-30T...",   // 현재 원본 MAX(updated_at). 다르면 stale=true
@@ -273,6 +287,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 ```json
 {
+  "library": "LIBA",
   "pdk": { "process": "AX5", "hspice": "V1.2.0.0", "lvs": "V1.2.0.0", "pex": "V1.2.0.0" },
   "release_paths": [
     { "cell_height_id": 1, "height": "CH120", "path": "/proj/lib/.../r4", "gds_version": "V1.0.0.0", "gds_desc": "..." }
@@ -286,6 +301,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 }
 ```
 
+- `data.library` 1개가 추가된 것이 family 도입의 전부다. 나머지 shape은 그대로 — 블록이 library 하나를 맡으므로 내부 구조가 바뀔 이유가 없다.
 - `gds_version` 집계값 / `gds_desc`·`path`는 사용자 입력.
 - `vth_all`/`nanosheet_all`: 미지원 항목 회색 처리용 전체 축(`TabLibraryInfo.vue:58-59`). 응답에 실을지 프론트 상수로 둘지 — **미확정**(8장).
 
@@ -298,9 +314,12 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
   "chart_id": 12, "chart_name": "hd_inv_buf_sweep", "chart_type": "bar",
   "cell_type": 1, "x_metric": "Cell", "y1_metric": "Area", "y2_metric": null,
   "cell_count": 14, "derived_count": 1,
-  "saved_at": "2026-08-30T17:22:00", "owner": "demo.user"
+  "saved_at": "2026-08-30T17:22:00", "owner": "demo.user",
+  "libraries": ["LIBA", "LIBB"], "library_count": 2
 }
 ```
+
+- `libraries`/`library_count`는 **family 스코프 정보**다. chart는 library에 종속되지 않으므로 PPA 블록은 library마다 쪼개지 않고 하나로 둔다(`library_id: null`).
 
 ### 7-5. `MW` block `data`
 
@@ -308,6 +327,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 ```json
 {
+  "library": "LIBA",
   "cell_height_id": 1, "height": "CH120", "mw_type": "MWD",
   "threshold": 44, "slope_present": true,
   "cells": [
@@ -318,6 +338,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 - `slope_present:false` + `cells:[]` → "해당 없음" 표시.
 - 셀 판정 = voltage 중 하나라도 `>=` threshold, `hits`엔 초과분만.
+- `data.library` 1개 추가. 한 블록 = 한 library이므로 `cells[]`의 구조와 프론트의 `blockSummary()` MW 분기는 그대로 동작한다.
 
 ### 7-6. `USER` block `data`
 
@@ -327,7 +348,7 @@ DRAFT ──(최종 저장)──> FINAL ──(5일 경과)──> LOCKED
 
 | 엔드포인트 | Request | Response |
 |---|---|---|
-| `POST /clara/report/` | `{ pdk_id, library_id, created_by }` | `201`, 7-1과 동일 shape(AI 초안 블록 채워진 상태). 중복 시 `409` vs 기존 반환 **미확정** |
+| `POST /clara/report/` | `{ pdk_id, family, created_by }` | `201`, 7-1과 동일 shape(AI 초안 블록 채워진 상태). 중복 시 `409` vs 기존 반환 **미확정** |
 | `PUT /clara/report/<id>/` | `title`, `lead_body`, `release_paths`, `blocks`(seq/title/body/참조키) 전량 | `200`, 7-1 재확장 결과. LOCKED면 `403` |
 | `POST /clara/report/<id>/finalize/` | `{ finalized_by }` | `200`, `status:"FINAL"` + `finalized_at`/`editable_until` 채워짐, `locked:false`(유예 중) |
 | `GET /clara/report/<id>/comment/` | — | `created_at` 순 배열. 상태 무관 항상 반환 |
@@ -361,10 +382,15 @@ LIB/PPA/MW **탭 자체**는 계속 자기 엔드포인트를 직접 호출(백�
 | 1 | **MW ETL의 MERGE 전환 작업 자체** — 9장에서 방향은 정했지만 실제 구현·배포는 아직 | 전환 전까지 유효성 오탐 가능 (값이 안 바뀌어도 경고) |
 | 2 | **ETL에서 사라진 조합의 처리 정책** — soft delete 컬럼을 둘지, 행을 그냥 남겨둘지 | `MAX(updated_at)` 집계 시 죽은 행이 섞여 들어갈 수 있음 |
 | 3 | **MW 임계값 상수의 단일 출처** — 프론트(`data.js`의 `MW_HIGH`)와 백엔드가 각자 하드코딩하면 어긋날 수 있음 | 두 값이 다르면 MW 탭 하이라이트와 Final Report 셀 리스트가 서로 다르게 보임 |
-| 4 | **POST 중복 시 정책** — 이미 `(pdk_id, library_id)` 리포트가 있을 때 `409`로 막을지 기존 반환할지 | 재생성=덮어쓰기이므로 PUT로 유도가 자연스러움 (7-7) |
+| 4 | **POST 중복 시 정책** — 이미 `(pdk_id, family)` 리포트가 있을 때 `409`로 막을지 기존 반환할지 | 재생성=덮어쓰기이므로 PUT로 유도가 자연스러움 (7-7) |
 | 5 | **`actions`·`disclaimer` 저장 여부** — mock에만 있고 스키마에 없음 (7-9) | 리포트 레벨 AI 산출물로 승격할지 폐기할지 |
 | 6 | **`points` 요약 bullet 출처** — 블록 `data` 프론트 파생 vs AI 생성·저장 (7-9) | 현재 shape는 프론트 파생 전제 |
 | 7 | **`vth_all`/`nanosheet_all`** — 응답에 실을지 프론트 상수로 둘지 (7-3) | 미지원 항목 회색 처리용 전체 축 |
+| 8 | **family member drift — `LOCKED` 리포트의 family에 library가 추가될 때** (2026-09-26 신규) | `LOCKED`이라 블록 추가 불가 + `UNIQUE(pdk_id, family)`로 새 리포트도 불가 → **교착**. 제안: 잠금 예외로 "누락 library 블록 추가"만 허용. 감지 신호로 `unreported_libraries`(7-1)는 이번 설계에 포함 |
+| 9 | **`fr_report` UNIQUE를 `(pdk_id, family, revision)`으로 확장할지** (2026-09-26 신규) | family 단위 리포트는 library 테이블의 버저닝을 물려받지 못한다(3-1의 기존 근거가 깨짐). 지금은 컬럼을 만들지 않고 #8의 예외로 처리, 실 운영에서 재검토 |
+| 10 | **library의 `family` 재분류(rename/이동) 정책** (2026-09-26 신규) | `fr_report.family`가 FK 없는 문자열이므로 family 이름이 바뀌면 기존 리포트가 고아가 된다 |
+
+#8~#10의 상세 시나리오와 단계별 대응은 [library-report-family-design.md](library-report-family-design.md) §5-3에 있다.
 
 ### 해결된 항목
 
@@ -381,6 +407,7 @@ LIB/PPA/MW **탭 자체**는 계속 자기 엔드포인트를 직접 호출(백�
 | Library Info 원천 | gds version·cell design은 **쿼리 집계**, release path는 **사용자 입력** → `fr_report.release_paths`에 저장 (3-1, 3-5) |
 | MW 임계값 저장 방식 | **DB 테이블 대신 시스템(코드) 상수**로 고정 — `fr_mw_threshold` 폐기 (3-4) |
 | MW 갱신 감지 방식 | **ETL을 MERGE(upsert)로 전환** — 값이 바뀐 행만 갱신, `updated_at` 그대로 사용 (9장) |
+| 리포트 스코프 (2026-09-26) | **(PDK, family) 당 1건.** 블록 스코프는 `LIB`/`MW` = library, `PPA` = family. "library 목록"을 `data` 안 배열로 밀어 넣지 않고 **블록을 library마다 하나씩** 만든다 |
 
 ---
 
@@ -403,7 +430,8 @@ LIB/PPA/MW **탭 자체**는 계속 자기 엔드포인트를 직접 호출(백�
 | 항목 | 현재 | 목표 |
 |---|---|---|
 | 데이터 소스 | `data.js` 전량 mock | 실제 API |
-| library 식별 | 이름 문자열(`'LIBA'`) | `library_id` (int) |
+| 리포트 스코프 | (PDK, family) — mock의 `finalReport({ pdkId, family, savedSetId })` | 동일 (`fr_report`의 `UNIQUE (pdk_id, family)`) |
+| library 식별 | mock `FAMILIES`의 `{ id, library }` — id가 실재 | `library_id` (int) 그대로 |
 | 블록 | 메모리 상태(`blocks[]`) | `fr_block` 영속화 |
 | 저장 | 로컬 ref, 새로고침 시 소멸 | 백엔드 저장 |
 | 코멘트 | 없음 | `fr_comment` |
