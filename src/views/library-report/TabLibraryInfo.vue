@@ -79,6 +79,11 @@ function bitCard(b, d) {
     <div class="section-header">
       <span class="title">Library Info</span>
       <span class="sub mono">{{ fam.family }} · library {{ fam.libraries.length }}종</span>
+      <div class="spacer"></div>
+      <!-- Final Report의 .doc-header와 같은 자리(탭 상단, 우측)에 둔다 —
+           탭마다 편집/저장 버튼 위치가 달랐다는 피드백 반영. 폭도 Final Report의
+           .doc(max-width:1000px)에 맞춰서 너무 멀리 벌어지지 않게 한다. -->
+      <button :class="editing ? 'btn-primary' : 'btn'" :disabled="locked" @click="actions.toggleInfoEdit()">{{ editing ? '저장' : '편집' }}</button>
     </div>
 
     <section class="block">
@@ -106,13 +111,7 @@ function bitCard(b, d) {
     </section>
 
     <section class="block">
-      <div class="block-title-row">
-        <span class="block-title">Release Path</span>
-        <!-- 스페이서로 오른쪽 끝까지 밀어내지 않고 제목 바로 옆에 붙인다 —
-             가로로 멀리 떨어져 있으면 눈에 안 띈다는 피드백 반영. -->
-        <button :class="editing ? 'btn-primary' : 'btn'" :disabled="locked" @click="actions.toggleInfoEdit()">{{ editing ? '저장' : '편집' }}</button>
-        <span class="sub mono">직접 입력</span>
-      </div>
+      <div class="block-title-row"><span class="block-title">Release Path</span><span class="sub mono">직접 입력</span></div>
       <div class="tbl fit" style="min-width:520px;">
         <div class="row head" style="grid-template-columns:120px minmax(280px,1fr) 120px;">
           <span>CELL HEIGHT</span><span>RELEASE PATH</span><span>GDS VERSION</span>
@@ -195,7 +194,7 @@ function bitCard(b, d) {
 .accent { color:#2f6fed; font-weight:600; }
 .sub { font-size:10.5px; color:#a7afb9; }
 .spacer { flex:1; }
-.section-header { display:flex; align-items:center; gap:8px; }
+.section-header { display:flex; align-items:center; gap:8px; max-width:1000px; }
 .title { font-size:14px; font-weight:600; color:#1c1f24; }
 .btn { display:flex; align-items:center; height:26px; padding:0 10px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
 .btn:disabled { background:#f7f8fa; color:#c2c9d2; cursor:not-allowed; }
