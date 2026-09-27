@@ -211,10 +211,11 @@ function saveAndClose() { actions.frSave(); actions.toggleFrEdit() }
       </div>
     </div>
 
-    <!-- 댓글은 유효기간이 없다 — 최종 확정 전후 모두 열람·작성 가능 (PROGRESS.md 11장). -->
+    <!-- 댓글은 유효기간이 없다 — 최종 확정 전후 모두 열람·작성 가능 (PROGRESS.md 11장).
+         플로팅(스크롤해도 항상 보임)은 유지하되, 화면 오른쪽 끝이 아니라
+         문서(.doc) 열이 있는 쪽에 붙여서 "너무 멀다"는 느낌을 없앤다. -->
     <div class="comments-widget">
       <div v-if="state.commentsOpen" class="comments-panel">
-        <div class="comments-head"><span class="strong">댓글</span><span class="mono sub">{{ state.comments.length }}</span></div>
         <div class="comments-list">
           <div v-for="c in state.comments" :key="c.id" class="comment">
             <div class="comment-head">
@@ -295,9 +296,12 @@ function saveAndClose() { actions.frSave(); actions.toggleFrEdit() }
 .generating { font-size:11px; color:#8a929c; }
 .disclaimer { font-size:11px; line-height:1.6; color:#a7afb9; padding-top:10px; }
 
-.comments-widget { position:fixed; right:20px; bottom:20px; z-index:40; display:flex; flex-direction:column; align-items:flex-end; }
+/* 플로팅(스크롤해도 항상 보임)은 유지 — 위치만 화면 오른쪽 끝(옛 right:20px)에서
+   문서 열(.doc, max-width:1000px)이 있는 왼쪽으로 옮긴다. .doc-header/.doc-body의
+   좌측 패딩(12px)과 맞춰서 "최종 저장" 버튼이 있는 열과 같은 줄에 붙어 보이게 한다. */
+.comments-widget { position:fixed; left:12px; bottom:20px; z-index:40; display:flex; flex-direction:column; align-items:flex-start; }
 .comments-panel { width:340px; max-height:60vh; display:flex; flex-direction:column; background:#fff; border:1px solid #d5d9de; border-radius:8px; box-shadow:0 10px 32px rgba(20,24,29,0.18); margin-bottom:8px; overflow:hidden; }
-.comments-head { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid #eef0f3; flex-shrink:0; }
+.comments-toggle { display:flex; align-items:center; gap:7px; height:38px; padding:0 14px; border:1px solid #d5d9de; border-radius:19px; background:#fff; box-shadow:0 6px 18px rgba(20,24,29,0.14); font:inherit; font-size:12.5px; font-weight:500; color:#1c1f24; cursor:pointer; }
 .comments-list { display:flex; flex-direction:column; gap:10px; padding:12px; overflow-y:auto; flex:1; min-height:0; }
 .comment { display:flex; flex-direction:column; gap:4px; padding-bottom:10px; border-bottom:1px solid #f4f5f7; }
 .comment-head { display:flex; align-items:center; gap:8px; }
@@ -305,6 +309,5 @@ function saveAndClose() { actions.frSave(); actions.toggleFrEdit() }
 .comment-text { font-size:12px; line-height:1.55; color:#4a525c; }
 .comment-input-row { display:flex; gap:8px; align-items:flex-end; padding:10px 12px; border-top:1px solid #eef0f3; flex-shrink:0; }
 .comment-input-row textarea { flex:1; font:inherit; font-size:12px; line-height:1.5; color:#1c1f24; padding:6px 8px; border:1px solid #e2e5ea; border-radius:4px; outline:none; resize:vertical; }
-.comments-toggle { display:flex; align-items:center; gap:7px; height:38px; padding:0 14px; border:1px solid #d5d9de; border-radius:19px; background:#fff; box-shadow:0 6px 18px rgba(20,24,29,0.14); font:inherit; font-size:12.5px; font-weight:500; color:#1c1f24; cursor:pointer; }
 .count-badge { display:flex; align-items:center; justify-content:center; min-width:16px; height:16px; padding:0 4px; border-radius:8px; background:#2f6fed; font-family:'Roboto Mono',monospace; font-size:10px; font-weight:600; color:#fff; }
 </style>
