@@ -108,11 +108,10 @@ function bitCard(b, d) {
     <section class="block">
       <div class="block-title-row">
         <span class="block-title">Release Path</span>
-        <span class="sub mono">직접 입력</span>
-        <div class="spacer"></div>
-        <!-- 편집이 실제로 바꾸는 대상(Release Path) 바로 옆에 둬서 눈에 띄게 한다.
-             최종 저장 후 유예기간이 지나면 편집 진입 자체를 막는다. -->
+        <!-- 스페이서로 오른쪽 끝까지 밀어내지 않고 제목 바로 옆에 붙인다 —
+             가로로 멀리 떨어져 있으면 눈에 안 띈다는 피드백 반영. -->
         <button :class="editing ? 'btn-primary' : 'btn'" :disabled="locked" @click="actions.toggleInfoEdit()">{{ editing ? '저장' : '편집' }}</button>
+        <span class="sub mono">직접 입력</span>
       </div>
       <div class="tbl fit" style="min-width:520px;">
         <div class="row head" style="grid-template-columns:120px minmax(280px,1fr) 120px;">
