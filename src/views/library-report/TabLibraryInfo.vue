@@ -79,9 +79,6 @@ function bitCard(b, d) {
     <div class="section-header">
       <span class="title">Library Info</span>
       <span class="sub mono">{{ fam.family }} · library {{ fam.libraries.length }}종</span>
-      <div class="spacer"></div>
-      <!-- 최종 저장 후 유예기간이 지나면 편집 진입 자체를 막는다. -->
-      <button class="btn" :disabled="locked" @click="actions.toggleInfoEdit()">{{ editing ? '완료' : '편집' }}</button>
     </div>
 
     <section class="block">
@@ -109,7 +106,14 @@ function bitCard(b, d) {
     </section>
 
     <section class="block">
-      <div class="block-title-row"><span class="block-title">Release Path</span><span class="sub mono">직접 입력</span></div>
+      <div class="block-title-row">
+        <span class="block-title">Release Path</span>
+        <span class="sub mono">직접 입력</span>
+        <div class="spacer"></div>
+        <!-- 편집이 실제로 바꾸는 대상(Release Path) 바로 옆에 둬서 눈에 띄게 한다.
+             최종 저장 후 유예기간이 지나면 편집 진입 자체를 막는다. -->
+        <button :class="editing ? 'btn-primary' : 'btn'" :disabled="locked" @click="actions.toggleInfoEdit()">{{ editing ? '저장' : '편집' }}</button>
+      </div>
       <div class="tbl fit" style="min-width:520px;">
         <div class="row head" style="grid-template-columns:120px minmax(280px,1fr) 120px;">
           <span>CELL HEIGHT</span><span>RELEASE PATH</span><span>GDS VERSION</span>
@@ -196,6 +200,8 @@ function bitCard(b, d) {
 .title { font-size:14px; font-weight:600; color:#1c1f24; }
 .btn { display:flex; align-items:center; height:26px; padding:0 10px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
 .btn:disabled { background:#f7f8fa; color:#c2c9d2; cursor:not-allowed; }
+.btn-primary { display:flex; align-items:center; height:26px; padding:0 12px; border:0; border-radius:4px; background:#2f6fed; font:inherit; font-size:11px; font-weight:500; color:#fff; cursor:pointer; }
+.btn-primary:disabled { background:#dfe3e8; cursor:not-allowed; }
 .block { display:flex; flex-direction:column; gap:6px; }
 .block-title { font-size:13px; font-weight:500; color:#1c1f24; }
 .block-title-row { display:flex; align-items:center; gap:8px; }

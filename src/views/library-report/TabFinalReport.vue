@@ -129,6 +129,10 @@ const frTitle = computed(() => state.draftTitle || `[${p.value.process}] ${fam.v
 const frLead = computed(() => state.draftLead || 'Library Info · PPA · MW 세 탭의 값을 영역별로 요약합니다. 각 영역은 독립적으로 생성되며, 원본 값을 그대로 인용한 것이고 합격·불합격 판정이 아닙니다.')
 
 function finalize() { actions.frFinalize(finalizeSummary.value) }
+
+// Library Info와 같은 어휘로 통일: 편집 중엔 "저장"이 보이고, 누르면
+// 실제로 저장(frSave)까지 하면서 편집 모드를 닫는다.
+function saveAndClose() { actions.frSave(); actions.toggleFrEdit() }
 </script>
 
 <template>
@@ -140,10 +144,12 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
           <span v-else class="doc-title">{{ frTitle }}</span>
           <span class="mono sub">PDK {{ p.process }} · {{ fam.family }} · library {{ fam.libraries.length }}종</span>
         </div>
-        <!-- 유예기간(GRACE_DAYS) 안에는 최종 저장 후에도 계속 수정할 수 있다. -->
+        <!-- 유예기간(GRACE_DAYS) 안에는 최종 저장 후에도 계속 수정할 수 있다.
+             Library Info와 같은 어휘: 편집 중엔 "저장"이 강조 스타일로 보이고,
+             누르면 실제 저장 + 편집 종료를 함께 한다(중복 저장 버튼 제거). -->
         <template v-if="!locked">
-          <button class="btn" @click="actions.toggleFrEdit()">{{ state.frEditing ? '편집 완료' : '편집' }}</button>
-          <button class="btn" @click="actions.frSave()">저장</button>
+          <button v-if="!state.frEditing" class="btn" @click="actions.toggleFrEdit()">편집</button>
+          <button v-else class="btn-primary" @click="saveAndClose()">저장</button>
           <button v-if="!state.finalizedAt" class="btn-primary" @click="finalize()">최종 저장</button>
         </template>
         <span v-else class="locked-tag">수정 불가</span>
