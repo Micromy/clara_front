@@ -2,7 +2,7 @@
 import { inject, computed } from 'vue'
 import { SAVED_SETS, findSavedSet, ppaTable, PPA_METRICS } from './data.js'
 
-const { state, actions, family } = inject('report')
+const { state, actions, family, locked } = inject('report')
 const fam = computed(() => family())
 
 const loadedSet = computed(() => state.ppaSetId ? findSavedSet(state.ppaSetId) : null)
@@ -71,7 +71,8 @@ function onEditInPpa(e) {
       <div v-if="hasUnsavedChart" class="unsaved-banner">
         <span>이 차트는 아직 리포트에 저장되지 않았습니다.</span>
         <div class="spacer"></div>
-        <button class="btn-primary" @click="actions.saveChartToReport()">리포트에 저장</button>
+        <!-- 최종 저장 후 유예기간이 지나면 리포트 연결을 바꿀 수 없다. -->
+        <button class="btn-primary" :disabled="locked" @click="actions.saveChartToReport()">리포트에 저장</button>
       </div>
 
       <div v-if="comparable" class="controls">
@@ -123,6 +124,7 @@ function onEditInPpa(e) {
 .edit-link:hover { text-decoration:underline; }
 .unsaved-banner { display:flex; align-items:center; gap:10px; padding:8px 12px; background:#fff7e8; border-bottom:1px solid #f2e0b8; font-size:11.5px; color:#8a6d1f; }
 .btn-primary { height:26px; padding:0 12px; border:0; border-radius:4px; background:#2f6fed; font:inherit; font-size:11px; font-weight:500; color:#fff; cursor:pointer; }
+.btn-primary:disabled { background:#dfe3e8; color:#fff; cursor:not-allowed; }
 .controls { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid #eef0f3; }
 .ref-field { display:flex; align-items:center; gap:6px; }
 .ref-field select { border:1px solid #e2e5ea; border-radius:4px; height:24px; font:inherit; font-size:11px; }

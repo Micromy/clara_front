@@ -1,9 +1,20 @@
-import { reactive } from 'vue'
+import { reactive, ref, computed, onScopeDispose } from 'vue'
 import { PDKS, FAMILIES, HEIGHTS, MW_TYPES, findPdk, findFamily, CURRENT_USER } from './data.js'
 
 let nextTableId = 1
 let nextSetId = 1
-let nextReleaseId = 4
+let nextReleaseId = 1
+
+// 최종 저장 후 이 기간 안에는 계속 수정할 수 있고, 지나면 읽기 전용으로 잠긴다.
+const GRACE_DAYS = 5
+const DAY_MS = 24 * 60 * 60 * 1000
+const GRACE_MS = GRACE_DAYS * DAY_MS
+
+// Release Path 기본 골격 — cell height마다 빈 행 하나. family를 바꾸면 이 상태로
+// 돌아가지만 id 카운터는 계속 올라가므로 옛 행과 id가 겹치지 않는다.
+function makeReleaseRows() {
+  return HEIGHTS.map(height => ({ id: nextReleaseId++, height, path: '', gds: '' }))
+}
 
 function makeFamilySet(family, pdkId) {
   const libs = family.libraries.map(l => l.library)
@@ -31,11 +42,7 @@ export function createReportStore() {
     picking: null, pickPdk: 'p1', pickLib: fam0.libraries[0].library, pickHeight: HEIGHTS[0], pickMwType: MW_TYPES[0],
     ppaSetId: null, ppaLinkedId: null, diff: false, refLibrary: fam0.libraries[0].library,
     infoEditing: false, gdsDesc: '', libDesc: {},
-    releaseRows: [
-      { id: 1, height: 'CH120', path: '', gds: '' },
-      { id: 2, height: 'CH150', path: '', gds: '' },
-      { id: 3, height: 'CH180', path: '', gds: '' },
-    ],
+    releaseRows: makeReleaseRows(),
     frAreas: {}, savedBy: '', savedAt: null, finalizedAt: null,
     frEditing: false, draftTitle: '', draftLead: '', areaOrder: ['LIB', 'PPA', 'MW'], userAreas: [],
     dragIndex: -1, dragOverIndex: -1,
@@ -45,8 +52,28 @@ export function createReportStore() {
   const pdk = () => findPdk(state.pdkId)
   const family = () => findFamily(state.familyName)
 
+  // 잠금은 시간이 지나면 저절로 걸린다 — Date.now()를 그대로 쓰면 재계산되지 않으므로
+  // 분 단위로 갱신되는 now ref를 기준으로 삼는다.
+  const now = ref(Date.now())
+  const timer = setInterval(() => { now.value = Date.now() }, 60 * 1000)
+  onScopeDispose(() => clearInterval(timer))
+
+  const locked = computed(() => state.finalizedAt !== null && now.value - state.finalizedAt > GRACE_MS)
+  const graceDaysLeft = computed(() =>
+    state.finalizedAt ? Math.max(0, Math.ceil((state.finalizedAt + GRACE_MS - now.value) / DAY_MS)) : 0,
+  )
+
   const actions = {
-    setPdk(id) { state.pdkId = id; state.pdkMenuOpen = false },
+    setPdk(id) {
+      state.pdkId = id
+      state.pdkMenuOpen = false
+      // 리포트는 (PDK, family)당 1건이다 — PDK가 바뀌면 다른 리포트이므로
+      // Library Info의 사용자 입력(release path/GDS 설명/라이브러리 설명)도
+      // family 전환과 같은 규칙으로 리셋한다.
+      state.releaseRows = makeReleaseRows()
+      state.gdsDesc = ''
+      state.libDesc = {}
+    },
     togglePdkMenu() { state.pdkMenuOpen = !state.pdkMenuOpen },
     setFamily(name) {
       const fam = findFamily(name)
@@ -55,6 +82,12 @@ export function createReportStore() {
       state.picking = null
       state.refLibrary = fam.libraries[0].library
       state.diff = false
+      // family가 바뀌면 이전 family의 사용자 입력이 남지 않아야 한다.
+      state.releaseRows = makeReleaseRows()
+      state.gdsDesc = ''
+      state.libDesc = {}
+      state.ppaSetId = null
+      state.ppaLinkedId = null
       state.frAreas = {}
       state.savedBy = ''; state.savedAt = null; state.finalizedAt = null
       state.frEditing = false
@@ -65,7 +98,7 @@ export function createReportStore() {
     },
 
     // Library Info
-    toggleInfoEdit() { state.infoEditing = !state.infoEditing },
+    toggleInfoEdit() { if (locked.value) return; state.infoEditing = !state.infoEditing },
     addReleaseRowInGroup(height) {
       const rows = state.releaseRows
       let idx = -1
@@ -135,6 +168,7 @@ export function createReportStore() {
     },
     toggleFrEdit() {
       if (state.frEditing) { state.frEditing = false; return }
+      if (locked.value) return
       state.frEditing = true
       if (!state.draftTitle) state.draftTitle = `[${pdk().process}] ${state.familyName} 리포트 요약`
       if (!state.draftLead) state.draftLead = 'Library Info · PPA · MW 세 탭의 값을 영역별로 요약합니다. 각 영역은 독립적으로 생성되며, 원본 값을 그대로 인용한 것이고 합격·불합격 판정이 아닙니다.'
@@ -164,12 +198,17 @@ export function createReportStore() {
       state.areaOrder = order
       state.dragIndex = -1; state.dragOverIndex = -1
     },
-    frSave() { state.savedAt = Date.now(); state.savedBy = CURRENT_USER },
+    frSave() {
+      if (locked.value) return
+      state.savedAt = Date.now(); state.savedBy = CURRENT_USER
+    },
     frFinalize(summaryLines) {
-      const msg = `최종 저장은 현재 상태를 모두 확정합니다 — 이후 되돌리려면 재생성이 필요합니다.\n\n${summaryLines.join('\n')}\n\n5일 후에는 수정할 수 없습니다. 최종 저장하시겠습니까?`
+      if (locked.value) return
+      const msg = `최종 저장은 현재 상태를 모두 확정합니다 — 이후 되돌리려면 재생성이 필요합니다.\n\n${summaryLines.join('\n')}\n\n${GRACE_DAYS}일 후에는 수정할 수 없습니다. 최종 저장하시겠습니까?`
       if (!window.confirm(msg)) return
-      const now = Date.now()
-      state.savedAt = now; state.savedBy = CURRENT_USER; state.finalizedAt = now; state.frEditing = false
+      const at = Date.now()
+      now.value = at
+      state.savedAt = at; state.savedBy = CURRENT_USER; state.finalizedAt = at; state.frEditing = false
     },
 
     // Comments
@@ -192,7 +231,7 @@ export function createReportStore() {
     removeComment(id) { state.comments = state.comments.filter(c => c.id !== id) },
   }
 
-  return { state, actions, pdk, family }
+  return { state, actions, pdk, family, locked, graceDaysLeft, GRACE_DAYS }
 }
 
 export { PDKS, FAMILIES }

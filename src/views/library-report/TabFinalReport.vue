@@ -1,9 +1,9 @@
 <script setup>
 import { inject, computed } from 'vue'
-import { libraryInfo, findSavedSet, mwTable, HEIGHTS } from './data.js'
+import { libraryInfo, findSavedSet, mwFlaggedCells, MW_THRESHOLD, HEIGHTS } from './data.js'
 import { fmt } from './useReportStore.js'
 
-const { state, actions, pdk, family } = inject('report')
+const { state, actions, pdk, family, locked, graceDaysLeft } = inject('report')
 const p = computed(() => pdk())
 const fam = computed(() => family())
 
@@ -23,7 +23,7 @@ const areaDisabled = computed(() => ({
 
 const areaSignature = computed(() => ({
   LIB: JSON.stringify({ pdkId: state.pdkId, rows: state.releaseRows, gdsDesc: state.gdsDesc, libDesc: state.libDesc }),
-  PPA: JSON.stringify({ linked: state.ppaLinkedId }),
+  PPA: JSON.stringify({ pdkId: state.pdkId, linked: state.ppaLinkedId }),
   MW: JSON.stringify(state.mwSets.map(s => ({ tables: s.tables.map(t => ({ pdkId: t.pdkId, lib: t.lib, height: t.height, mwType: t.mwType })) }))),
 }))
 
@@ -48,21 +48,29 @@ function buildArea(type) {
       { flag: 'DERIVED', text: 'Derived Metric', value: s.derived ? String(s.derived) : '—' },
     ]
   } else {
-    const overCount = state.mwSets.reduce((a, set) => a + set.tables.reduce((b, t) => {
-      const d = mwTable(t.pdkId, t.lib, t.height, t.mwType)
-      return b + d.rows.reduce((c, r) => c + r.values.filter(v => v.over).length, 0)
-    }, 0), 0)
-    body = `${state.mwSets.length}개 비교 셋, ${mwTableTotal.value}개 테이블을 기준으로 CK Slope별 setup 값을 비교했습니다. 임계값을 초과한 셀이 ${overCount}건 있습니다.`
+    // MW 필터 규칙은 "CK Slope 40 고정 + fail_count >= MW_THRESHOLD[mw_type]"다
+    // (docs/final-report-design.md §4). 화면 표의 CK Slope 전체를 훑는 mwTable()의
+    // over 플래그(MW_HIGH=44 단일 기준)가 아니라 mwFlaggedCells()를 테이블마다 호출해 합산한다.
+    const flagged = state.mwSets.flatMap(set => set.tables.map(t => mwFlaggedCells(t.pdkId, t.lib, t.height, t.mwType)))
+    const flaggedCells = flagged.reduce((a, d) => a + d.cells.length, 0)
+    const noSlopeTables = flagged.filter(d => !d.slope_present).length
+    const thresholdText = Object.entries(MW_THRESHOLD).map(([k, v]) => `${k} ${v}`).join(' / ')
+    body = `${state.mwSets.length}개 비교 셋, ${mwTableTotal.value}개 테이블을 기준으로 CK Slope 40의 fail_count를 임계값(${thresholdText})과 비교했습니다. 임계값 이상인 셀이 ${flaggedCells}개 있습니다` +
+      (noSlopeTables ? `. 테이블 ${noSlopeTables}개는 CK Slope 40 데이터가 없어 해당 없음입니다.` : '.')
     points = [
       { flag: 'SETS', text: '비교 셋', value: `${state.mwSets.length}개` },
       { flag: 'TABLES', text: '테이블', value: `${mwTableTotal.value}개` },
-      { flag: 'OVER', text: '임계값 초과 값', value: `${overCount}건` },
+      { flag: 'FLAGGED', text: `CK Slope 40 · fail_count ≥ 임계값(${thresholdText})`, value: `${flaggedCells}개` },
+      { flag: 'NO-SLOPE', text: 'CK Slope 40 데이터 없는 테이블', value: noSlopeTables ? `${noSlopeTables}개` : '—' },
     ]
   }
   return { body, points, signature: areaSignature.value[type] }
 }
 
-function generate(type) { actions.genArea(type, { areaDisabled: areaDisabled.value, build: buildArea }) }
+function generate(type) {
+  if (locked.value) return
+  actions.genArea(type, { areaDisabled: areaDisabled.value, build: buildArea })
+}
 
 const areaBlocksByType = computed(() => {
   const out = {}
@@ -132,17 +140,19 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
           <span v-else class="doc-title">{{ frTitle }}</span>
           <span class="mono sub">PDK {{ p.process }} · {{ fam.family }} · library {{ fam.libraries.length }}종</span>
         </div>
-        <button class="btn" @click="actions.toggleFrEdit()">{{ state.frEditing ? '편집 완료' : '편집' }}</button>
-        <template v-if="!state.finalizedAt">
+        <!-- 유예기간(GRACE_DAYS) 안에는 최종 저장 후에도 계속 수정할 수 있다. -->
+        <template v-if="!locked">
+          <button class="btn" @click="actions.toggleFrEdit()">{{ state.frEditing ? '편집 완료' : '편집' }}</button>
           <button class="btn" @click="actions.frSave()">저장</button>
-          <button class="btn-primary" @click="finalize()">최종 저장</button>
+          <button v-if="!state.finalizedAt" class="btn-primary" @click="finalize()">최종 저장</button>
         </template>
+        <span v-else class="locked-tag">수정 불가</span>
       </header>
 
       <div class="doc-body">
         <div v-if="state.finalizedAt" class="finalized-banner">
           <span>최종 저장 완료 — PPA 연결·MW 테이블 구성·Library Info가 모두 확정되었습니다</span>
-          <span class="mono sub">저장 {{ fmt(state.finalizedAt) }} · 수정 가능 D-5</span>
+          <span class="mono sub">저장 {{ fmt(state.finalizedAt) }} · {{ locked ? '수정 불가' : `수정 가능 D-${graceDaysLeft}` }}</span>
         </div>
         <div v-else class="summary-box">
           <span class="summary-title">최종 저장 시 확정되는 내용</span>
@@ -167,7 +177,7 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
                   <span v-else class="area-title">{{ a.title }}</span>
                   <span v-if="a.showStatus" class="status-badge" :style="{ background: a.staleBg, borderColor: a.staleBorder, color: a.staleColor }">{{ a.staleLabel }}</span>
                   <div class="spacer"></div>
-                  <button v-if="a.ready && a.ai" class="btn-mini" @click="generate(a.areaType)">다시 생성</button>
+                  <button v-if="a.ready && a.ai && !locked" class="btn-mini" @click="generate(a.areaType)">다시 생성</button>
                   <button v-if="a.removable && state.frEditing" class="btn-mini danger" @click="actions.removeUserArea(a.userRef.id)">삭제</button>
                 </div>
                 <textarea v-if="a.ready && state.frEditing" class="area-body-input" rows="3" :value="a.body" @input="onBodyInput(a, $event)" placeholder="내용을 입력하세요."></textarea>
@@ -182,6 +192,7 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
               </div>
               <div v-if="a.showOverlay" class="overlay">
                 <span v-if="a.disabled" class="disabled-msg">{{ a.disabledReason }}</span>
+                <span v-else-if="locked" class="disabled-msg">최종 저장 후 수정 기간이 지났습니다</span>
                 <button v-else-if="a.enabledEmpty" class="btn-primary" @click="generate(a.areaType)">AI 초안 생성</button>
                 <span v-else-if="a.generating" class="mono generating">생성 중…</span>
               </div>
@@ -194,7 +205,8 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
       </div>
     </div>
 
-    <div v-if="state.finalizedAt" class="comments-widget">
+    <!-- 댓글은 유효기간이 없다 — 최종 확정 전후 모두 열람·작성 가능 (PROGRESS.md 11장). -->
+    <div class="comments-widget">
       <div v-if="state.commentsOpen" class="comments-panel">
         <div class="comments-head"><span class="strong">댓글</span><span class="mono sub">{{ state.comments.length }}</span></div>
         <div class="comments-list">
@@ -242,6 +254,7 @@ function finalize() { actions.frFinalize(finalizeSummary.value) }
 .title-input { font:inherit; font-size:15px; font-weight:500; color:#1c1f24; padding:2px 6px; border:1px solid #bcd0f7; border-radius:4px; outline:none; }
 .btn { display:flex; align-items:center; height:26px; padding:0 10px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
 .btn-primary { display:flex; align-items:center; justify-content:center; height:26px; padding:0 12px; border:0; border-radius:4px; background:#2f6fed; font:inherit; font-size:11px; font-weight:500; color:#fff; cursor:pointer; }
+.locked-tag { display:flex; align-items:center; height:26px; padding:0 9px; border:1px solid #e2e5ea; border-radius:4px; background:#f7f8fa; font-size:11px; color:#a7afb9; }
 .doc-body { display:flex; flex-direction:column; gap:10px; padding:12px 12px 24px; }
 .finalized-banner { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; background:#e6f4ec; border:1px solid #cbe7d6; font-size:12px; font-weight:500; color:#2c7a4b; }
 .summary-box { display:flex; flex-direction:column; gap:3px; padding:9px 12px; border-radius:6px; background:#f7f8fa; border:1px solid #eef0f3; }

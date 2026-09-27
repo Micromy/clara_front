@@ -2,7 +2,7 @@
 import { inject, computed } from 'vue'
 import { PDKS, HEIGHTS, MW_TYPES, mwTable } from './data.js'
 
-const { state, actions, family } = inject('report')
+const { state, actions, family, locked } = inject('report')
 const fam = computed(() => family())
 const libOptions = computed(() => fam.value.libraries.map(l => l.library))
 const allCollapsed = computed(() => state.mwSets.every(s => !s.open))
@@ -18,7 +18,7 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
       <span class="sub mono">{{ state.mwSets.length }} sets · {{ mwTableCount }} tables · {{ fam.libraries.length }} libraries · Cell × CK slope / voltage</span>
       <div class="spacer"></div>
       <button class="btn" @click="actions.mwToggleAll()">{{ allCollapsed ? '모두 펼치기' : '모두 접기' }}</button>
-      <button class="btn-primary" @click="actions.mwAddSet()">+ 비교 셋 추가</button>
+      <button class="btn-primary" :disabled="locked" @click="actions.mwAddSet()">+ 비교 셋 추가</button>
     </div>
 
     <div v-for="set in state.mwSets" :key="set.id" class="mw-set">
@@ -27,8 +27,8 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
         <span class="mono strong">Set #{{ set.id }}</span>
         <span class="sub mono">{{ set.tables.length }} tables</span>
         <div class="spacer"></div>
-        <button class="btn" @click="actions.duplicateSet(set)">복제</button>
-        <button class="btn danger" @click="actions.removeSet(set.id)">삭제</button>
+        <button class="btn" :disabled="locked" @click="actions.duplicateSet(set)">복제</button>
+        <button class="btn danger" :disabled="locked" @click="actions.removeSet(set.id)">삭제</button>
       </div>
 
       <div v-if="set.open" class="set-body">
@@ -38,7 +38,7 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
             <span class="mono sub">{{ t.height }} · {{ t.mwType }}</span>
             <div class="spacer"></div>
             <button class="btn" @click="actions.exportCsv(t, tableData(t))">CSV</button>
-            <button v-if="set.tables.length > 1" class="btn danger" @click="actions.removeTable(set.id, t.id)">삭제</button>
+            <button v-if="set.tables.length > 1" class="btn danger" :disabled="locked" @click="actions.removeTable(set.id, t.id)">삭제</button>
           </div>
           <div class="mw-grid-wrap">
             <div class="mw-grid head" :style="{ gridTemplateColumns: `120px repeat(${tableData(t).subCols.length}, minmax(56px,1fr))` }">
@@ -56,7 +56,7 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
           </div>
         </div>
 
-        <div v-if="state.picking === set.id" class="picker">
+        <div v-if="state.picking === set.id && !locked" class="picker">
           <label><span class="sub">PDK</span><select v-model="state.pickPdk"><option v-for="pp in PDKS" :key="pp.id" :value="pp.id">{{ pp.process }}</option></select></label>
           <label><span class="sub">LIB</span><select v-model="state.pickLib"><option v-for="l in libOptions" :key="l" :value="l">{{ l }}</option></select></label>
           <label><span class="sub">HEIGHT</span><select v-model="state.pickHeight"><option v-for="h in HEIGHTS" :key="h" :value="h">{{ h }}</option></select></label>
@@ -64,7 +64,7 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
           <button class="btn-primary" @click="actions.confirmAdd(set.id)">추가</button>
           <button class="btn" @click="actions.cancelPick()">취소</button>
         </div>
-        <button v-else class="add-table-btn" @click="actions.openPicker(set)">+ 테이블 추가</button>
+        <button v-else class="add-table-btn" :disabled="locked" @click="actions.openPicker(set)">+ 테이블 추가</button>
       </div>
     </div>
   </div>
@@ -80,6 +80,9 @@ function tableData(t) { return mwTable(t.pdkId, t.lib, t.height, t.mwType) }
 .mw-head { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #eef0f3; flex-wrap:wrap; }
 .btn { height:26px; padding:0 10px; border:1px solid #e2e5ea; border-radius:4px; background:#fff; font:inherit; font-size:11px; color:#6b7480; cursor:pointer; }
 .btn.danger { color:#b4451f; }
+.btn:disabled, .btn.danger:disabled { background:#f7f8fa; color:#c2c9d2; cursor:not-allowed; }
+.btn-primary:disabled { background:#dfe3e8; cursor:not-allowed; }
+.add-table-btn:disabled { color:#c2c9d2; cursor:not-allowed; }
 .btn-primary { height:26px; padding:0 10px; border:0; border-radius:4px; background:#2f6fed; font:inherit; font-size:11px; font-weight:500; color:#fff; cursor:pointer; }
 .mw-set { border-bottom:1px solid #eef0f3; }
 .set-bar { display:flex; align-items:center; gap:8px; padding:7px 12px; background:#fbfbfc; border-bottom:1px solid #f4f5f7; flex-wrap:wrap; }

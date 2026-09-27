@@ -19,6 +19,12 @@ const store = createReportStore()
 provide('report', store)
 const { state, actions } = store
 const pdk = computed(() => store.pdk())
+const family = computed(() => store.family())
+
+// 멤버 칩은 읽기 전용 — 4개까지 보이고 나머지는 +N으로 접는다.
+const MAX_CHIPS = 4
+const shownLibs = computed(() => family.value.libraries.slice(0, MAX_CHIPS))
+const hiddenLibCount = computed(() => Math.max(0, family.value.libraries.length - MAX_CHIPS))
 
 const route = useRoute()
 const router = useRouter()
@@ -65,6 +71,13 @@ watch(() => state.ppaSetId, set => setQuery({ set: set || undefined }))
           <option v-for="f in FAMILIES" :key="f.family" :value="f.family">{{ f.family }}</option>
         </select>
       </label>
+
+      <!-- Read-only: picking a family means picking all of its libraries. -->
+      <div class="lr-fam-libs">
+        <span v-for="l in shownLibs" :key="l.id" class="lr-fam-lib">{{ l.library }}</span>
+        <span v-if="hiddenLibCount" class="lr-fam-lib more">+{{ hiddenLibCount }}</span>
+      </div>
+
       <div class="spacer"></div>
     </div>
 
@@ -97,6 +110,10 @@ watch(() => state.ppaSetId, set => setQuery({ set: set || undefined }))
 .pdk-menu-row:hover { background:#f7f8fa; }
 .family-field { display:flex; align-items:center; gap:6px; height:26px; padding:0 4px 0 9px; border:1px solid #e2e5ea; border-radius:4px; }
 .family-field select { border:0; background:transparent; font:inherit; font-size:11.5px; color:#1c1f24; cursor:pointer; outline:none; }
+/* ── Family member chips: read-only echo of the family's libraries ── */
+.lr-fam-libs { display:flex; align-items:center; gap:5px; min-width:0; }
+.lr-fam-lib { font-family:'Roboto Mono',monospace; font-size:11px; color:#8a929c; white-space:nowrap; }
+.lr-fam-lib.more { color:#b6bec8; }
 .lr-tabs { display:flex; align-items:stretch; height:32px; padding:0 4px; border-bottom:1px solid #eef0f3; flex-shrink:0; }
 .lr-tab { display:flex; align-items:center; padding:0 12px; font-size:12px; cursor:pointer; color:#8a929c; }
 .lr-tab.active { color:#1c1f24; font-weight:500; box-shadow:inset 0 -2px 0 #2f6fed; }

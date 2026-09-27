@@ -107,9 +107,12 @@ const DRIVE_AXIS = ['D1', 'D2', 'D3', 'D4']
 const NS_AXIS = ['N1', 'N1P5', 'N2', 'N3']
 export const CELL_DESIGN_VTH_AXIS = ['RVT', 'LVT', 'SLVT', 'MVT', 'VLVT']
 
-export function cellDesignByHeight(rep) {
+// 시드 접두사만 다른 동일 규칙 — cellDesignByHeight(rep)는 library 축이 없는 `rep`,
+// cellDesignStats()는 `pdkId|library|rep`를 넘긴다. 접두사가 `rep`일 때 만들어지는
+// 시드 문자열은 이전과 글자 단위로 같으므로 기존 호출의 값은 바뀌지 않는다.
+function cellDesignHeights(seed) {
   return HEIGHTS.map(height => {
-    const hkey = `${rep}|${height}`
+    const hkey = `${seed}|${height}`
     const extra = BIT_POOL.slice(1).filter(b => hash(hkey + b) % 3 === 0)
     const bitList = ['1bit', ...extra].slice(0, 3)
     const bits = bitList.map(bit => {
@@ -127,6 +130,48 @@ export function cellDesignByHeight(rep) {
     })
     return { height, bits }
   })
+}
+
+// library·PDK 축이 없는 뷰. 4차에서 화면 호출부가 cellDesignStats()로 옮겨져
+// 현재 호출부가 없다 — 남긴 이유는 data.js의 기존 죽은 코드 정책과 같다
+// (실 연동에서 무엇이 되살아나는지 확정한 뒤 정리).
+export function cellDesignByHeight(rep) {
+  return cellDesignHeights(rep)
+}
+
+// ── Cell Design 집계 ──
+// GET /clara/cell-design/?pdk_id=&family= 응답 shape을 mock으로 재현 (API.md §13).
+// cellDesignHeights()의 규칙을 그대로 쓰지만 시드 접두사에 pdkId와 library를 더해
+// (PDK, library)마다 다른 값이 나오게 한다 — 대표 셀 뷰의 스코프가 확정된 결과다.
+// 실제 연동 시 이 함수 1개가 API 호출 1회로 대체된다.
+// 반환은 와이어 shape이므로 snake_case (libraryInfo()와 같은 예외).
+// pdkIdInt()/heightId()는 파일 하단 Final Report 섹션 선언 — 함수 hoisting으로 호출한다.
+export function cellDesignStats(pdkId, family) {
+  return {
+    family: family.family,
+    pdk_id: pdkIdInt(pdkId),
+    drive_axis: DRIVE_AXIS,
+    nanosheet_axis: NS_AXIS,
+    vth_axis: CELL_DESIGN_VTH_AXIS,
+    libraries: family.libraries.map(l => ({
+      id: l.id,
+      library: l.library,
+      rep_cells: REP_CELLS.map(rep => ({
+        rep_cell: rep,
+        heights: cellDesignHeights(`${pdkId}|${l.library}|${rep}`).map(h => ({
+          cell_height_id: heightId(h.height),
+          height: h.height,
+          bits: h.bits.map(b => ({
+            bit_width: Number(b.bit.replace('bit', '')),
+            drives: b.drives.filter(d => d.on).map(d => d.label),
+            nanosheets: b.nanosheets.filter(n => n.on).map(n => n.label),
+            vths: b.vth.filter(v => v.present).map(v => ({ vth: v.label, cell_count: v.count })),
+            cell_count: b.vth.reduce((a, v) => a + (v.present ? v.count : 0), 0),
+          })),
+        })),
+      })),
+    })),
+  }
 }
 
 // ── Library Info 집계 ──
@@ -244,15 +289,18 @@ export function mwTable(pdkId, lib, height, mwType) {
 
   const subCols = []
   groups.forEach(g => g.volts.forEach((label, i) => {
-    subCols.push({ label, last: i === g.volts.length - 1 })
+    subCols.push({ label, slope: g.slope, last: i === g.volts.length - 1 })
   }))
 
+  // 강조 기준은 Final Report 요약(mwFlaggedCells)과 같은 계약을 따른다:
+  // CK Slope 40 고정 + mw_type별 임계값(MW_THRESHOLD). 다른 slope는 강조하지 않는다.
   const rnd = mk(hash(key))
   const rows = CELLS.slice(0, 7).map(cell => ({
     cell,
     values: subCols.map((c, i) => {
       const v = MW_BASE * (0.72 + 0.055 * i) * (0.9 + rnd() * 0.25)
-      return { v: v.toFixed(2), last: c.last, over: v > MW_HIGH }
+      const over = c.slope === '40%' && v > (MW_THRESHOLD[mwType] ?? MW_HIGH)
+      return { v: v.toFixed(2), last: c.last, over }
     }),
   }))
 
