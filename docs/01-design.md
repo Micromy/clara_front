@@ -130,6 +130,7 @@ App.vue 마운트
 
 - **해시 라우터** (`createWebHashHistory`) — GitHub Pages 서브경로 대응
 - **탭 기반 네비게이션**: Builder 탭 + Chart 탭 + `+New Builder` 버튼
+- `/library-report`의 컨텍스트(PDK × Family)와 route query 설계는 [library-report-family-design.md](library-report-family-design.md) 참조
 
 ---
 
